@@ -11,7 +11,6 @@ import (
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
 )
 
 const crpFiniteMode = "FINITE_FORWARD"

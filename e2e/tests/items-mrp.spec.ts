@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test'
 
-async function login(page: Page) {
+async function login({ page }: { page: Page }) {
   await page.goto('/login')
   await page.getByLabel('ユーザー名').fill('admin')
   await page.getByLabel('パスワード').fill('admin123')
