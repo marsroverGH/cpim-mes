@@ -101,6 +101,7 @@ export interface Customer {
   customerNo: string
   name: string
   status: 'ACTIVE' | 'BLOCKED'
+  serviceClassCode: string
   shipTo: string
   notes: string
   createdBy?: string
@@ -117,6 +118,7 @@ export interface SalesOrder {
   requestedDate: string
   promisedDate?: string
   status: 'DRAFT' | 'CONFIRMED' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'CANCELLED'
+  priority: 'EXPEDITE' | 'HIGH' | 'NORMAL'
   notes: string
   totalQty: number
   allocatedQty: number
@@ -238,10 +240,13 @@ export interface OrderPromiseResult {
 }
 export const SalesOrdersApi = {
   customers: () => http.get<Customer[]>('/customers').then(r => r.data),
+  serviceClasses: () => http.get<CustomerServiceClass[]>('/customer-service-classes').then(r => r.data),
+  setCustomerServiceClass: (customerId: string, serviceClassCode: string) => http.put<Customer>(`/customers/${customerId}/service-class`, { serviceClassCode }).then(r => r.data),
   createCustomer: (body: Partial<Customer>) => http.post<Customer>('/customers', body).then(r => r.data),
   updateCustomer: (id: string, body: Partial<Customer>) => http.put<Customer>(`/customers/${id}`, body).then(r => r.data),
   list: () => http.get<SalesOrder[]>('/sales-orders').then(r => r.data),
   get: (id: string) => http.get<SalesOrderDetail>(`/sales-orders/${id}`).then(r => r.data),
+  setPriority: (id: string, priority: 'EXPEDITE' | 'HIGH' | 'NORMAL') => http.put<SalesOrderDetail>(`/sales-orders/${id}/priority`, { priority }).then(r => r.data),
   create: (body: SalesOrderCreateInput) => http.post<SalesOrderDetail>('/sales-orders', body).then(r => r.data),
   confirm: (id: string) => http.post<SalesOrderDetail>(`/sales-orders/${id}/confirm`, {}).then(r => r.data),
   cancel: (id: string) => http.post<SalesOrderDetail>(`/sales-orders/${id}/cancel`, {}).then(r => r.data),
@@ -252,6 +257,119 @@ export const SalesOrdersApi = {
   promiseAccept: (orderId: string, runId: string) => http.post<OrderPromiseResult>(`/sales-orders/${orderId}/promise/accept`, { runId }).then(r => r.data),
   promiseRuns: (orderId: string) => http.get<OrderPromiseRun[]>(`/sales-orders/${orderId}/promise-runs`).then(r => r.data),
   promiseRun: (runId: string) => http.get<OrderPromiseResult>(`/order-promise-runs/${runId}`).then(r => r.data)
+}
+
+
+// ------- Backorder Processing / Product Allocation -------
+export interface CustomerServiceClass {
+  code: string
+  name: string
+  priorityRank: number
+  isActive: boolean
+}
+export interface ProductAllocationBucket {
+  id?: string
+  planId?: string
+  serviceClassCode: string
+  allocationPct: number
+  priorityRank: number
+}
+export interface ProductAllocationPlan {
+  id: string
+  itemId: string
+  itemCode: string
+  itemName: string
+  name: string
+  effectiveFrom: string
+  effectiveTo: string
+  status: 'DRAFT' | 'ACTIVE' | 'INACTIVE'
+  createdBy: string
+  activatedBy?: string
+  activatedAt?: string
+  deactivatedBy?: string
+  deactivatedAt?: string
+}
+export interface ProductAllocationPlanDetail {
+  plan: ProductAllocationPlan
+  buckets: ProductAllocationBucket[]
+}
+export interface ProductAllocationPlanInput {
+  itemId: string
+  name: string
+  effectiveFrom: string
+  effectiveTo: string
+  buckets: ProductAllocationBucket[]
+}
+export interface BackorderRun {
+  id: string
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  horizonDays: number
+  filterItemId?: string
+  requestedAt: string
+  completedAt?: string
+  resultHash?: string
+  errorText: string
+  requestedBy: string
+}
+export interface BackorderRunLine {
+  id: string
+  runId: string
+  salesOrderId: string
+  salesOrderNo: string
+  salesOrderLineId: string
+  itemId: string
+  itemCode: string
+  itemName: string
+  customerId: string
+  customerNo: string
+  customerName: string
+  serviceClassCode: string
+  orderPriority: 'EXPEDITE' | 'HIGH' | 'NORMAL'
+  rankNo: number
+  openQty: number
+  allocatedQty: number
+  currentPromisedDate?: string
+  proposedPromisedDate?: string
+  atpQty: number
+  ctpQty: number
+  backorderQty: number
+  decision: 'UNCHANGED' | 'IMPROVED' | 'DELAYED' | 'NEW_PROMISE' | 'BACKORDER'
+  constraintType: 'NONE' | 'PRODUCT_ALLOCATION' | 'MATERIAL' | 'CAPACITY' | 'MATERIAL_AND_CAPACITY' | 'HORIZON'
+  allocationPlanId?: string
+  allocationBucketPct?: number
+  detail: Record<string, unknown>
+}
+export interface BackorderRunConfirmation {
+  id: string
+  runId: string
+  salesOrderLineId: string
+  sequenceNo: number
+  quantity: number
+  confirmedDate: string
+  source: 'ALLOCATED' | 'ATP' | 'CTP_PRODUCTION' | 'CTP_PURCHASE' | 'CTP_MIXED'
+}
+export interface BackorderPublication {
+  id: string
+  runId: string
+  resultHash: string
+  publishedBy: string
+  publishedAt: string
+}
+export interface BackorderResult {
+  run: BackorderRun
+  lines: BackorderRunLine[]
+  confirmations: BackorderRunConfirmation[]
+  publication?: BackorderPublication
+}
+export const BackordersApi = {
+  preview: (horizonDays = 90, filterItemId?: string) => http.post<BackorderResult>('/backorders/preview', { horizonDays, ...(filterItemId ? { filterItemId } : {}) }).then(r => r.data),
+  publish: (runId: string) => http.post<BackorderResult>('/backorders/publish', { runId }).then(r => r.data),
+  runs: () => http.get<BackorderRun[]>('/backorders/runs').then(r => r.data),
+  run: (id: string) => http.get<BackorderResult>(`/backorders/runs/${id}`).then(r => r.data),
+  plans: () => http.get<ProductAllocationPlanDetail[]>('/product-allocation-plans').then(r => r.data),
+  createPlan: (body: ProductAllocationPlanInput) => http.post<ProductAllocationPlanDetail>('/product-allocation-plans', body).then(r => r.data),
+  activatePlan: (id: string) => http.post<ProductAllocationPlanDetail>(`/product-allocation-plans/${id}/activate`, {}).then(r => r.data),
+  deactivatePlan: (id: string) => http.post<ProductAllocationPlanDetail>(`/product-allocation-plans/${id}/deactivate`, {}).then(r => r.data)
 }
 
 // ------- MPS -------

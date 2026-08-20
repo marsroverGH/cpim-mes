@@ -322,3 +322,7 @@ Formal customer orders now own committed demand, inventory allocation, partial/f
 ## Advanced Order Promising / CTP (0032)
 
 Sales Orders can now run side-effect-free ATP→CTP promise checks. ATP excludes the order's own demand, material CTP respects quality/supplier constraints, and capacity CTP reuses the Detailed Scheduling allocator. Promise acceptance revalidates a canonical result hash before writing promised dates, with immutable audit evidence. See `docs/ADVANCED_ORDER_PROMISING.md`.
+
+## Backorder Processing / Product Allocation (0033)
+
+Backorder Processing re-evaluates committed Sales Orders after supply/capacity changes using order priority, customer service class, Product Allocation limits, ATP and CTP. Preview is operationally side-effect free; Publish revalidates a canonical result hash and writes immutable publication evidence before changing promised dates. See `docs/BACKORDER_PROCESSING_PRODUCT_ALLOCATION.md`.

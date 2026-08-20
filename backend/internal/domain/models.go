@@ -136,16 +136,17 @@ type PurchaseReceipt struct {
 
 // Customer is a customer master record used by Sales Order Management.
 type Customer struct {
-	ID              uuid.UUID  `db:"id"                 json:"id"`
-	CustomerNo      string     `db:"customer_no"        json:"customerNo"`
-	Name            string     `db:"name"               json:"name"`
-	Status          string     `db:"status"             json:"status"`
-	ShipTo          string     `db:"ship_to"            json:"shipTo"`
-	Notes           string     `db:"notes"              json:"notes"`
-	CreatedByUserID *uuid.UUID `db:"created_by_user_id" json:"createdByUserId,omitempty"`
-	CreatedBy       string     `db:"created_by"         json:"createdBy"`
-	CreatedAt       time.Time  `db:"created_at"         json:"createdAt"`
-	UpdatedAt       time.Time  `db:"updated_at"         json:"updatedAt"`
+	ID               uuid.UUID  `db:"id"                 json:"id"`
+	CustomerNo       string     `db:"customer_no"        json:"customerNo"`
+	Name             string     `db:"name"               json:"name"`
+	Status           string     `db:"status"             json:"status"`
+	ServiceClassCode string     `db:"service_class_code" json:"serviceClassCode"`
+	ShipTo           string     `db:"ship_to"            json:"shipTo"`
+	Notes            string     `db:"notes"              json:"notes"`
+	CreatedByUserID  *uuid.UUID `db:"created_by_user_id" json:"createdByUserId,omitempty"`
+	CreatedBy        string     `db:"created_by"         json:"createdBy"`
+	CreatedAt        time.Time  `db:"created_at"         json:"createdAt"`
+	UpdatedAt        time.Time  `db:"updated_at"         json:"updatedAt"`
 }
 
 // SalesOrder is the header of a committed customer order. Quantities live on lines.
@@ -159,6 +160,7 @@ type SalesOrder struct {
 	RequestedDate     time.Time  `db:"requested_date"       json:"requestedDate"`
 	PromisedDate      *time.Time `db:"promised_date"        json:"promisedDate,omitempty"`
 	Status            string     `db:"status"               json:"status"`
+	Priority          string     `db:"priority"             json:"priority"`
 	Notes             string     `db:"notes"                json:"notes"`
 	CreatedByUserID   *uuid.UUID `db:"created_by_user_id"   json:"createdByUserId,omitempty"`
 	CreatedBy         string     `db:"created_by"           json:"createdBy"`
@@ -285,6 +287,122 @@ type OrderPromiseResult struct {
 	Lines         []OrderPromiseLineResult   `json:"lines"`
 	Confirmations []OrderPromiseConfirmation `json:"confirmations"`
 	Acceptance    *OrderPromiseAcceptance    `json:"acceptance,omitempty"`
+}
+
+// CustomerServiceClass ranks customer demand for Backorder Processing.
+type CustomerServiceClass struct {
+	Code         string    `db:"code"          json:"code"`
+	Name         string    `db:"name"          json:"name"`
+	PriorityRank int       `db:"priority_rank" json:"priorityRank"`
+	IsActive     bool      `db:"is_active"     json:"isActive"`
+	CreatedAt    time.Time `db:"created_at"    json:"createdAt"`
+}
+
+// ProductAllocationPlan reserves a percentage of scarce ATP for service classes.
+type ProductAllocationPlan struct {
+	ID                  uuid.UUID  `db:"id"                       json:"id"`
+	ItemID              uuid.UUID  `db:"item_id"                  json:"itemId"`
+	ItemCode            string     `db:"item_code"                json:"itemCode"`
+	ItemName            string     `db:"item_name"                json:"itemName"`
+	Name                string     `db:"name"                     json:"name"`
+	EffectiveFrom       time.Time  `db:"effective_from"           json:"effectiveFrom"`
+	EffectiveTo         time.Time  `db:"effective_to"             json:"effectiveTo"`
+	Status              string     `db:"status"                   json:"status"`
+	CreatedByUserID     uuid.UUID  `db:"created_by_user_id"       json:"createdByUserId"`
+	CreatedBy           string     `db:"created_by"               json:"createdBy"`
+	ActivatedByUserID   *uuid.UUID `db:"activated_by_user_id"     json:"activatedByUserId,omitempty"`
+	ActivatedBy         *string    `db:"activated_by"             json:"activatedBy,omitempty"`
+	ActivatedAt         *time.Time `db:"activated_at"             json:"activatedAt,omitempty"`
+	DeactivatedByUserID *uuid.UUID `db:"deactivated_by_user_id"   json:"deactivatedByUserId,omitempty"`
+	DeactivatedBy       *string    `db:"deactivated_by"           json:"deactivatedBy,omitempty"`
+	DeactivatedAt       *time.Time `db:"deactivated_at"           json:"deactivatedAt,omitempty"`
+	CreatedAt           time.Time  `db:"created_at"               json:"createdAt"`
+	UpdatedAt           time.Time  `db:"updated_at"               json:"updatedAt"`
+}
+
+type ProductAllocationBucket struct {
+	ID               uuid.UUID `db:"id"                 json:"id"`
+	PlanID           uuid.UUID `db:"plan_id"            json:"planId"`
+	ServiceClassCode string    `db:"service_class_code" json:"serviceClassCode"`
+	AllocationPct    float64   `db:"allocation_pct"     json:"allocationPct"`
+	PriorityRank     int       `db:"priority_rank"      json:"priorityRank"`
+}
+
+type ProductAllocationPlanDetail struct {
+	Plan    ProductAllocationPlan     `json:"plan"`
+	Buckets []ProductAllocationBucket `json:"buckets"`
+}
+
+// BackorderRun is one immutable Preview calculation across committed Sales Orders.
+type BackorderRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	Status            string     `db:"status"               json:"status"`
+	HorizonDays       int        `db:"horizon_days"         json:"horizonDays"`
+	FilterItemID      *uuid.UUID `db:"filter_item_id"       json:"filterItemId,omitempty"`
+	RequestedAt       time.Time  `db:"requested_at"         json:"requestedAt"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	RequestedByUserID uuid.UUID  `db:"requested_by_user_id" json:"requestedByUserId"`
+	RequestedBy       string     `db:"requested_by"         json:"requestedBy"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+}
+
+type BackorderRunLine struct {
+	ID                   uuid.UUID       `db:"id"                    json:"id"`
+	RunID                uuid.UUID       `db:"run_id"                json:"runId"`
+	SalesOrderID         uuid.UUID       `db:"sales_order_id"        json:"salesOrderId"`
+	SalesOrderNo         string          `db:"sales_order_no"        json:"salesOrderNo"`
+	SalesOrderLineID     uuid.UUID       `db:"sales_order_line_id"   json:"salesOrderLineId"`
+	ItemID               uuid.UUID       `db:"item_id"               json:"itemId"`
+	ItemCode             string          `db:"item_code"             json:"itemCode"`
+	ItemName             string          `db:"item_name"             json:"itemName"`
+	CustomerID           uuid.UUID       `db:"customer_id"           json:"customerId"`
+	CustomerNo           string          `db:"customer_no"           json:"customerNo"`
+	CustomerName         string          `db:"customer_name"         json:"customerName"`
+	ServiceClassCode     string          `db:"service_class_code"    json:"serviceClassCode"`
+	OrderPriority        string          `db:"order_priority"        json:"orderPriority"`
+	RankNo               int             `db:"rank_no"               json:"rankNo"`
+	OpenQty              float64         `db:"open_qty"              json:"openQty"`
+	AllocatedQty         float64         `db:"allocated_qty"         json:"allocatedQty"`
+	CurrentPromisedDate  *time.Time      `db:"current_promised_date" json:"currentPromisedDate,omitempty"`
+	ProposedPromisedDate *time.Time      `db:"proposed_promised_date" json:"proposedPromisedDate,omitempty"`
+	ATPQty               float64         `db:"atp_qty"               json:"atpQty"`
+	CTPQty               float64         `db:"ctp_qty"               json:"ctpQty"`
+	BackorderQty         float64         `db:"backorder_qty"         json:"backorderQty"`
+	Decision             string          `db:"decision"              json:"decision"`
+	ConstraintType       string          `db:"constraint_type"       json:"constraintType"`
+	AllocationPlanID     *uuid.UUID      `db:"allocation_plan_id"    json:"allocationPlanId,omitempty"`
+	AllocationBucketPct  *float64        `db:"allocation_bucket_pct" json:"allocationBucketPct,omitempty"`
+	Detail               json.RawMessage `db:"detail"                json:"detail"`
+	CreatedAt            time.Time       `db:"created_at"            json:"createdAt"`
+}
+
+type BackorderRunConfirmation struct {
+	ID               uuid.UUID `db:"id"                  json:"id"`
+	RunID            uuid.UUID `db:"run_id"              json:"runId"`
+	SalesOrderLineID uuid.UUID `db:"sales_order_line_id" json:"salesOrderLineId"`
+	SequenceNo       int       `db:"sequence_no"         json:"sequenceNo"`
+	Quantity         float64   `db:"quantity"            json:"quantity"`
+	ConfirmedDate    time.Time `db:"confirmed_date"      json:"confirmedDate"`
+	Source           string    `db:"source"              json:"source"`
+	CreatedAt        time.Time `db:"created_at"          json:"createdAt"`
+}
+
+type BackorderPublication struct {
+	ID                uuid.UUID `db:"id"                   json:"id"`
+	RunID             uuid.UUID `db:"run_id"               json:"runId"`
+	ResultHash        string    `db:"result_hash"          json:"resultHash"`
+	PublishedByUserID uuid.UUID `db:"published_by_user_id" json:"publishedByUserId"`
+	PublishedBy       string    `db:"published_by"         json:"publishedBy"`
+	PublishedAt       time.Time `db:"published_at"         json:"publishedAt"`
+}
+
+type BackorderResult struct {
+	Run           BackorderRun               `json:"run"`
+	Lines         []BackorderRunLine         `json:"lines"`
+	Confirmations []BackorderRunConfirmation `json:"confirmations"`
+	Publication   *BackorderPublication      `json:"publication,omitempty"`
 }
 
 // MRPResult — MRP計算結果 (1品目1期間)

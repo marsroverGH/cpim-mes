@@ -70,6 +70,10 @@
     {
       "name": "SalesOrders",
       "description": "Customer and Sales Order management"
+    },
+    {
+      "name": "Backorders",
+      "description": "Backorder Processing and Product Allocation"
     }
   ],
   "components": {
@@ -1097,6 +1101,9 @@
           },
           "notes": {
             "type": "string"
+          },
+          "serviceClassCode": {
+            "type": "string"
           }
         }
       },
@@ -1205,6 +1212,14 @@
           },
           "openQty": {
             "type": "number"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "EXPEDITE",
+              "HIGH",
+              "NORMAL"
+            ]
           }
         }
       },
@@ -1436,6 +1451,314 @@
           "acceptance": {
             "$ref": "#/components/schemas/OrderPromiseAcceptance",
             "nullable": true
+          }
+        }
+      },
+      "CustomerServiceClass": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priorityRank": {
+            "type": "integer"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProductAllocationBucket": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "serviceClassCode": {
+            "type": "string"
+          },
+          "allocationPct": {
+            "type": "number"
+          },
+          "priorityRank": {
+            "type": "integer"
+          }
+        }
+      },
+      "ProductAllocationPlan": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "INACTIVE"
+            ]
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "activatedBy": {
+            "type": "string"
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductAllocationPlanDetail": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/ProductAllocationPlan"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductAllocationBucket"
+            }
+          }
+        }
+      },
+      "BackorderRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "filterItemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "errorText": {
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "BackorderRunLine": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderNo": {
+            "type": "string"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "customerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "customerNo": {
+            "type": "string"
+          },
+          "serviceClassCode": {
+            "type": "string"
+          },
+          "orderPriority": {
+            "type": "string"
+          },
+          "rankNo": {
+            "type": "integer"
+          },
+          "openQty": {
+            "type": "number"
+          },
+          "allocatedQty": {
+            "type": "number"
+          },
+          "currentPromisedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "proposedPromisedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "atpQty": {
+            "type": "number"
+          },
+          "ctpQty": {
+            "type": "number"
+          },
+          "backorderQty": {
+            "type": "number"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "UNCHANGED",
+              "IMPROVED",
+              "DELAYED",
+              "NEW_PROMISE",
+              "BACKORDER"
+            ]
+          },
+          "constraintType": {
+            "type": "string"
+          },
+          "allocationPlanId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "allocationBucketPct": {
+            "type": "number"
+          }
+        }
+      },
+      "BackorderRunConfirmation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequenceNo": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "confirmedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
+      },
+      "BackorderPublication": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "publishedBy": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BackorderResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/BackorderRun"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackorderRunLine"
+            }
+          },
+          "confirmations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackorderRunConfirmation"
+            }
+          },
+          "publication": {
+            "$ref": "#/components/schemas/BackorderPublication"
           }
         }
       }
@@ -3138,6 +3461,464 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OrderPromiseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer-service-classes": {
+      "get": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "List customer service classes",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Service classes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomerServiceClass"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customers/{id}/service-class": {
+      "put": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Set customer service class",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "serviceClassCode"
+                ],
+                "properties": {
+                  "serviceClassCode": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Customer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/priority": {
+      "put": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Set sales order BOP priority",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "priority"
+                ],
+                "properties": {
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "EXPEDITE",
+                      "HIGH",
+                      "NORMAL"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated sales order",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesOrderDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/product-allocation-plans": {
+      "get": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "List product allocation plans",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allocation plans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductAllocationPlanDetail"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Create DRAFT product allocation plan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "itemId",
+                  "name",
+                  "effectiveFrom",
+                  "effectiveTo",
+                  "buckets"
+                ],
+                "properties": {
+                  "itemId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "effectiveTo": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "buckets": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/ProductAllocationBucket"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created allocation plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAllocationPlanDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/product-allocation-plans/{id}/activate": {
+      "post": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Activate product allocation plan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allocation plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAllocationPlanDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/product-allocation-plans/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Deactivate product allocation plan",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Allocation plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductAllocationPlanDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backorders/preview": {
+      "post": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Preview Backorder Processing without operational side effects",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "horizonDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 366
+                  },
+                  "filterItemId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "BOP preview result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackorderResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backorders/publish": {
+      "post": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Publish a non-stale BOP preview",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "runId"
+                ],
+                "properties": {
+                  "runId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Published BOP result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackorderResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backorders/runs": {
+      "get": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "List BOP runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "BOP runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackorderRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/backorders/runs/{id}": {
+      "get": {
+        "tags": [
+          "Backorders"
+        ],
+        "summary": "Get BOP run detail",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "BOP run detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackorderResult"
                 }
               }
             }

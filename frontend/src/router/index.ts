@@ -13,6 +13,7 @@ const router = createRouter({
     { path: '/routings',        component: () => import('@/views/Routings.vue') },
     { path: '/demand',          component: () => import('@/views/Demand.vue') },
     { path: '/sales-orders',     component: () => import('@/views/SalesOrders.vue') },
+    { path: '/backorders',        component: () => import('@/views/Backorders.vue') },
     { path: '/forecast',        component: () => import('@/views/Forecast.vue') },
     { path: '/atp',             component: () => import('@/views/Atp.vue') },
     { path: '/sop',             component: () => import('@/views/Sop.vue') },

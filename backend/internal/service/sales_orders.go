@@ -77,7 +77,7 @@ type SalesOrderService struct {
 
 const salesOrderSelect = `
 SELECT so.id,so.order_no,so.customer_id,c.customer_no,c.name AS customer_name,
-       so.order_date,so.requested_date,so.promised_date,so.status,so.notes,
+       so.order_date,so.requested_date,so.promised_date,so.status,so.priority,so.notes,
        so.created_by_user_id,so.created_by,so.confirmed_by_user_id,so.confirmed_by,so.confirmed_at,
        so.cancelled_by_user_id,so.cancelled_by,so.cancelled_at,so.created_at,so.updated_at,
        COALESCE(SUM(l.quantity),0)::double precision AS total_qty,

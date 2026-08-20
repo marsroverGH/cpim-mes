@@ -106,6 +106,19 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/sales-orders/{id}/promise-runs", srv.listSalesOrderPromiseRuns)
 			secured.Get("/order-promise-runs/{id}", srv.getOrderPromiseRun)
 
+			// Backorder Processing / Product Allocation
+			secured.Get("/customer-service-classes", srv.listCustomerServiceClasses)
+			secured.With(requirePermission(PermProductAllocation)).Put("/customers/{id}/service-class", srv.setCustomerServiceClass)
+			secured.With(requirePermission(PermBackorderRun)).Put("/sales-orders/{id}/priority", srv.setSalesOrderPriority)
+			secured.Get("/product-allocation-plans", srv.listProductAllocationPlans)
+			secured.With(requirePermission(PermProductAllocation)).Post("/product-allocation-plans", srv.createProductAllocationPlan)
+			secured.With(requirePermission(PermProductAllocation)).Post("/product-allocation-plans/{id}/activate", srv.activateProductAllocationPlan)
+			secured.With(requirePermission(PermProductAllocation)).Post("/product-allocation-plans/{id}/deactivate", srv.deactivateProductAllocationPlan)
+			secured.With(requirePermission(PermBackorderRun)).Post("/backorders/preview", srv.previewBackorders)
+			secured.With(requirePermission(PermBackorderRun)).Post("/backorders/publish", srv.publishBackorders)
+			secured.Get("/backorders/runs", srv.listBackorderRuns)
+			secured.Get("/backorders/runs/{id}", srv.getBackorderRun)
+
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 
 			// Work Centers
