@@ -15,14 +15,15 @@ import (
 )
 
 type Services struct {
-	Items      *ItemService
-	BOM        *BOMService
-	Demand     *DemandService
-	MPS        *MPSService
-	Inventory  *InventoryService
-	WorkOrders *WorkOrderService
-	Purchases  *PurchaseService
-	MRP        *MRPService
+	Items       *ItemService
+	BOM         *BOMService
+	Demand      *DemandService
+	MPS         *MPSService
+	Inventory   *InventoryService
+	WorkOrders  *WorkOrderService
+	Purchases   *PurchaseService
+	SalesOrders *SalesOrderService
+	MRP         *MRPService
 
 	WorkCenters *WorkCenterService
 	Routings    *RoutingService
@@ -71,7 +72,8 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		MPS:             &MPSService{r: r.MPS},
 		Inventory:       &InventoryService{r: r.Inventory, ledger: ledger},
 		WorkOrders:      &WorkOrderService{r: r.WorkOrders},
-		Purchases:       &PurchaseService{r: r.Purchases},
+		Purchases:       &PurchaseService{db: db, r: r.Purchases},
+		SalesOrders:     &SalesOrderService{db: db, ledger: ledger},
 		MRP:             mrp,
 		WorkCenters:     &WorkCenterService{r: r.WorkCenters},
 		Routings:        &RoutingService{r: r.Routings},
@@ -86,7 +88,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		CycleCount:      &CycleCountService{repos: r, abc: abc, ledger: ledger},
 		Workflow:        NewWorkflowService(db, r, ledger),
 		Calendar:        &CalendarService{r: r.Calendars},
-		ATP:             &ATPService{repos: r},
+		ATP:             &ATPService{db: db, repos: r},
 		Quality:         &QualityService{db: db, repos: r},
 		SupplierQuality: &SupplierQualityService{db: db, ledger: ledger},
 		Actions:         actions,
@@ -133,16 +135,7 @@ func (s *DemandService) List(ctx context.Context) ([]domain.DemandForecast, erro
 	return s.r.List(ctx)
 }
 func (s *DemandService) Create(ctx context.Context, d *domain.DemandForecast) error {
-	if d == nil {
-		return domain.NewBadRequest("demand required", nil)
-	}
-	if d.Source == "" {
-		d.Source = "ORDER"
-	}
-	if d.Source != "ORDER" {
-		return domain.NewBadRequest("manual FORECAST demand is disabled; create a versioned forecast run instead", nil)
-	}
-	return s.r.Create(ctx, d)
+	return domain.NewConflict("demand_forecasts is legacy read-only; create customer demand through Sales Orders")
 }
 
 type MPSService struct{ r *repository.MPSRepo }

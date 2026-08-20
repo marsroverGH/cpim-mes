@@ -313,3 +313,8 @@ CRP now supports finite forward scheduling with firm WO load first, MRP planned 
 ### Detailed Scheduling
 
 Detailed Scheduling extends finite CRP with alternative Work Centers, transfer-batch lot streaming, sequence-dependent setup, parallel machine lanes and Work Center labor head-count constraints. Released/in-progress WOs remain firm load; planned orders are assigned to the earliest feasible candidate while calendars and routing dependencies are preserved. Detailed schedule snapshots are immutable and Shop Floor execution supports transfer-batch overlap without allowing downstream good quantity to overtake its predecessor. See `docs/DETAILED_SCHEDULING.md`.
+
+
+## Sales Order / Customer Order Management (0031)
+
+Formal customer orders now own committed demand, inventory allocation, partial/full shipment and cancellation. Existing `demand_forecasts(source=ORDER)` rows are migrated to legacy Sales Orders and the legacy demand table becomes read-only. See `docs/SALES_ORDER_MANAGEMENT.md`.

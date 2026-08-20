@@ -24,6 +24,9 @@ func TestRBACCriticalPermissions(t *testing.T) {
 		{"operator can receive PO", domain.RoleOperator, PermPOReceive, true},
 		{"operator cannot create PO", domain.RoleOperator, PermPOPlan, false},
 		{"planner can create PO", domain.RolePlanner, PermPOPlan, true},
+		{"operator cannot manage sales orders", domain.RoleOperator, PermSalesOrderManage, false},
+		{"operator can ship sales orders", domain.RoleOperator, PermSalesOrderShip, true},
+		{"planner can manage sales orders", domain.RolePlanner, PermSalesOrderManage, true},
 		{"operator can create NCR", domain.RoleOperator, PermNCRCreate, true},
 		{"operator cannot disposition NCR", domain.RoleOperator, PermNCRDisposition, false},
 		{"planner can disposition NCR", domain.RolePlanner, PermNCRDisposition, true},
@@ -58,7 +61,7 @@ func TestAdminHasEveryDeclaredPermission(t *testing.T) {
 func TestViewerHasNoMutationPermission(t *testing.T) {
 	mutationPerms := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

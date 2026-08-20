@@ -9,6 +9,7 @@ import (
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/cpim-mes/backend/internal/repository"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 )
 
 // ====================================================================
@@ -18,7 +19,7 @@ import (
 // 期間別に「いま受注しても約束できる数量」を算出する。
 //   StartingOnHand[t] = EndingProjected[t-1]
 //   ScheduledIn[t]    = 計画入庫 (PO の納期 + WO 完成日)
-//   CommittedOut[t]   = 確定受注 (demand_forecasts.source = 'ORDER' で due_date が t)
+//   CommittedOut[t]   = confirmed Sales Order open quantity by promised/requested date
 //   EndingProjected[t]= StartingOnHand[t] + ScheduledIn[t] - CommittedOut[t]
 //   ATP[t]            = ScheduledIn[t] - 当該期間以降の最初の補充までの CommittedOut
 //
@@ -26,6 +27,7 @@ import (
 // 累積ATP は ATP の prefix sum で計算する。
 
 type ATPService struct {
+	db    *sqlx.DB
 	repos *repository.Repositories
 }
 
@@ -131,18 +133,21 @@ func (s *ATPService) Run(ctx context.Context, itemID uuid.UUID, horizonDays, buc
 		bucketIdx[b.Period] = i
 	}
 
-	// 確定受注: demand_forecasts where source='ORDER' & due_date in range
-	demands, err := s.repos.Demand.List(ctx)
-	if err != nil {
+	// Committed customer demand is owned by formal Sales Orders after 0031.
+	var demands []domain.DemandForecast
+	if err := s.db.SelectContext(ctx, &demands, `
+SELECT l.id AS id,l.item_id,
+       COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) AS due_date,
+       (l.quantity-l.shipped_qty-l.cancelled_qty)::double precision AS quantity,
+       'ORDER' AS source,so.created_at
+  FROM sales_order_lines l JOIN sales_orders so ON so.id=l.sales_order_id
+ WHERE l.item_id=$1 AND so.status IN ('CONFIRMED','PARTIALLY_SHIPPED')
+   AND COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) BETWEEN $2 AND $3
+   AND (l.quantity-l.shipped_qty-l.cancelled_qty)>0
+ ORDER BY due_date,l.id`, itemID, now, end); err != nil {
 		return nil, err
 	}
 	for _, d := range demands {
-		if d.ItemID != itemID || d.Source != "ORDER" {
-			continue
-		}
-		if d.DueDate.Before(now) || d.DueDate.After(end) {
-			continue
-		}
 		bs := bucketStart(d.DueDate)
 		buckets[bucketIdx[bs]].CommittedOut += d.Quantity
 	}

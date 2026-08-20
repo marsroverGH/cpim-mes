@@ -129,19 +129,27 @@ func (s *ForecastService) Run(ctx context.Context, req ForecastRequest, actor Fo
 		return nil, err
 	}
 
-	demands, err := s.repos.Demand.List(ctx)
-	if err != nil {
+	var demands []domain.DemandForecast
+	if err := s.db.SelectContext(ctx, &demands, `
+SELECT l.id AS id,l.item_id,
+       COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) AS due_date,
+       (l.quantity-l.cancelled_qty)::double precision AS quantity,
+       'ORDER' AS source,so.created_at
+  FROM sales_order_lines l JOIN sales_orders so ON so.id=l.sales_order_id
+ WHERE l.item_id=$1
+   AND so.status IN ('CONFIRMED','PARTIALLY_SHIPPED','SHIPPED')
+   AND COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) < $2
+   AND (l.quantity-l.cancelled_qty)>0
+ ORDER BY due_date,l.id`, req.ItemID, asOfDate); err != nil {
 		return nil, err
 	}
 	type histPoint struct {
 		t   time.Time
 		qty float64
 	}
-	hist := make([]histPoint, 0)
+	hist := make([]histPoint, 0, len(demands))
 	for _, d := range demands {
-		if d.ItemID == req.ItemID && strings.EqualFold(d.Source, "ORDER") && TruncateDay(d.DueDate).Before(asOfDate) {
-			hist = append(hist, histPoint{t: d.DueDate, qty: d.Quantity})
-		}
+		hist = append(hist, histPoint{t: d.DueDate, qty: d.Quantity})
 	}
 	if len(hist) == 0 {
 		return nil, domain.NewBadRequest("no historical customer orders found for item", nil)
@@ -401,17 +409,19 @@ func (s *ForecastService) Consumption(ctx context.Context, id uuid.UUID) (*domai
 	if err != nil {
 		return nil, err
 	}
-	orders, err := s.repos.Demand.List(ctx)
-	if err != nil {
+	var orders []domain.DemandForecast
+	if err := s.db.SelectContext(ctx, &orders, `
+SELECT l.id AS id,l.item_id,
+       COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) AS due_date,
+       (l.quantity-l.shipped_qty-l.cancelled_qty)::double precision AS quantity,
+       'ORDER' AS source,so.created_at
+  FROM sales_order_lines l JOIN sales_orders so ON so.id=l.sales_order_id
+ WHERE l.item_id=$1 AND so.status IN ('CONFIRMED','PARTIALLY_SHIPPED')
+   AND (l.quantity-l.shipped_qty-l.cancelled_qty)>0
+ ORDER BY due_date,l.id`, detail.Run.ItemID); err != nil {
 		return nil, err
 	}
-	filtered := make([]domain.DemandForecast, 0)
-	for _, o := range orders {
-		if o.ItemID == detail.Run.ItemID && strings.EqualFold(o.Source, "ORDER") {
-			filtered = append(filtered, o)
-		}
-	}
-	buckets := buildConsumptionBuckets(detail.Values, filtered, detail.Run.BucketDays)
+	buckets := buildConsumptionBuckets(detail.Values, orders, detail.Run.BucketDays)
 	return &domain.ForecastConsumptionResult{
 		RunID: detail.Run.ID, ItemID: detail.Run.ItemID, ItemCode: it.Code,
 		Version: detail.Run.Version, Scenario: detail.Run.Scenario,
@@ -444,7 +454,15 @@ func (s *ForecastService) ApplyConsumptionToMPS(ctx context.Context, id uuid.UUI
 		return 0, err
 	}
 	var orders []domain.DemandForecast
-	if err := tx.SelectContext(ctx, &orders, `SELECT * FROM demand_forecasts WHERE item_id=$1 AND source='ORDER' ORDER BY due_date`, run.ItemID); err != nil {
+	if err := tx.SelectContext(ctx, &orders, `
+SELECT l.id AS id,l.item_id,
+       COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) AS due_date,
+       (l.quantity-l.shipped_qty-l.cancelled_qty)::double precision AS quantity,
+       'ORDER' AS source,so.created_at
+  FROM sales_order_lines l JOIN sales_orders so ON so.id=l.sales_order_id
+ WHERE l.item_id=$1 AND so.status IN ('CONFIRMED','PARTIALLY_SHIPPED')
+   AND (l.quantity-l.shipped_qty-l.cancelled_qty)>0
+ ORDER BY due_date,l.id`, run.ItemID); err != nil {
 		return 0, err
 	}
 	buckets := buildConsumptionBuckets(values, orders, run.BucketDays)

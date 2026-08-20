@@ -1,0 +1,12 @@
+services:
+  db:
+    ports: !override
+      - "55432:5432"
+
+  backend:
+    ports: !override
+      - "58080:8080"
+
+  frontend:
+    ports: !override
+      - "55173:5173"

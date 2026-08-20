@@ -109,6 +109,7 @@ jobs:
           python3 backend/scripts/check_abc_annual_usage.py
           python3 backend/scripts/check_crp_finite_capacity.py
           python3 backend/scripts/check_detailed_scheduling.py
+          python3 backend/scripts/check_sales_order_management.py
           python3 backend/scripts/check_migration_manager.py
           python3 scripts/check_ci_dependency_policy.py
 

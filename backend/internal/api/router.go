@@ -72,7 +72,6 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.With(requirePermission(PermBOMWrite)).Post("/items/recompute-llc", srv.recomputeLLC)
 
 			secured.Get("/demand", srv.listDemand)
-			secured.With(requirePermission(PermDemandWrite)).Post("/demand", srv.createDemand)
 
 			secured.Get("/mps", srv.listMPS)
 			secured.With(requirePermission(PermMPSWrite)).Post("/mps", srv.upsertMPS)
@@ -89,6 +88,19 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/purchase-orders", srv.listPurchases)
 			secured.Get("/purchase-orders/{id}/receipts", srv.listPurchaseReceipts)
 			secured.With(requirePermission(PermPOPlan)).Post("/purchase-orders", srv.createPurchase)
+
+			// Customers / Sales Orders
+			secured.Get("/customers", srv.listCustomers)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/customers", srv.createCustomer)
+			secured.With(requirePermission(PermSalesOrderManage)).Put("/customers/{id}", srv.updateCustomer)
+			secured.Get("/sales-orders", srv.listSalesOrders)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-orders", srv.createSalesOrder)
+			secured.Get("/sales-orders/{id}", srv.getSalesOrder)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-orders/{id}/confirm", srv.confirmSalesOrder)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-orders/{id}/cancel", srv.cancelSalesOrder)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-order-lines/{id}/allocate", srv.allocateSalesOrderLine)
+			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-order-lines/{id}/release-allocation", srv.releaseSalesOrderLine)
+			secured.With(requirePermission(PermSalesOrderShip)).Post("/sales-order-lines/{id}/ship", srv.shipSalesOrderLine)
 
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 

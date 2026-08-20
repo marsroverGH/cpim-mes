@@ -12,6 +12,7 @@ const router = createRouter({
     { path: '/calendars',       component: () => import('@/views/Calendars.vue') },
     { path: '/routings',        component: () => import('@/views/Routings.vue') },
     { path: '/demand',          component: () => import('@/views/Demand.vue') },
+    { path: '/sales-orders',     component: () => import('@/views/SalesOrders.vue') },
     { path: '/forecast',        component: () => import('@/views/Forecast.vue') },
     { path: '/atp',             component: () => import('@/views/Atp.vue') },
     { path: '/sop',             component: () => import('@/views/Sop.vue') },

@@ -134,6 +134,98 @@ type PurchaseReceipt struct {
 	Source             string     `db:"source"               json:"source"`
 }
 
+// Customer is a customer master record used by Sales Order Management.
+type Customer struct {
+	ID              uuid.UUID  `db:"id"                 json:"id"`
+	CustomerNo      string     `db:"customer_no"        json:"customerNo"`
+	Name            string     `db:"name"               json:"name"`
+	Status          string     `db:"status"             json:"status"`
+	ShipTo          string     `db:"ship_to"            json:"shipTo"`
+	Notes           string     `db:"notes"              json:"notes"`
+	CreatedByUserID *uuid.UUID `db:"created_by_user_id" json:"createdByUserId,omitempty"`
+	CreatedBy       string     `db:"created_by"         json:"createdBy"`
+	CreatedAt       time.Time  `db:"created_at"         json:"createdAt"`
+	UpdatedAt       time.Time  `db:"updated_at"         json:"updatedAt"`
+}
+
+// SalesOrder is the header of a committed customer order. Quantities live on lines.
+type SalesOrder struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	OrderNo           string     `db:"order_no"             json:"orderNo"`
+	CustomerID        uuid.UUID  `db:"customer_id"          json:"customerId"`
+	CustomerNo        string     `db:"customer_no"          json:"customerNo"`
+	CustomerName      string     `db:"customer_name"        json:"customerName"`
+	OrderDate         time.Time  `db:"order_date"           json:"orderDate"`
+	RequestedDate     time.Time  `db:"requested_date"       json:"requestedDate"`
+	PromisedDate      *time.Time `db:"promised_date"        json:"promisedDate,omitempty"`
+	Status            string     `db:"status"               json:"status"`
+	Notes             string     `db:"notes"                json:"notes"`
+	CreatedByUserID   *uuid.UUID `db:"created_by_user_id"   json:"createdByUserId,omitempty"`
+	CreatedBy         string     `db:"created_by"           json:"createdBy"`
+	ConfirmedByUserID *uuid.UUID `db:"confirmed_by_user_id" json:"confirmedByUserId,omitempty"`
+	ConfirmedBy       *string    `db:"confirmed_by"         json:"confirmedBy,omitempty"`
+	ConfirmedAt       *time.Time `db:"confirmed_at"         json:"confirmedAt,omitempty"`
+	CancelledByUserID *uuid.UUID `db:"cancelled_by_user_id" json:"cancelledByUserId,omitempty"`
+	CancelledBy       *string    `db:"cancelled_by"         json:"cancelledBy,omitempty"`
+	CancelledAt       *time.Time `db:"cancelled_at"         json:"cancelledAt,omitempty"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+	UpdatedAt         time.Time  `db:"updated_at"           json:"updatedAt"`
+	TotalQty          float64    `db:"total_qty"            json:"totalQty"`
+	AllocatedQty      float64    `db:"allocated_qty"        json:"allocatedQty"`
+	ShippedQty        float64    `db:"shipped_qty"          json:"shippedQty"`
+	CancelledQty      float64    `db:"cancelled_qty"        json:"cancelledQty"`
+	OpenQty           float64    `db:"open_qty"             json:"openQty"`
+}
+
+type SalesOrderLine struct {
+	ID            uuid.UUID  `db:"id"              json:"id"`
+	SalesOrderID  uuid.UUID  `db:"sales_order_id"  json:"salesOrderId"`
+	LineNo        int        `db:"line_no"         json:"lineNo"`
+	ItemID        uuid.UUID  `db:"item_id"         json:"itemId"`
+	ItemCode      string     `db:"item_code"       json:"itemCode"`
+	ItemName      string     `db:"item_name"       json:"itemName"`
+	Quantity      float64    `db:"quantity"        json:"quantity"`
+	AllocatedQty  float64    `db:"allocated_qty"   json:"allocatedQty"`
+	ShippedQty    float64    `db:"shipped_qty"     json:"shippedQty"`
+	CancelledQty  float64    `db:"cancelled_qty"   json:"cancelledQty"`
+	OpenQty       float64    `db:"open_qty"        json:"openQty"`
+	UnitPrice     float64    `db:"unit_price"      json:"unitPrice"`
+	RequestedDate time.Time  `db:"requested_date"  json:"requestedDate"`
+	PromisedDate  *time.Time `db:"promised_date"   json:"promisedDate,omitempty"`
+	Notes         string     `db:"notes"           json:"notes"`
+}
+
+type SalesOrderStatusHistory struct {
+	ID            uuid.UUID  `db:"id"             json:"id"`
+	SalesOrderID  uuid.UUID  `db:"sales_order_id" json:"salesOrderId"`
+	FromStatus    *string    `db:"from_status"    json:"fromStatus,omitempty"`
+	ToStatus      string     `db:"to_status"      json:"toStatus"`
+	ActorUserID   *uuid.UUID `db:"actor_user_id"  json:"actorUserId,omitempty"`
+	ActorUsername string     `db:"actor_username" json:"actorUsername"`
+	OccurredAt    time.Time  `db:"occurred_at"    json:"occurredAt"`
+	Source        string     `db:"source"         json:"source"`
+}
+
+type SalesOrderShipment struct {
+	ID                uuid.UUID  `db:"id"                  json:"shipmentId"`
+	SalesOrderID      uuid.UUID  `db:"sales_order_id"      json:"salesOrderId"`
+	SalesOrderLineID  uuid.UUID  `db:"sales_order_line_id" json:"salesOrderLineId"`
+	Quantity          float64    `db:"quantity"            json:"quantity"`
+	InventoryTxnID    uuid.UUID  `db:"inventory_txn_id"    json:"inventoryTxnId"`
+	ShippedAt         time.Time  `db:"shipped_at"          json:"shippedAt"`
+	ShippedByUserID   *uuid.UUID `db:"shipped_by_user_id"  json:"shippedByUserId,omitempty"`
+	ShippedByUsername string     `db:"shipped_by_username" json:"shippedByUsername"`
+	Carrier           string     `db:"carrier"             json:"carrier"`
+	TrackingNo        string     `db:"tracking_no"         json:"trackingNo"`
+}
+
+type SalesOrderDetail struct {
+	Order     SalesOrder                `json:"order"`
+	Lines     []SalesOrderLine          `json:"lines"`
+	History   []SalesOrderStatusHistory `json:"history"`
+	Shipments []SalesOrderShipment      `json:"shipments"`
+}
+
 // MRPResult — MRP計算結果 (1品目1期間)
 type MRPResult struct {
 	ItemID             uuid.UUID  `json:"itemId"`

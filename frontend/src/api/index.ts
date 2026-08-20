@@ -91,8 +91,113 @@ export interface Demand {
   source: 'FORECAST' | 'ORDER'
 }
 export const DemandApi = {
-  list: () => http.get<Demand[]>('/demand').then(r => r.data),
-  create: (d: Demand) => http.post<Demand>('/demand', d).then(r => r.data)
+  list: () => http.get<Demand[]>('/demand').then(r => r.data)
+}
+
+
+// ------- Customers / Sales Orders -------
+export interface Customer {
+  id: string
+  customerNo: string
+  name: string
+  status: 'ACTIVE' | 'BLOCKED'
+  shipTo: string
+  notes: string
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
+}
+export interface SalesOrder {
+  id: string
+  orderNo: string
+  customerId: string
+  customerNo: string
+  customerName: string
+  orderDate: string
+  requestedDate: string
+  promisedDate?: string
+  status: 'DRAFT' | 'CONFIRMED' | 'PARTIALLY_SHIPPED' | 'SHIPPED' | 'CANCELLED'
+  notes: string
+  totalQty: number
+  allocatedQty: number
+  shippedQty: number
+  cancelledQty: number
+  openQty: number
+  createdBy?: string
+  confirmedBy?: string
+  confirmedAt?: string
+}
+export interface SalesOrderLine {
+  id: string
+  salesOrderId: string
+  lineNo: number
+  itemId: string
+  itemCode: string
+  itemName: string
+  quantity: number
+  allocatedQty: number
+  shippedQty: number
+  cancelledQty: number
+  openQty: number
+  unitPrice: number
+  requestedDate: string
+  promisedDate?: string
+  notes: string
+}
+export interface SalesOrderStatusHistory {
+  id: string
+  salesOrderId: string
+  fromStatus?: string
+  toStatus: string
+  actorUsername: string
+  occurredAt: string
+  source: string
+}
+export interface SalesOrderShipment {
+  shipmentId: string
+  salesOrderId: string
+  salesOrderLineId: string
+  quantity: number
+  inventoryTxnId: string
+  shippedAt: string
+  shippedByUsername: string
+  carrier: string
+  trackingNo: string
+}
+export interface SalesOrderDetail {
+  order: SalesOrder
+  lines: SalesOrderLine[]
+  history: SalesOrderStatusHistory[]
+  shipments: SalesOrderShipment[]
+}
+export interface SalesOrderCreateInput {
+  orderNo: string
+  customerId: string
+  orderDate?: string
+  requestedDate: string
+  promisedDate?: string
+  notes?: string
+  lines: Array<{
+    itemId: string
+    quantity: number
+    unitPrice?: number
+    requestedDate?: string
+    promisedDate?: string
+    notes?: string
+  }>
+}
+export const SalesOrdersApi = {
+  customers: () => http.get<Customer[]>('/customers').then(r => r.data),
+  createCustomer: (body: Partial<Customer>) => http.post<Customer>('/customers', body).then(r => r.data),
+  updateCustomer: (id: string, body: Partial<Customer>) => http.put<Customer>(`/customers/${id}`, body).then(r => r.data),
+  list: () => http.get<SalesOrder[]>('/sales-orders').then(r => r.data),
+  get: (id: string) => http.get<SalesOrderDetail>(`/sales-orders/${id}`).then(r => r.data),
+  create: (body: SalesOrderCreateInput) => http.post<SalesOrderDetail>('/sales-orders', body).then(r => r.data),
+  confirm: (id: string) => http.post<SalesOrderDetail>(`/sales-orders/${id}/confirm`, {}).then(r => r.data),
+  cancel: (id: string) => http.post<SalesOrderDetail>(`/sales-orders/${id}/cancel`, {}).then(r => r.data),
+  allocate: (lineId: string, quantity: number) => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/allocate`, { allocationId: crypto.randomUUID(), quantity }).then(r => r.data),
+  release: (lineId: string, quantity: number) => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/release-allocation`, { releaseId: crypto.randomUUID(), quantity }).then(r => r.data),
+  ship: (lineId: string, quantity: number, carrier = '', trackingNo = '') => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/ship`, { shipmentId: crypto.randomUUID(), quantity, carrier, trackingNo }).then(r => r.data)
 }
 
 // ------- MPS -------
