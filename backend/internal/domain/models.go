@@ -226,6 +226,67 @@ type SalesOrderDetail struct {
 	Shipments []SalesOrderShipment      `json:"shipments"`
 }
 
+// OrderPromiseRun is one immutable ATP/CTP what-if evaluation request/result.
+type OrderPromiseRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	SalesOrderID      uuid.UUID  `db:"sales_order_id"       json:"salesOrderId"`
+	Strategy          string     `db:"strategy"             json:"strategy"`
+	Status            string     `db:"status"               json:"status"`
+	RequestedAt       time.Time  `db:"requested_at"         json:"requestedAt"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	HorizonDays       int        `db:"horizon_days"         json:"horizonDays"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	RequestedByUserID uuid.UUID  `db:"requested_by_user_id" json:"requestedByUserId"`
+	RequestedBy       string     `db:"requested_by"         json:"requestedBy"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+}
+
+type OrderPromiseLineResult struct {
+	ID                uuid.UUID       `db:"id"                  json:"id"`
+	RunID             uuid.UUID       `db:"run_id"              json:"runId"`
+	SalesOrderLineID  uuid.UUID       `db:"sales_order_line_id" json:"salesOrderLineId"`
+	RequestedQty      float64         `db:"requested_qty"       json:"requestedQty"`
+	RequestedDate     time.Time       `db:"requested_date"      json:"requestedDate"`
+	ATPQty            float64         `db:"atp_qty"             json:"atpQty"`
+	CTPQty            float64         `db:"ctp_qty"             json:"ctpQty"`
+	EarliestFullDate  *time.Time      `db:"earliest_full_date"  json:"earliestFullDate,omitempty"`
+	PromiseMethod     string          `db:"promise_method"      json:"promiseMethod"`
+	MaterialReadyDate *time.Time      `db:"material_ready_date" json:"materialReadyDate,omitempty"`
+	CapacityReadyDate *time.Time      `db:"capacity_ready_date" json:"capacityReadyDate,omitempty"`
+	ConstraintType    string          `db:"constraint_type"     json:"constraintType"`
+	ConstraintDetail  json.RawMessage `db:"constraint_detail"   json:"constraintDetail"`
+	CreatedAt         time.Time       `db:"created_at"          json:"createdAt"`
+}
+
+type OrderPromiseConfirmation struct {
+	ID               uuid.UUID `db:"id"                  json:"id"`
+	RunID            uuid.UUID `db:"run_id"              json:"runId"`
+	SalesOrderLineID uuid.UUID `db:"sales_order_line_id" json:"salesOrderLineId"`
+	SequenceNo       int       `db:"sequence_no"         json:"sequenceNo"`
+	Quantity         float64   `db:"quantity"            json:"quantity"`
+	ConfirmedDate    time.Time `db:"confirmed_date"      json:"confirmedDate"`
+	Source           string    `db:"source"              json:"source"`
+	CreatedAt        time.Time `db:"created_at"          json:"createdAt"`
+}
+
+type OrderPromiseAcceptance struct {
+	ID               uuid.UUID `db:"id"                  json:"id"`
+	RunID            uuid.UUID `db:"run_id"              json:"runId"`
+	SalesOrderID     uuid.UUID `db:"sales_order_id"      json:"salesOrderId"`
+	ResultHash       string    `db:"result_hash"         json:"resultHash"`
+	AcceptedByUserID uuid.UUID `db:"accepted_by_user_id" json:"acceptedByUserId"`
+	AcceptedBy       string    `db:"accepted_by"         json:"acceptedBy"`
+	AcceptedAt       time.Time `db:"accepted_at"         json:"acceptedAt"`
+}
+
+type OrderPromiseResult struct {
+	Run           OrderPromiseRun            `json:"run"`
+	Lines         []OrderPromiseLineResult   `json:"lines"`
+	Confirmations []OrderPromiseConfirmation `json:"confirmations"`
+	Acceptance    *OrderPromiseAcceptance    `json:"acceptance,omitempty"`
+}
+
 // MRPResult — MRP計算結果 (1品目1期間)
 type MRPResult struct {
 	ItemID             uuid.UUID  `json:"itemId"`

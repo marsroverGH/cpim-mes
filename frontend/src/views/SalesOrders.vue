@@ -26,6 +26,7 @@
         <template #item.qty="{ item }">{{ num(item.shippedQty) }} / {{ num(item.allocatedQty) }} / {{ num(item.totalQty) }}</template>
         <template #item.actions="{ item }">
           <v-btn size="small" variant="text" @click="openDetail(item.id)">詳細</v-btn>
+          <v-btn v-if="canManage && !['SHIPPED','CANCELLED'].includes(item.status)" size="small" color="secondary" variant="text" @click="openPromise(item.id)">納期回答</v-btn>
           <v-btn v-if="canManage && item.status === 'DRAFT'" size="small" color="primary" variant="text" @click="confirmOrder(item.id)">Confirm</v-btn>
           <v-btn v-if="canManage && !['SHIPPED','CANCELLED'].includes(item.status)" size="small" color="error" variant="text" @click="cancelOrder(item.id)">取消</v-btn>
         </template>
@@ -113,13 +114,60 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="promiseDialog" max-width="1150">
+      <v-card title="Advanced Order Promising / ATP + CTP">
+        <v-card-text>
+          <v-alert type="info" variant="tonal" density="compact" class="mb-3">
+            納期回答はWhat-ifです。確定するまで在庫・WO・PO・Detailed Scheduleは変更しません。ATP不足分だけをCTPで材料・有限能力から評価します。
+          </v-alert>
+          <div class="d-flex align-center ga-3 mb-3">
+            <v-text-field v-model.number="promiseHorizon" type="number" min="1" max="366" label="CTP Horizon（日）" density="compact" style="max-width:220px" />
+            <v-btn :loading="promiseLoading" color="secondary" prepend-icon="mdi-refresh" @click="runPromise">再計算</v-btn>
+            <v-chip v-if="promiseResult?.acceptance" color="success">PROMISED</v-chip>
+            <v-chip v-else-if="promiseResult" color="info">WHAT-IF</v-chip>
+          </div>
+          <v-data-table v-if="promiseResult" :headers="promiseHeaders" :items="promiseResult.lines" density="compact">
+            <template #item.itemCode="{ item }">{{ promiseLineCode(item.salesOrderLineId) }}</template>
+            <template #item.requestedQty="{ item }">{{ num(item.requestedQty) }}</template>
+            <template #item.atpQty="{ item }">{{ num(item.atpQty) }}</template>
+            <template #item.ctpQty="{ item }">{{ num(item.ctpQty) }}</template>
+            <template #item.requestedDate="{ item }">{{ fmtDate(item.requestedDate) }}</template>
+            <template #item.materialReadyDate="{ item }">{{ fmtDate(item.materialReadyDate) }}</template>
+            <template #item.capacityReadyDate="{ item }">{{ fmtDate(item.capacityReadyDate) }}</template>
+            <template #item.earliestFullDate="{ item }">{{ fmtDate(item.earliestFullDate) }}</template>
+            <template #item.constraintType="{ item }"><v-chip size="small" :color="constraintColor(item.constraintType)">{{ item.constraintType }}</v-chip></template>
+          </v-data-table>
+
+          <v-divider v-if="promiseResult" class="my-4" />
+          <h3 v-if="promiseResult" class="mb-2">分納回答案</h3>
+          <v-table v-if="promiseResult" density="compact">
+            <thead><tr><th>品目</th><th>Seq</th><th>数量</th><th>回答日</th><th>Source</th></tr></thead>
+            <tbody>
+              <tr v-for="c in promiseResult.confirmations" :key="c.id || `${c.salesOrderLineId}-${c.sequenceNo}`">
+                <td>{{ promiseLineCode(c.salesOrderLineId) }}</td><td>{{ c.sequenceNo }}</td><td>{{ num(c.quantity) }}</td><td>{{ fmtDate(c.confirmedDate) }}</td><td>{{ c.source }}</td>
+              </tr>
+            </tbody>
+          </v-table>
+          <v-alert v-if="promiseResult && !promiseFullyCovered" type="warning" variant="tonal" density="compact" class="mt-3">
+            Horizon内で全量確約できない明細があります。Promise確定はできません。
+          </v-alert>
+          <div v-if="promiseResult" class="text-caption mt-3">Run: {{ promiseResult.run.id }} / Hash: {{ promiseResult.run.resultHash || '-' }}</div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer/>
+          <v-btn @click="promiseDialog=false">閉じる</v-btn>
+          <v-btn v-if="canManage && promiseResult && !promiseResult.acceptance" :disabled="!promiseFullyCovered" :loading="promiseLoading" color="primary" prepend-icon="mdi-check-decagram" @click="acceptPromise">Promise確定</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar" :color="errorMessage ? 'error' : 'success'">{{ errorMessage || '完了しました' }}</v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ItemsApi, SalesOrdersApi, type Customer, type Item, type SalesOrder, type SalesOrderCreateInput, type SalesOrderDetail, type SalesOrderLine } from '@/api'
+import { ItemsApi, SalesOrdersApi, type Customer, type Item, type OrderPromiseResult, type SalesOrder, type SalesOrderCreateInput, type SalesOrderDetail, type SalesOrderLine } from '@/api'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -131,6 +179,12 @@ const search = ref('')
 const customerDialog = ref(false)
 const orderDialog = ref(false)
 const detailDialog = ref(false)
+const promiseDialog = ref(false)
+const promiseResult = ref<OrderPromiseResult | null>(null)
+const promiseDetail = ref<SalesOrderDetail | null>(null)
+const promiseOrderId = ref('')
+const promiseHorizon = ref(180)
+const promiseLoading = ref(false)
 const snackbar = ref(false)
 const errorMessage = ref('')
 const canManage = computed(() => auth.role === 'admin' || auth.role === 'planner')
@@ -151,6 +205,12 @@ const lineHeaders = [
   { title:'#',key:'lineNo' }, { title:'品目',key:'itemCode' }, { title:'出荷 / 引当 / 受注',key:'qty' }, { title:'Open',key:'openQty' },
   { title:'単価',key:'unitPrice' }, { title:'Promised',key:'promisedDate' }, { title:'操作',key:'actions',sortable:false }
 ]
+const promiseHeaders = [
+  { title:'品目',key:'itemCode' }, { title:'要求数量',key:'requestedQty' }, { title:'要求日',key:'requestedDate' },
+  { title:'ATP',key:'atpQty' }, { title:'CTP',key:'ctpQty' }, { title:'材料可能日',key:'materialReadyDate' },
+  { title:'能力可能日',key:'capacityReadyDate' }, { title:'全量回答日',key:'earliestFullDate' }, { title:'制約',key:'constraintType' }
+]
+const promiseFullyCovered = computed(() => !!promiseResult.value && promiseResult.value.lines.length > 0 && promiseResult.value.lines.every(l => !!l.earliestFullDate && l.atpQty + l.ctpQty + 1e-9 >= l.requestedQty))
 const activeCustomerOptions = computed(() => customers.value.filter(c => c.status === 'ACTIVE').map(c => ({ id:c.id,label:`${c.customerNo} – ${c.name}` })))
 const sellableItems = computed(() => items.value.filter(i => i.type === 'FG' || i.type === 'SA').map(i => ({ id:i.id!,label:`${i.code} – ${i.name}` })))
 
@@ -159,6 +219,8 @@ function fmtDate(v?:string){ return v ? new Date(v).toLocaleDateString('ja-JP') 
 function fmtTime(v?:string){ return v ? new Date(v).toLocaleString('ja-JP') : '-' }
 function num(v:number){ return Number(v || 0).toLocaleString('ja-JP',{maximumFractionDigits:3}) }
 function statusColor(s:string){ return s==='SHIPPED'?'success':s==='CANCELLED'?'error':s==='DRAFT'?'grey':s==='PARTIALLY_SHIPPED'?'warning':'primary' }
+function constraintColor(s:string){ return s==='NONE'?'success':s==='HORIZON'?'error':s==='CAPACITY'?'warning':s==='MATERIAL_AND_CAPACITY'?'error':'info' }
+function promiseLineCode(id:string){ return promiseDetail.value?.lines.find(l=>l.id===id)?.itemCode || id.slice(0,8) }
 function canAllocate(s:string){ return s==='CONFIRMED'||s==='PARTIALLY_SHIPPED' }
 function notify(err?:unknown){ errorMessage.value = err ? String((err as any)?.response?.data?.message || (err as any)?.message || err) : ''; snackbar.value=true }
 
@@ -175,6 +237,9 @@ async function cancelOrder(id:string){ if(!confirm('未出荷残を取消し、�
 async function allocateLine(line:SalesOrderLine){ const raw=prompt('引当数量',String(Math.max(0,line.openQty-line.allocatedQty))); if(raw===null)return; const q=Number(raw); if(!(q>0))return; try{ detail.value=await SalesOrdersApi.allocate(line.id,q); await load(); notify() }catch(e){notify(e)} }
 async function releaseLine(line:SalesOrderLine){ const raw=prompt('引当解除数量',String(line.allocatedQty)); if(raw===null)return; const q=Number(raw); if(!(q>0))return; try{ detail.value=await SalesOrdersApi.release(line.id,q); await load(); notify() }catch(e){notify(e)} }
 async function shipLine(line:SalesOrderLine){ const raw=prompt('出荷数量',String(line.allocatedQty)); if(raw===null)return; const q=Number(raw); if(!(q>0))return; try{ detail.value=await SalesOrdersApi.ship(line.id,q); await load(); notify() }catch(e){notify(e)} }
+async function openPromise(id:string){ promiseOrderId.value=id; promiseDialog.value=true; promiseResult.value=null; try{ promiseDetail.value=await SalesOrdersApi.get(id); await runPromise() }catch(e){notify(e)} }
+async function runPromise(){ if(!promiseOrderId.value)return; promiseLoading.value=true; try{ promiseResult.value=await SalesOrdersApi.promiseCheck(promiseOrderId.value,promiseHorizon.value) }catch(e){notify(e)}finally{promiseLoading.value=false} }
+async function acceptPromise(){ if(!promiseResult.value||!promiseOrderId.value)return; promiseLoading.value=true; try{ promiseResult.value=await SalesOrdersApi.promiseAccept(promiseOrderId.value,promiseResult.value.run.id); await load(); promiseDetail.value=await SalesOrdersApi.get(promiseOrderId.value); if(detail.value?.order.id===promiseOrderId.value) detail.value=promiseDetail.value; notify() }catch(e){notify(e)}finally{promiseLoading.value=false} }
 
 onMounted(load)
 </script>

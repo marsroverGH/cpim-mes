@@ -101,6 +101,10 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-order-lines/{id}/allocate", srv.allocateSalesOrderLine)
 			secured.With(requirePermission(PermSalesOrderManage)).Post("/sales-order-lines/{id}/release-allocation", srv.releaseSalesOrderLine)
 			secured.With(requirePermission(PermSalesOrderShip)).Post("/sales-order-lines/{id}/ship", srv.shipSalesOrderLine)
+			secured.With(requirePermission(PermSalesOrderPromise)).Post("/sales-orders/{id}/promise/check", srv.checkSalesOrderPromise)
+			secured.With(requirePermission(PermSalesOrderPromise)).Post("/sales-orders/{id}/promise/accept", srv.acceptSalesOrderPromise)
+			secured.Get("/sales-orders/{id}/promise-runs", srv.listSalesOrderPromiseRuns)
+			secured.Get("/order-promise-runs/{id}", srv.getOrderPromiseRun)
 
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 

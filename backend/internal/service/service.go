@@ -15,15 +15,16 @@ import (
 )
 
 type Services struct {
-	Items       *ItemService
-	BOM         *BOMService
-	Demand      *DemandService
-	MPS         *MPSService
-	Inventory   *InventoryService
-	WorkOrders  *WorkOrderService
-	Purchases   *PurchaseService
-	SalesOrders *SalesOrderService
-	MRP         *MRPService
+	Items          *ItemService
+	BOM            *BOMService
+	Demand         *DemandService
+	MPS            *MPSService
+	Inventory      *InventoryService
+	WorkOrders     *WorkOrderService
+	Purchases      *PurchaseService
+	SalesOrders    *SalesOrderService
+	OrderPromising *OrderPromisingService
+	MRP            *MRPService
 
 	WorkCenters *WorkCenterService
 	Routings    *RoutingService
@@ -65,6 +66,11 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	actions := &ActionMessageService{repos: r, mrp: mrp}
 	itemsSvc := &ItemService{r: r.Items}
 	kpiSvc := &KPIService{repos: r, mrp: mrp, am: actions}
+	salesOrders := &SalesOrderService{db: db, ledger: ledger}
+	atp := &ATPService{db: db, repos: r}
+	crp := &CRPService{db: db, repos: r, mrp: mrp}
+	ctp := &CTPEngine{db: db, repos: r, crp: crp}
+	orderPromising := &OrderPromisingService{db: db, sales: salesOrders, atp: atp, ctp: ctp}
 	svc := &Services{
 		Items:           itemsSvc,
 		BOM:             &BOMService{db: db, r: r.BOM},
@@ -73,11 +79,12 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Inventory:       &InventoryService{r: r.Inventory, ledger: ledger},
 		WorkOrders:      &WorkOrderService{r: r.WorkOrders},
 		Purchases:       &PurchaseService{db: db, r: r.Purchases},
-		SalesOrders:     &SalesOrderService{db: db, ledger: ledger},
+		SalesOrders:     salesOrders,
+		OrderPromising:  orderPromising,
 		MRP:             mrp,
 		WorkCenters:     &WorkCenterService{r: r.WorkCenters},
 		Routings:        &RoutingService{r: r.Routings},
-		CRP:             &CRPService{db: db, repos: r, mrp: mrp},
+		CRP:             crp,
 		CostRollup:      &CostRollupService{repos: r},
 		Auth:            NewAuthService(r.Users, cfg.JWTSecret),
 		ABC:             abc,
@@ -88,7 +95,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		CycleCount:      &CycleCountService{repos: r, abc: abc, ledger: ledger},
 		Workflow:        NewWorkflowService(db, r, ledger),
 		Calendar:        &CalendarService{r: r.Calendars},
-		ATP:             &ATPService{db: db, repos: r},
+		ATP:             atp,
 		Quality:         &QualityService{db: db, repos: r},
 		SupplierQuality: &SupplierQualityService{db: db, ledger: ledger},
 		Actions:         actions,
@@ -281,6 +288,17 @@ type MRPRequest struct {
 }
 
 func (s *MRPService) Run(ctx context.Context, req MRPRequest) ([]domain.MRPResult, error) {
+	return s.run(ctx, req, true)
+}
+
+// Simulate performs the same MRP netting without LLC maintenance writes. It is
+// used by side-effect-free planning simulations after normal BOM writes have
+// already maintained LLC integrity.
+func (s *MRPService) Simulate(ctx context.Context, req MRPRequest) ([]domain.MRPResult, error) {
+	return s.run(ctx, req, false)
+}
+
+func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool) ([]domain.MRPResult, error) {
 	if req.StartDate.IsZero() {
 		req.StartDate = time.Now()
 	}
@@ -293,8 +311,10 @@ func (s *MRPService) Run(ctx context.Context, req MRPRequest) ([]domain.MRPResul
 	// LLC is a correctness prerequisite for one-pass level-by-level planning.
 	// Recompute before each MRP run so a stale LLC cannot silently omit dependent demand.
 	// A cyclic BOM makes recompute fail, which is safer than producing an invalid plan.
-	if err := s.repos.Items.RecomputeLLC(ctx); err != nil {
-		return nil, err
+	if recomputeLLC {
+		if err := s.repos.Items.RecomputeLLC(ctx); err != nil {
+			return nil, err
+		}
 	}
 
 	items, err := s.repos.Items.List(ctx)

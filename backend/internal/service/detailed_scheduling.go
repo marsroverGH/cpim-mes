@@ -163,7 +163,7 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 		return nil, err
 	}
 
-	tasks, err := s.buildDetailedTasks(ctx, start, req.HorizonDays, itemByID)
+	tasks, err := s.buildDetailedTasks(ctx, start, req.HorizonDays, itemByID, false)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +307,197 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	}
 	res.Run.Status = "COMPLETE"
 	return res, nil
+}
+
+// SimulateCTPOrder schedules one hypothetical customer-order quantity together
+// with existing firm WOs and current MRP planned load. It deliberately does not
+// call persistDetailedSchedule, so no schedule/WO/PO/inventory state is changed.
+// The same alternative-WC, transfer-batch, setup, machine, labor and calendar
+// allocator used by DetailedSchedule is reused here.
+func (s *CRPService) SimulateCTPOrder(ctx context.Context, itemID uuid.UUID, qty float64, earliest, dueAt time.Time, horizonDays int) (*domain.DetailedScheduleOrder, error) {
+	if itemID == uuid.Nil || qty <= 1e-9 {
+		return nil, domain.NewBadRequest("itemId and positive quantity are required", nil)
+	}
+	if horizonDays <= 0 {
+		horizonDays = 180
+	}
+	if horizonDays > 366 {
+		return nil, domain.NewBadRequest("horizonDays must be <= 366", nil)
+	}
+	start := TruncateDay(time.Now())
+	if earliest.Before(start) {
+		earliest = start
+	}
+	end := start.AddDate(0, 0, horizonDays-1)
+
+	items, err := s.repos.Items.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	itemByID := map[uuid.UUID]domain.Item{}
+	for _, it := range items {
+		itemByID[it.ID] = it
+	}
+	it, ok := itemByID[itemID]
+	if !ok {
+		return nil, domain.NewNotFound("item")
+	}
+
+	wcs, err := s.repos.WorkCenters.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	states := map[uuid.UUID]*detailedWCState{}
+	calSvc := &CalendarService{r: s.repos.Calendars}
+	defaultSnap, _ := calSvc.LoadDefaultSnapshot(ctx, start, end.AddDate(0, 0, 1))
+	for _, wc := range wcs {
+		if wc.MachineCount <= 0 {
+			wc.MachineCount = 1
+		}
+		if wc.WorkerCount < 0 {
+			wc.WorkerCount = 0
+		}
+		var snap *CalendarSnapshot
+		if wc.CalendarID != nil {
+			snap, _ = calSvc.LoadSnapshot(ctx, *wc.CalendarID, start, end.AddDate(0, 0, 1))
+		}
+		if snap == nil {
+			snap = defaultSnap
+		}
+		st := &detailedWCState{wc: wc, calendar: snap, end: end.Add(24*time.Hour - time.Nanosecond)}
+		for lane := 1; lane <= wc.MachineCount; lane++ {
+			st.lanes = append(st.lanes, &machineLaneState{lane: lane, availableAt: start})
+		}
+		states[wc.ID] = st
+	}
+	setupMatrix, err := s.loadSetupMatrix(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	tasks, err := s.buildDetailedTasks(ctx, start, horizonDays, itemByID, true)
+	if err != nil {
+		return nil, err
+	}
+	ops, err := s.repos.Routings.OperationsForItem(ctx, itemID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ops) == 0 {
+		return nil, domain.NewConflict("no active routing exists for CTP item")
+	}
+	var specs []detailedOperationSpec
+	for _, op := range ops {
+		spec := detailedOperationSpec{id: op.ID, seq: op.SeqNo, description: op.Description, primaryWC: op.WorkCenterID, baseSetupMinutes: op.SetupMinutes, runMinutesPerUnit: op.RunMinutesPerUnit, setupFamily: op.SetupFamily, overlapEnabled: op.OverlapEnabled, transferBatchQty: op.TransferBatchQty, machinesRequired: maxInt(op.MachinesRequired, 1), workersRequired: maxInt(op.WorkersRequired, 0), quantity: qty}
+		alts, e := s.repos.Routings.Alternatives(ctx, op.ID)
+		if e != nil {
+			return nil, e
+		}
+		for _, a := range alts {
+			if a.IsActive {
+				spec.alternatives = append(spec.alternatives, detailedAlternative{wcID: a.WorkCenterID, priority: a.Priority, runMult: a.RunTimeMultiplier, setupMult: a.SetupTimeMultiplier})
+			}
+		}
+		specs = append(specs, spec)
+	}
+	ref := "CTP:" + uuid.NewString()
+	tasks = append(tasks, detailedOrderTask{sourceType: "CTP_WHAT_IF", sourceRef: ref, itemID: itemID, itemCode: it.Code, quantity: qty, priority: 50, earliest: earliest, dueAt: businessDueEnd(dueAt), operations: specs})
+	sort.SliceStable(tasks, func(i, j int) bool {
+		if tasks[i].priority != tasks[j].priority {
+			return tasks[i].priority < tasks[j].priority
+		}
+		if !tasks[i].dueAt.Equal(tasks[j].dueAt) {
+			return tasks[i].dueAt.Before(tasks[j].dueAt)
+		}
+		return tasks[i].sourceRef < tasks[j].sourceRef
+	})
+
+	for _, task := range tasks {
+		order := domain.DetailedScheduleOrder{ID: uuid.New(), RunID: uuid.Nil, SourceType: task.sourceType, SourceRef: task.sourceRef, WorkOrderID: task.workOrderID, ItemID: task.itemID, ItemCode: task.itemCode, Quantity: task.quantity, Priority: task.priority, EarliestStart: task.earliest, DueAt: task.dueAt}
+		var orderStart, orderEnd *time.Time
+		orderUnscheduled := false
+		var prevOp []scheduledBatchInfo
+		for opIndex, op := range task.operations {
+			op.setupFamily = normalizedSetupFamily(op.setupFamily, task.itemCode)
+			var selectedAlt *detailedAlternative
+			opQty := op.quantity
+			if opQty <= 1e-9 {
+				opQty = task.quantity
+			}
+			batchQtys := splitTransferBatches(opQty, op.overlapEnabled, op.transferBatchQty)
+			curr := make([]scheduledBatchInfo, 0, len(batchQtys))
+			cumulative := op.completedBase
+			for bi, batchQty := range batchQtys {
+				cumulative += batchQty
+				b := domain.DetailedScheduleBatch{ID: uuid.New(), ScheduleOrderID: order.ID, OperationSeq: op.seq, BatchNo: bi + 1, BatchQty: batchQty, CumulativeQty: cumulative, SetupFamily: op.setupFamily, ScheduleStatus: "UNSCHEDULED"}
+				ready := task.earliest
+				if bi > 0 {
+					pred := curr[bi-1].batch
+					if pred.ScheduledEnd == nil {
+						orderUnscheduled = true
+					} else {
+						ready = maxTime(ready, *pred.ScheduledEnd)
+					}
+				}
+				if opIndex > 0 {
+					prevSpec := task.operations[opIndex-1]
+					if cumulative > prevSpec.completedBase+1e-9 {
+						if len(prevOp) == 0 {
+							orderUnscheduled = true
+						} else {
+							pred := routingPredecessor(prevOp, cumulative, prevSpec.overlapEnabled)
+							if pred.batch.ScheduledEnd == nil {
+								orderUnscheduled = true
+							} else {
+								ready = maxTime(ready, *pred.batch.ScheduledEnd)
+							}
+						}
+					}
+				}
+				if !orderUnscheduled {
+					plan := s.bestDetailedCandidate(op, batchQty, ready, states, setupMatrix, selectedAlt)
+					if plan == nil {
+						orderUnscheduled = true
+					} else {
+						if selectedAlt == nil {
+							chosen := plan.alt
+							selectedAlt = &chosen
+						}
+						var sink []domain.DetailedScheduleSegment
+						s.commitDetailedCandidate(states[plan.wc.ID], plan, uuid.Nil, b.ID, order.ID, op.seq, bi+1, op.setupFamily, op.workersRequired, task.firm, &sink)
+						b.ScheduledStart = &plan.start
+						b.ScheduledEnd = &plan.end
+						b.CumulativeQty = cumulative
+						b.ScheduleStatus = "SCHEDULED"
+						if orderStart == nil || plan.start.Before(*orderStart) {
+							t := plan.start
+							orderStart = &t
+						}
+						if orderEnd == nil || plan.end.After(*orderEnd) {
+							t := plan.end
+							orderEnd = &t
+						}
+					}
+				}
+				curr = append(curr, scheduledBatchInfo{batch: b})
+			}
+			prevOp = curr
+		}
+		order.ScheduledStart = orderStart
+		order.ScheduledEnd = orderEnd
+		if orderUnscheduled || orderEnd == nil {
+			order.ScheduleStatus = "UNSCHEDULED"
+		} else if orderEnd.After(task.dueAt) {
+			order.ScheduleStatus = "LATE"
+			order.TardyMinutes = orderEnd.Sub(task.dueAt).Minutes()
+		} else {
+			order.ScheduleStatus = "ON_TIME"
+		}
+		if task.sourceRef == ref {
+			return &order, nil
+		}
+	}
+	return nil, domain.NewConflict("CTP hypothetical order was not scheduled")
 }
 
 func splitTransferBatches(qty float64, overlap bool, transfer float64) []float64 {
@@ -607,7 +798,7 @@ func (s *CRPService) loadSetupMatrix(ctx context.Context) (map[setupKey]float64,
 	return m, nil
 }
 
-func (s *CRPService) buildDetailedTasks(ctx context.Context, start time.Time, horizon int, itemByID map[uuid.UUID]domain.Item) ([]detailedOrderTask, error) {
+func (s *CRPService) buildDetailedTasks(ctx context.Context, start time.Time, horizon int, itemByID map[uuid.UUID]domain.Item, simulateMRP bool) ([]detailedOrderTask, error) {
 	var tasks []detailedOrderTask
 	wos, err := s.repos.WorkOrders.List(ctx)
 	if err != nil {
@@ -656,7 +847,12 @@ func (s *CRPService) buildDetailedTasks(ctx context.Context, start time.Time, ho
 		}
 		tasks = append(tasks, detailedOrderTask{sourceType: "FIRM_WO", sourceRef: wo.OrderNo, workOrderID: &wid, itemID: wo.ItemID, itemCode: it.Code, quantity: wo.Quantity, priority: pri, earliest: maxTime(start, TruncateDay(wo.StartDate)), dueAt: businessDueEnd(wo.DueDate), firm: true, operations: specs})
 	}
-	mrpRows, err := s.mrp.Run(ctx, MRPRequest{HorizonDays: horizon, StartDate: start})
+	var mrpRows []domain.MRPResult
+	if simulateMRP {
+		mrpRows, err = s.mrp.Simulate(ctx, MRPRequest{HorizonDays: horizon, StartDate: start})
+	} else {
+		mrpRows, err = s.mrp.Run(ctx, MRPRequest{HorizonDays: horizon, StartDate: start})
+	}
 	if err != nil {
 		return nil, err
 	}

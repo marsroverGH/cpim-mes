@@ -186,6 +186,56 @@ export interface SalesOrderCreateInput {
     notes?: string
   }>
 }
+export interface OrderPromiseRun {
+  id: string
+  salesOrderId: string
+  strategy: 'ATP_THEN_CTP'
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  requestedAt: string
+  completedAt?: string
+  horizonDays: number
+  resultHash?: string
+  errorText: string
+  requestedBy: string
+}
+export interface OrderPromiseLineResult {
+  id: string
+  runId: string
+  salesOrderLineId: string
+  requestedQty: number
+  requestedDate: string
+  atpQty: number
+  ctpQty: number
+  earliestFullDate?: string
+  promiseMethod: 'ATP' | 'ATP_CTP' | 'CTP' | 'UNAVAILABLE'
+  materialReadyDate?: string
+  capacityReadyDate?: string
+  constraintType: 'NONE' | 'MATERIAL' | 'CAPACITY' | 'MATERIAL_AND_CAPACITY' | 'HORIZON'
+  constraintDetail: Record<string, unknown>
+}
+export interface OrderPromiseConfirmation {
+  id: string
+  runId: string
+  salesOrderLineId: string
+  sequenceNo: number
+  quantity: number
+  confirmedDate: string
+  source: 'ON_HAND' | 'ATP' | 'CTP_PRODUCTION' | 'CTP_PURCHASE' | 'CTP_MIXED'
+}
+export interface OrderPromiseAcceptance {
+  id: string
+  runId: string
+  salesOrderId: string
+  resultHash: string
+  acceptedBy: string
+  acceptedAt: string
+}
+export interface OrderPromiseResult {
+  run: OrderPromiseRun
+  lines: OrderPromiseLineResult[]
+  confirmations: OrderPromiseConfirmation[]
+  acceptance?: OrderPromiseAcceptance
+}
 export const SalesOrdersApi = {
   customers: () => http.get<Customer[]>('/customers').then(r => r.data),
   createCustomer: (body: Partial<Customer>) => http.post<Customer>('/customers', body).then(r => r.data),
@@ -197,7 +247,11 @@ export const SalesOrdersApi = {
   cancel: (id: string) => http.post<SalesOrderDetail>(`/sales-orders/${id}/cancel`, {}).then(r => r.data),
   allocate: (lineId: string, quantity: number) => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/allocate`, { allocationId: crypto.randomUUID(), quantity }).then(r => r.data),
   release: (lineId: string, quantity: number) => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/release-allocation`, { releaseId: crypto.randomUUID(), quantity }).then(r => r.data),
-  ship: (lineId: string, quantity: number, carrier = '', trackingNo = '') => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/ship`, { shipmentId: crypto.randomUUID(), quantity, carrier, trackingNo }).then(r => r.data)
+  ship: (lineId: string, quantity: number, carrier = '', trackingNo = '') => http.post<SalesOrderDetail>(`/sales-order-lines/${lineId}/ship`, { shipmentId: crypto.randomUUID(), quantity, carrier, trackingNo }).then(r => r.data),
+  promiseCheck: (orderId: string, horizonDays = 180) => http.post<OrderPromiseResult>(`/sales-orders/${orderId}/promise/check`, { horizonDays }).then(r => r.data),
+  promiseAccept: (orderId: string, runId: string) => http.post<OrderPromiseResult>(`/sales-orders/${orderId}/promise/accept`, { runId }).then(r => r.data),
+  promiseRuns: (orderId: string) => http.get<OrderPromiseRun[]>(`/sales-orders/${orderId}/promise-runs`).then(r => r.data),
+  promiseRun: (runId: string) => http.get<OrderPromiseResult>(`/order-promise-runs/${runId}`).then(r => r.data)
 }
 
 // ------- MPS -------

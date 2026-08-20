@@ -1233,6 +1233,211 @@
             }
           }
         }
+      },
+      "OrderPromiseRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "ATP_THEN_CTP"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "resultHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "errorText": {
+            "type": "string"
+          },
+          "requestedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "OrderPromiseLineResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requestedQty": {
+            "type": "number"
+          },
+          "requestedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "atpQty": {
+            "type": "number"
+          },
+          "ctpQty": {
+            "type": "number"
+          },
+          "earliestFullDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "promiseMethod": {
+            "type": "string",
+            "enum": [
+              "ATP",
+              "ATP_CTP",
+              "CTP",
+              "UNAVAILABLE"
+            ]
+          },
+          "materialReadyDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "capacityReadyDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "constraintType": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "MATERIAL",
+              "CAPACITY",
+              "MATERIAL_AND_CAPACITY",
+              "HORIZON"
+            ]
+          },
+          "constraintDetail": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "OrderPromiseConfirmation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequenceNo": {
+            "type": "integer"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "confirmedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "ON_HAND",
+              "ATP",
+              "CTP_PRODUCTION",
+              "CTP_PURCHASE",
+              "CTP_MIXED"
+            ]
+          }
+        }
+      },
+      "OrderPromiseAcceptance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "acceptedBy": {
+            "type": "string"
+          },
+          "acceptedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderPromiseResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/OrderPromiseRun"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderPromiseLineResult"
+            }
+          },
+          "confirmations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrderPromiseConfirmation"
+            }
+          },
+          "acceptance": {
+            "$ref": "#/components/schemas/OrderPromiseAcceptance",
+            "nullable": true
+          }
+        }
       }
     }
   },
@@ -2747,6 +2952,192 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SalesOrderDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/promise/check": {
+      "post": {
+        "tags": [
+          "SalesOrders"
+        ],
+        "summary": "Run ATP then CTP what-if promise check",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "horizonDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 366
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order promise result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPromiseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/promise/accept": {
+      "post": {
+        "tags": [
+          "SalesOrders"
+        ],
+        "summary": "Revalidate and accept an order promise",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "runId"
+                ],
+                "properties": {
+                  "runId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order promise result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPromiseResult"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Stale or incomplete promise"
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/promise-runs": {
+      "get": {
+        "tags": [
+          "SalesOrders"
+        ],
+        "summary": "List order promise runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Promise runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OrderPromiseRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/order-promise-runs/{id}": {
+      "get": {
+        "tags": [
+          "SalesOrders"
+        ],
+        "summary": "Get order promise run detail",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order promise result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrderPromiseResult"
                 }
               }
             }

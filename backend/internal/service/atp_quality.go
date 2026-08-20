@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -207,4 +208,94 @@ SELECT l.id AS id,l.item_id,
 		ItemCode: item.Code,
 		Buckets:  resBuckets,
 	}, nil
+}
+
+// ATPAvailabilityOptions scopes advanced order-promising ATP. Current order lines
+// are excluded from committed demand so a confirmed order never consumes itself.
+// Their already allocated quantity can be added back because it is reserved for
+// that same order and is therefore valid supply for its promise.
+type ATPAvailabilityOptions struct {
+	ExcludeSalesOrderLineIDs []uuid.UUID
+	IncludeAllocatedQty      float64
+}
+
+// AvailableThrough returns conservative sellable ATP through a specific day.
+// Only quality-OK lot stock is usable; item-level reservations are subtracted,
+// BLOCKED-supplier PO supply is ignored, and only firm WO supply is counted.
+func (s *ATPService) AvailableThrough(ctx context.Context, itemID uuid.UUID, through time.Time, opt ATPAvailabilityOptions) (float64, error) {
+	if itemID == uuid.Nil {
+		return 0, errors.New("itemId required")
+	}
+	through = TruncateDay(through)
+	var sellable, reserved float64
+	if err := s.db.GetContext(ctx, &sellable, `
+SELECT COALESCE(SUM(x.qty),0)::double precision
+  FROM (
+    SELECT l.id,COALESCE(SUM(lm.quantity),0) AS qty
+      FROM lots l LEFT JOIN lot_movements lm ON lm.lot_id=l.id
+     WHERE l.item_id=$1 AND l.quality_status='OK'
+     GROUP BY l.id
+  ) x`, itemID); err != nil {
+		return 0, err
+	}
+	if err := s.db.GetContext(ctx, &reserved, `
+SELECT COALESCE(SUM(CASE WHEN txn_type='RESERVE' THEN ABS(quantity) WHEN txn_type='UNRESERVE' THEN -ABS(quantity) ELSE 0 END),0)::double precision
+  FROM inventory_txns WHERE item_id=$1`, itemID); err != nil {
+		return 0, err
+	}
+	available := sellable - reserved + opt.IncludeAllocatedQty
+	if available < 0 {
+		available = 0
+	}
+
+	pos, err := s.repos.Purchases.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, p := range pos {
+		if p.ItemID != itemID || p.SupplierQualityStatus == "BLOCKED" || TruncateDay(p.DueDate).After(through) {
+			continue
+		}
+		available += PurchaseScheduledRemaining(p.Status, p.Quantity, p.ReceivedQty)
+	}
+	wos, err := s.repos.WorkOrders.List(ctx)
+	if err != nil {
+		return 0, err
+	}
+	for _, w := range wos {
+		if w.ItemID != itemID || (w.Status != "RELEASED" && w.Status != "IN_PROGRESS") || TruncateDay(w.DueDate).After(through) {
+			continue
+		}
+		remaining := w.Quantity - w.CompletedQty
+		if remaining > 0 {
+			available += remaining
+		}
+	}
+
+	query := `SELECT COALESCE(SUM(GREATEST(l.quantity-l.shipped_qty-l.cancelled_qty-l.allocated_qty,0)),0)::double precision
+  FROM sales_order_lines l JOIN sales_orders so ON so.id=l.sales_order_id
+ WHERE l.item_id=$1 AND so.status IN ('CONFIRMED','PARTIALLY_SHIPPED')
+   AND COALESCE(l.promised_date,so.promised_date,l.requested_date,so.requested_date) <= $2
+   AND GREATEST(l.quantity-l.shipped_qty-l.cancelled_qty-l.allocated_qty,0)>0`
+	args := []any{itemID, through}
+	if len(opt.ExcludeSalesOrderLineIDs) > 0 {
+		query += " AND l.id NOT IN ("
+		for i, id := range opt.ExcludeSalesOrderLineIDs {
+			if i > 0 {
+				query += ","
+			}
+			query += fmt.Sprintf("$%d", len(args)+1)
+			args = append(args, id)
+		}
+		query += ")"
+	}
+	var committed float64
+	if err := s.db.GetContext(ctx, &committed, query, args...); err != nil {
+		return 0, err
+	}
+	available -= committed
+	if available < 0 {
+		available = 0
+	}
+	return available, nil
 }

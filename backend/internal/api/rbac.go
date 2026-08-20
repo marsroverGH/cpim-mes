@@ -26,6 +26,7 @@ const (
 	PermPOReceive             Permission = "po.receive"
 	PermSalesOrderManage      Permission = "sales-order.manage"
 	PermSalesOrderShip        Permission = "sales-order.ship"
+	PermSalesOrderPromise     Permission = "sales-order.promise"
 	PermMRPRun                Permission = "planning.mrp.run"
 	PermCapacityMaster        Permission = "capacity.master.write"
 	PermRoutingMaster         Permission = "routing.master.write"
@@ -74,6 +75,7 @@ var rolePermissions = map[domain.Role]map[Permission]struct{}{
 		PermPOReceive:             {},
 		PermSalesOrderManage:      {},
 		PermSalesOrderShip:        {},
+		PermSalesOrderPromise:     {},
 		PermMRPRun:                {},
 		PermCRPRun:                {},
 		PermForecastRun:           {},
@@ -107,7 +109,7 @@ func roleHasPermission(role domain.Role, permission Permission) bool {
 func permissionsForRole(role domain.Role) []Permission {
 	all := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

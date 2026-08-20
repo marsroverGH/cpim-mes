@@ -326,6 +326,7 @@ var legacyChecks = []legacyCheck{
 	{29, `SELECT to_regclass('public.crp_schedule_runs') IS NOT NULL AND to_regclass('public.crp_schedule_segments') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='work_centers' AND column_name='shift_start_minute')`},
 	{30, `SELECT to_regclass('public.detailed_schedule_runs') IS NOT NULL AND to_regclass('public.routing_operation_alternatives') IS NOT NULL AND to_regclass('public.work_center_setup_matrix') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='work_centers' AND column_name='machine_count')`},
 	{31, `SELECT to_regclass('public.sales_orders') IS NOT NULL AND to_regclass('public.sales_order_lines') IS NOT NULL AND to_regclass('public.sales_order_shipments') IS NOT NULL AND to_regclass('public.customers') IS NOT NULL AND to_regclass('public.v_sales_order_open_demand') IS NOT NULL`},
+	{32, `SELECT to_regclass('public.order_promise_runs') IS NOT NULL AND to_regclass('public.order_promise_line_results') IS NOT NULL AND to_regclass('public.order_promise_confirmations') IS NOT NULL AND to_regclass('public.order_promise_acceptances') IS NOT NULL`},
 }
 
 func bootstrapLegacyDatabase(ctx context.Context, conn *sqlx.Conn, migrations []Migration, installedBy string, logger *log.Logger) ([]int, error) {
