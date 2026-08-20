@@ -1,0 +1,35 @@
+name: Generate dependency lockfiles
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      - name: Pin npm
+        run: npm install --global npm@10.9.2
+      - name: Generate lockfiles
+        run: ./scripts/generate-lockfiles.sh
+      - name: Validate generated lockfiles
+        run: python3 scripts/check_dependency_locks.py
+      - name: Upload lockfiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfiles
+          path: |
+            backend/go.mod
+            backend/go.sum
+            frontend/package-lock.json
+            e2e/package-lock.json

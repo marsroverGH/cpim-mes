@@ -1,0 +1,2238 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CPIM-MES API",
+    "description": "CPIM準拠の生産管理システムのREST API仕様。認証は JWT Bearer Token。\nログインで取得したトークンを Authorize ボタンから設定すれば、保護エンドポイントを試行できます。",
+    "version": "1.0.0",
+    "contact": {
+      "name": "CPIM-MES"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "本サーバ"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "認証"
+    },
+    {
+      "name": "Items",
+      "description": "品目マスタ"
+    },
+    {
+      "name": "BOM",
+      "description": "部品構成"
+    },
+    {
+      "name": "MRP",
+      "description": "資材所要量計画"
+    },
+    {
+      "name": "CRP",
+      "description": "能力所要量計画"
+    },
+    {
+      "name": "Forecast",
+      "description": "需要予測"
+    },
+    {
+      "name": "Costing",
+      "description": "原価積み上げ"
+    },
+    {
+      "name": "ABC",
+      "description": "ABC分析"
+    },
+    {
+      "name": "CycleCount",
+      "description": "サイクルカウント"
+    },
+    {
+      "name": "Lots",
+      "description": "ロット追跡"
+    },
+    {
+      "name": "Inventory",
+      "description": "在庫"
+    },
+    {
+      "name": "Audit",
+      "description": "監査ログ"
+    },
+    {
+      "name": "SupplierQuality",
+      "description": "Supplier Quality / NCR / disposition / scorecard"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "VALIDATION"
+          },
+          "message": {
+            "type": "string",
+            "example": "validation failed"
+          },
+          "details": {}
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "password": {
+            "type": "string",
+            "example": "admin123"
+          }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "example": "eyJhbGciOi..."
+          },
+          "username": {
+            "type": "string",
+            "example": "admin"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "planner",
+              "operator",
+              "viewer"
+            ]
+          }
+        }
+      },
+      "Item": {
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "type",
+          "uom"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
+          },
+          "code": {
+            "type": "string",
+            "example": "BIKE-100"
+          },
+          "name": {
+            "type": "string",
+            "example": "完成車 Standard"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FG",
+              "SA",
+              "RM",
+              "PP"
+            ]
+          },
+          "uom": {
+            "type": "string",
+            "example": "EA"
+          },
+          "leadTimeDays": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5
+          },
+          "safetyStock": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0
+          },
+          "lotSize": {
+            "type": "number",
+            "minimum": 0,
+            "example": 10
+          },
+          "standardCost": {
+            "type": "number",
+            "minimum": 0,
+            "example": 35000
+          },
+          "lotSizeMethod": {
+            "type": "string",
+            "enum": [
+              "LFL",
+              "FOQ",
+              "POQ",
+              "EOQ"
+            ]
+          },
+          "poqPeriods": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "orderingCost": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0
+          },
+          "holdingCostPct": {
+            "type": "number",
+            "minimum": 0,
+            "example": 0.2
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "MRPRequest": {
+        "type": "object",
+        "properties": {
+          "horizonDays": {
+            "type": "integer",
+            "default": 28
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "MRPResult": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string",
+            "format": "date"
+          },
+          "grossRequirement": {
+            "type": "number"
+          },
+          "scheduledReceipts": {
+            "type": "number"
+          },
+          "projectedOnHand": {
+            "type": "number"
+          },
+          "netRequirement": {
+            "type": "number"
+          },
+          "plannedOrderReceipt": {
+            "type": "number"
+          },
+          "plannedOrderRelease": {
+            "type": "number"
+          },
+          "plannedOrderReleaseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "lotMethod": {
+            "type": "string",
+            "enum": [
+              "LFL",
+              "FOQ",
+              "POQ",
+              "EOQ"
+            ]
+          },
+          "eoq": {
+            "type": "number"
+          },
+          "pegging": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CRPRequest": {
+        "type": "object",
+        "properties": {
+          "horizonDays": {
+            "type": "integer",
+            "default": 28
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "CapacityLoadRow": {
+        "type": "object",
+        "properties": {
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "workCenterName": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "requiredMinutes": {
+            "type": "number"
+          },
+          "availableMinutes": {
+            "type": "number"
+          },
+          "loadPct": {
+            "type": "number"
+          }
+        }
+      },
+      "ForecastRequest": {
+        "type": "object",
+        "required": [
+          "itemId"
+        ],
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "SMA",
+              "EXPO",
+              "HW"
+            ],
+            "default": "SMA"
+          },
+          "window": {
+            "type": "integer",
+            "default": 4
+          },
+          "alpha": {
+            "type": "number",
+            "default": 0.3
+          },
+          "horizonPeriods": {
+            "type": "integer",
+            "default": 4
+          },
+          "bucketDays": {
+            "type": "integer",
+            "default": 7
+          },
+          "saveAsForecast": {
+            "type": "boolean",
+            "default": false,
+            "deprecated": true
+          },
+          "scenario": {
+            "type": "string",
+            "default": "BASE"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "saveAsVersion": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "ForecastResult": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "mae": {
+            "type": "number"
+          },
+          "mape": {
+            "type": "number"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "actual": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "forecast": {
+                  "type": "number",
+                  "nullable": true
+                },
+                "isFuture": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "version": {
+            "type": "integer"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          }
+        }
+      },
+      "CostRollupRow": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "itemType": {
+            "type": "string",
+            "enum": [
+              "FG",
+              "SA",
+              "RM",
+              "PP"
+            ]
+          },
+          "materialCost": {
+            "type": "number"
+          },
+          "laborCost": {
+            "type": "number"
+          },
+          "overheadCost": {
+            "type": "number"
+          },
+          "totalCost": {
+            "type": "number"
+          }
+        }
+      },
+      "ABCRow": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "onHand": {
+            "type": "number"
+          },
+          "standardCost": {
+            "type": "number"
+          },
+          "onHandValue": {
+            "type": "number",
+            "description": "Reference only: current on-hand × standard cost"
+          },
+          "annualUsageQty": {
+            "type": "number",
+            "description": "Rolling 12-month physical ISSUE quantity"
+          },
+          "annualUsageValue": {
+            "type": "number",
+            "description": "Annual usage quantity × standard cost; ABC ranking basis"
+          },
+          "usageValuePct": {
+            "type": "number",
+            "description": "Share of total annual dollar usage (%)"
+          },
+          "cumulativePct": {
+            "type": "number",
+            "description": "Cumulative annual dollar usage share (%)"
+          },
+          "abcClass": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "usagePeriodStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usagePeriodEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "usageBasis": {
+            "type": "string",
+            "enum": [
+              "ISSUE"
+            ]
+          },
+          "costBasis": {
+            "type": "string",
+            "enum": [
+              "STANDARD_COST"
+            ]
+          }
+        }
+      },
+      "Lot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lotNo": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "receivedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiryDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "supplier": {
+            "type": "string"
+          },
+          "sourceDoc": {
+            "type": "string"
+          },
+          "balance": {
+            "type": "number"
+          }
+        }
+      },
+      "OnHandRow": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "onHand": {
+            "type": "number"
+          }
+        }
+      },
+      "AuditEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "userRole": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "example": "POST /api/items"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": "string"
+          },
+          "httpStatus": {
+            "type": "integer"
+          },
+          "ipAddress": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {}
+        }
+      },
+      "InventoryLotReconciliation": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "ledgerOnHand": {
+            "type": "number"
+          },
+          "lotOnHand": {
+            "type": "number"
+          },
+          "difference": {
+            "type": "number"
+          }
+        }
+      },
+      "ForecastRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string"
+          },
+          "bucketDays": {
+            "type": "integer"
+          },
+          "horizonPeriods": {
+            "type": "integer"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "ForecastConsumptionBucket": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "format": "date"
+          },
+          "forecastQty": {
+            "type": "number"
+          },
+          "orderQty": {
+            "type": "number"
+          },
+          "consumedForecast": {
+            "type": "number"
+          },
+          "remainingForecast": {
+            "type": "number"
+          },
+          "orderAboveForecast": {
+            "type": "number"
+          },
+          "totalDemand": {
+            "type": "number"
+          }
+        }
+      },
+      "CRPFiniteScheduleResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "type": "object"
+          },
+          "summary": {
+            "type": "object"
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "loads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapacityLoadRow"
+            }
+          }
+        }
+      },
+      "DetailedScheduleRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "DETAILED_HEURISTIC"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "BUILDING",
+              "COMPLETE"
+            ]
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "generatedBy": {
+            "type": "string"
+          }
+        }
+      },
+      "DetailedScheduleOrder": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "FIRM_WO",
+              "MRP_PLANNED"
+            ]
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "priority": {
+            "type": "integer"
+          },
+          "earliestStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "scheduledStart": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduledEnd": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduleStatus": {
+            "type": "string",
+            "enum": [
+              "ON_TIME",
+              "LATE",
+              "PARTIAL",
+              "UNSCHEDULED"
+            ]
+          },
+          "tardyMinutes": {
+            "type": "number"
+          }
+        }
+      },
+      "DetailedScheduleBatch": {
+        "type": "object",
+        "properties": {
+          "operationSeq": {
+            "type": "integer"
+          },
+          "operationDescription": {
+            "type": "string"
+          },
+          "batchNo": {
+            "type": "integer"
+          },
+          "batchQty": {
+            "type": "number"
+          },
+          "cumulativeQty": {
+            "type": "number"
+          },
+          "setupFamily": {
+            "type": "string"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "primaryWorkCenter": {
+            "type": "boolean"
+          },
+          "alternativePriority": {
+            "type": "integer"
+          },
+          "machineCapacitySnapshot": {
+            "type": "integer"
+          },
+          "workerCapacitySnapshot": {
+            "type": "integer"
+          },
+          "machinesRequired": {
+            "type": "integer"
+          },
+          "workersRequired": {
+            "type": "integer"
+          },
+          "sequenceSetupMinutes": {
+            "type": "number"
+          },
+          "runClockMinutes": {
+            "type": "number"
+          },
+          "scheduledStart": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduledEnd": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "scheduleStatus": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "UNSCHEDULED"
+            ]
+          },
+          "machineLanes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "DetailedScheduleSegment": {
+        "type": "object",
+        "properties": {
+          "operationSeq": {
+            "type": "integer"
+          },
+          "batchNo": {
+            "type": "integer"
+          },
+          "segmentNo": {
+            "type": "integer"
+          },
+          "segmentType": {
+            "type": "string",
+            "enum": [
+              "SETUP",
+              "RUN"
+            ]
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "machinesRequired": {
+            "type": "integer"
+          },
+          "workersRequired": {
+            "type": "integer"
+          },
+          "setupFamily": {
+            "type": "string"
+          },
+          "fromSetupFamily": {
+            "type": "string"
+          },
+          "clockMinutes": {
+            "type": "number"
+          },
+          "firm": {
+            "type": "boolean"
+          },
+          "machineLanes": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "DetailedScheduleResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/DetailedScheduleRun"
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "firmOrders": {
+                "type": "integer"
+              },
+              "plannedOrders": {
+                "type": "integer"
+              },
+              "scheduledOrders": {
+                "type": "integer"
+              },
+              "lateOrders": {
+                "type": "integer"
+              },
+              "unscheduledOrders": {
+                "type": "integer"
+              },
+              "alternativeUses": {
+                "type": "integer"
+              },
+              "transferBatches": {
+                "type": "integer"
+              },
+              "setupMinutes": {
+                "type": "number"
+              },
+              "runMinutes": {
+                "type": "number"
+              },
+              "peakWorkers": {
+                "type": "integer"
+              }
+            }
+          },
+          "orders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetailedScheduleOrder"
+            }
+          },
+          "batches": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetailedScheduleBatch"
+            }
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetailedScheduleSegment"
+            }
+          },
+          "loads": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapacityLoadRow"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "ログイン",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "認証失敗",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "自分の情報",
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "未認証"
+          }
+        }
+      }
+    },
+    "/items": {
+      "get": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目一覧",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Item"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目登録",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Item"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "バリデーションエラー",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/items/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目取得",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Item"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "存在しません"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目更新",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Item"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目削除",
+        "responses": {
+          "204": {
+            "description": "削除"
+          }
+        }
+      }
+    },
+    "/items/export.csv": {
+      "get": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "CSVエクスポート",
+        "responses": {
+          "200": {
+            "description": "CSVファイル",
+            "content": {
+              "text/csv": {}
+            }
+          }
+        }
+      }
+    },
+    "/items/import": {
+      "post": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "CSVインポート",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/mrp/run": {
+      "post": {
+        "tags": [
+          "MRP"
+        ],
+        "summary": "MRP実行",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MRPRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MRPResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crp/run": {
+      "post": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "CRP実行",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CRPRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CapacityLoadRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/forecast/run": {
+      "post": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "需要予測実行 (SMA/EXPO)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForecastRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cost-rollup": {
+      "get": {
+        "tags": [
+          "Costing"
+        ],
+        "summary": "原価積み上げ計算",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CostRollupRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/abc-analysis": {
+      "get": {
+        "tags": [
+          "ABC"
+        ],
+        "summary": "ABC分析（年間使用金額ベース）",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ABCRow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "description": "直近12か月の物理ISSUE数量 × 標準原価でABC分類します。ADJUST/RECEIPT/予約は使用量から除外します。",
+        "parameters": [
+          {
+            "name": "asOf",
+            "in": "query",
+            "required": false,
+            "description": "分析基準日。省略時はアプリの業務日。",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ]
+      }
+    },
+    "/cycle-counts": {
+      "get": {
+        "tags": [
+          "CycleCount"
+        ],
+        "summary": "サイクルカウント一覧",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "COUNTED",
+                "RECONCILED"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/cycle-counts/generate": {
+      "post": {
+        "tags": [
+          "CycleCount"
+        ],
+        "summary": "ABC連動でスケジュール自動生成",
+        "responses": {
+          "201": {
+            "description": "生成件数を返す"
+          }
+        }
+      }
+    },
+    "/cycle-counts/{id}/record": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "CycleCount"
+        ],
+        "summary": "実測値を記録 (差異があれば在庫調整も自動起票)",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "countedQty": {
+                    "type": "number"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/lots": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "ロット一覧 (残数付き)",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Lot"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "ロット登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Lot"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/inventory/on-hand": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "在庫一覧",
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OnHandRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/audit-log": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "監査ログ照会",
+        "parameters": [
+          {
+            "name": "username",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resource",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/reconciliation": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "総在庫とロット在庫の整合性診断",
+        "responses": {
+          "200": {
+            "description": "成功。difference は committed data では常に 0",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryLotReconciliation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/forecast/runs": {
+      "get": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "List saved forecast versions",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "itemId",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast versions"
+          }
+        }
+      }
+    },
+    "/forecast/runs/{id}": {
+      "get": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "Get forecast version and values",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Forecast run detail"
+          }
+        }
+      }
+    },
+    "/forecast/runs/{id}/activate": {
+      "post": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "Activate a DRAFT forecast version",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Activated"
+          }
+        }
+      }
+    },
+    "/forecast/runs/{id}/consumption": {
+      "get": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "Calculate customer-order forecast consumption",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consumption buckets"
+          }
+        }
+      }
+    },
+    "/forecast/runs/{id}/apply-to-mps": {
+      "post": {
+        "tags": [
+          "Forecast"
+        ],
+        "summary": "Publish consumed demand from ACTIVE version to MPS",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated MPS count"
+          }
+        }
+      }
+    },
+    "/supplier-quality/suppliers": {
+      "get": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "List supplier quality profiles",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "Create/update supplier quality profile",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated"
+          }
+        }
+      }
+    },
+    "/supplier-quality/scorecard": {
+      "get": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "Supplier quality scorecard",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/supplier-quality/ncrs": {
+      "get": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "List supplier NCRs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "Create supplier NCR",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    },
+    "/supplier-quality/ncrs/{id}/history": {
+      "get": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "NCR immutable history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/supplier-quality/ncrs/{id}/disposition": {
+      "post": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "Disposition supplier NCR",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Disposition recorded"
+          }
+        }
+      }
+    },
+    "/supplier-quality/ncrs/{id}/close-rework": {
+      "post": {
+        "tags": [
+          "SupplierQuality"
+        ],
+        "summary": "Close REWORK NCR after PASS inspection",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Closed"
+          }
+        }
+      }
+    },
+    "/crp/schedule": {
+      "post": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Generate finite-capacity CRP schedule",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CRPRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Finite schedule snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CRPFiniteScheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/crp/schedule-runs": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "List finite-capacity CRP schedule snapshots",
+        "responses": {
+          "200": {
+            "description": "Schedule runs"
+          }
+        }
+      }
+    },
+    "/crp/schedule-runs/{id}": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Get finite-capacity CRP schedule snapshot",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Schedule run detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CRPFiniteScheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detailed-scheduling/run": {
+      "post": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Generate detailed finite schedule with alternative Work Centers, transfer batches, sequence setup, machines and labor",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CRPRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Immutable detailed schedule snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedScheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/detailed-scheduling/runs": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "List detailed schedule snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed schedule runs"
+          }
+        }
+      }
+    },
+    "/detailed-scheduling/runs/{id}": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Get detailed schedule snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detailed schedule snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedScheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routing-operations/{opId}/alternatives": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "List alternative Work Centers for a routing operation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Alternatives"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Add alternative Work Center",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Alternative created"
+          }
+        }
+      }
+    },
+    "/work-centers/{id}/setup-matrix": {
+      "get": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "List sequence-dependent setup matrix rows",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Setup matrix"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "CRP"
+        ],
+        "summary": "Upsert sequence-dependent setup matrix row",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Setup matrix row"
+          }
+        }
+      }
+    }
+  }
+}

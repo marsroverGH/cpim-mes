@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cpim
+      POSTGRES_PASSWORD: cpim
+      POSTGRES_DB: cpim
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cpim -d cpim"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://cpim:cpim@db:5432/cpim?sslmode=disable
+      HTTP_ADDR: ":8080"
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-in-production}
+      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
+      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-docker-compose-backend}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    # NOTE: do NOT set VITE_API_BASE here.
+    # Leaving it unset makes the browser bundle use the relative URL '/api',
+    # which the Vite dev server proxies to http://backend:8080 (see vite.config.ts).
+    # This works whether the user opens the app at http://localhost:5173
+    # or at http://<server-LAN-IP>:5173 from another machine.
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

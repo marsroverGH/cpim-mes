@@ -1,0 +1,72 @@
+package api
+
+import (
+	"testing"
+
+	"github.com/cpim-mes/backend/internal/domain"
+)
+
+func TestRBACCriticalPermissions(t *testing.T) {
+	tests := []struct {
+		name string
+		role domain.Role
+		perm Permission
+		want bool
+	}{
+		{"viewer cannot edit BOM", domain.RoleViewer, PermBOMWrite, false},
+		{"operator cannot edit BOM", domain.RoleOperator, PermBOMWrite, false},
+		{"planner can edit BOM", domain.RolePlanner, PermBOMWrite, true},
+		{"planner cannot manual-adjust inventory", domain.RolePlanner, PermInventoryAdjust, false},
+		{"operator cannot manual-adjust inventory", domain.RoleOperator, PermInventoryAdjust, false},
+		{"operator can complete WO", domain.RoleOperator, PermWOExecute, true},
+		{"operator cannot release WO", domain.RoleOperator, PermWOPlan, false},
+		{"planner can release WO", domain.RolePlanner, PermWOPlan, true},
+		{"operator can receive PO", domain.RoleOperator, PermPOReceive, true},
+		{"operator cannot create PO", domain.RoleOperator, PermPOPlan, false},
+		{"planner can create PO", domain.RolePlanner, PermPOPlan, true},
+		{"operator can create NCR", domain.RoleOperator, PermNCRCreate, true},
+		{"operator cannot disposition NCR", domain.RoleOperator, PermNCRDisposition, false},
+		{"planner can disposition NCR", domain.RolePlanner, PermNCRDisposition, true},
+		{"planner can manage supplier quality", domain.RolePlanner, PermSupplierQualityManage, true},
+		{"planner can draft ECO", domain.RolePlanner, PermECODraft, true},
+		{"planner cannot approve/apply ECO", domain.RolePlanner, PermECOApproveApply, false},
+		{"admin can approve/apply ECO", domain.RoleAdmin, PermECOApproveApply, true},
+		{"admin can adjust inventory", domain.RoleAdmin, PermInventoryAdjust, true},
+		{"unknown role has no permission", domain.Role("unknown"), PermAgentUse, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := roleHasPermission(tt.role, tt.perm); got != tt.want {
+				t.Fatalf("roleHasPermission(%q, %q)=%v want %v", tt.role, tt.perm, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAdminHasEveryDeclaredPermission(t *testing.T) {
+	perms := permissionsForRole(domain.RoleAdmin)
+	if len(perms) == 0 {
+		t.Fatal("admin permissions must not be empty")
+	}
+	for _, p := range perms {
+		if !roleHasPermission(domain.RoleAdmin, p) {
+			t.Fatalf("admin missing %s", p)
+		}
+	}
+}
+
+func TestViewerHasNoMutationPermission(t *testing.T) {
+	mutationPerms := []Permission{
+		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive,
+		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
+		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
+		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,
+		PermECODraft, PermECOApproveApply,
+	}
+	for _, p := range mutationPerms {
+		if roleHasPermission(domain.RoleViewer, p) {
+			t.Fatalf("viewer unexpectedly has mutation permission %s", p)
+		}
+	}
+}

@@ -1,0 +1,11 @@
+# Go
+*.exe
+*.test
+*.out
+/server
+/bin/
+
+# Editor
+.idea/
+.vscode/
+*.swp

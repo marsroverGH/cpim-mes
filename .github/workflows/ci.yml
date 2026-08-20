@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: '1.22.x'
+  NODE_VERSION: '20.x'
+  NPM_VERSION: '10.9.2'
+
+jobs:
+  dependency-locks:
+    name: Dependency locks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pin npm
+        run: npm install --global npm@${{ env.NPM_VERSION }}
+      - name: Re-generate dependency locks
+        run: ./scripts/generate-lockfiles.sh
+      - name: Validate dependency locks
+        run: python3 scripts/check_dependency_locks.py
+      - name: Require lockfiles to be committed and reproducible
+        run: |
+          for f in backend/go.sum frontend/package-lock.json e2e/package-lock.json; do
+            git ls-files --error-unmatch "$f" >/dev/null 2>&1 || {
+              echo "ERROR: $f was generated but is not committed." >&2
+              echo "Download the dependency-lockfiles artifact or run ./scripts/generate-lockfiles.sh locally, then commit it." >&2
+              exit 1
+            }
+          done
+          git diff --exit-code -- \
+            backend/go.mod backend/go.sum \
+            frontend/package.json frontend/package-lock.json \
+            e2e/package.json e2e/package-lock.json
+      - name: Upload generated locks for bootstrap/debugging
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-lockfiles-${{ github.run_id }}
+          path: |
+            backend/go.mod
+            backend/go.sum
+            frontend/package-lock.json
+            e2e/package-lock.json
+          if-no-files-found: ignore
+
+  backend:
+    name: Backend / Go
+    runs-on: ubuntu-latest
+    needs: dependency-locks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+      - name: Download locked modules
+        working-directory: backend
+        run: go mod download
+      - name: Verify module checksums
+        working-directory: backend
+        run: go mod verify
+      - name: Ensure module files are tidy and unchanged
+        working-directory: backend
+        run: |
+          cp go.mod /tmp/go.mod.before
+          cp go.sum /tmp/go.sum.before
+          go mod tidy
+          cmp -s go.mod /tmp/go.mod.before
+          cmp -s go.sum /tmp/go.sum.before
+      - name: Go vet
+        working-directory: backend
+        run: go vet -mod=readonly ./...
+      - name: Go tests
+        working-directory: backend
+        run: go test -mod=readonly -race -count=1 ./...
+      - name: Static business-integrity guards
+        run: |
+          python3 backend/scripts/check_rbac_routes.py
+          python3 backend/scripts/check_bom_integrity.py
+          python3 backend/scripts/check_final_operation_guard.py
+          python3 backend/scripts/check_shopfloor_state_machine.py
+          python3 backend/scripts/check_partial_purchase_receipts.py
+          python3 backend/scripts/check_eco_effective_guard.py
+          python3 backend/scripts/check_quality_transaction.py
+          python3 backend/scripts/check_forecast_version_consumption.py
+          python3 backend/scripts/check_sop_mps_disaggregation.py
+          python3 backend/scripts/check_supplier_quality_ncr.py
+          python3 backend/scripts/check_abc_annual_usage.py
+          python3 backend/scripts/check_crp_finite_capacity.py
+          python3 backend/scripts/check_detailed_scheduling.py
+          python3 backend/scripts/check_migration_manager.py
+          python3 scripts/check_ci_dependency_policy.py
+
+  frontend:
+    name: Frontend / Vue
+    runs-on: ubuntu-latest
+    needs: dependency-locks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Pin npm
+        run: npm install --global npm@${{ env.NPM_VERSION }}
+      - name: Clean locked install
+        working-directory: frontend
+        run: npm ci
+      - name: Build and typecheck
+        working-directory: frontend
+        run: npm run typecheck && npm run build
+
+  docker-build:
+    name: Docker build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all images
+        run: docker compose build --pull
+
+  e2e:
+    name: Integration / Playwright
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Pin npm
+        run: npm install --global npm@${{ env.NPM_VERSION }}
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+      - name: Start full stack
+        env:
+          JWT_SECRET: ci-only-secret-not-for-production
+        run: docker compose up -d --build
+      - name: Wait for frontend/backend
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && curl -fsS http://localhost:5173 >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color
+          exit 1
+      - name: Run Playwright tests
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: http://localhost:5173
+        run: npm test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          if-no-files-found: ignore
+      - name: Docker logs
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v --remove-orphans
