@@ -331,6 +331,7 @@ var legacyChecks = []legacyCheck{
 	{34, `SELECT to_regclass('public.pegging_runs') IS NOT NULL AND to_regclass('public.pegging_nodes') IS NOT NULL AND to_regclass('public.pegging_edges') IS NOT NULL AND to_regclass('public.planning_exceptions') IS NOT NULL AND to_regclass('public.planning_exception_actions') IS NOT NULL AND to_regclass('public.v_current_planning_exceptions') IS NOT NULL`},
 	{35, `SELECT to_regclass('public.supplier_schedule_events') IS NOT NULL AND to_regclass('public.supplier_lead_time_runs') IS NOT NULL AND to_regclass('public.supplier_lead_time_results') IS NOT NULL AND to_regclass('public.v_purchase_order_planning_schedule') IS NOT NULL`},
 	{36, `SELECT to_regclass('public.inventory_policy_versions') IS NOT NULL AND to_regclass('public.inventory_policy_runs') IS NOT NULL AND to_regclass('public.inventory_policy_results') IS NOT NULL AND to_regclass('public.v_current_inventory_policy') IS NOT NULL`},
+	{37, `SELECT to_regclass('public.maintenance_events') IS NOT NULL AND to_regclass('public.maintenance_event_revisions') IS NOT NULL AND to_regclass('public.v_current_maintenance_events') IS NOT NULL AND to_regclass('public.detailed_schedule_maintenance_snapshots') IS NOT NULL`},
 }
 
 func bootstrapLegacyDatabase(ctx context.Context, conn *sqlx.Conn, migrations []Migration, installedBy string, logger *log.Logger) ([]int, error) {

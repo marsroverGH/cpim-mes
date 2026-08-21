@@ -705,6 +705,86 @@ type MRPResult struct {
 }
 
 // ====================================================================
+// Maintenance / Capacity Downtime
+// ====================================================================
+
+// MaintenanceEvent is the immutable identity of one maintenance/downtime case.
+type MaintenanceEvent struct {
+	ID              uuid.UUID `db:"id"                 json:"id"`
+	WorkCenterID    uuid.UUID `db:"work_center_id"     json:"workCenterId"`
+	EventType       string    `db:"event_type"         json:"eventType"`
+	CreatedByUserID uuid.UUID `db:"created_by_user_id" json:"createdByUserId"`
+	CreatedBy       string    `db:"created_by"         json:"createdBy"`
+	CreatedAt       time.Time `db:"created_at"         json:"createdAt"`
+}
+
+// MaintenanceEventRevision is append-only operational evidence. New revisions
+// reschedule, activate, complete or cancel an event without rewriting history.
+type MaintenanceEventRevision struct {
+	ID                  uuid.UUID `db:"id"                   json:"id"`
+	MaintenanceEventID  uuid.UUID `db:"maintenance_event_id" json:"maintenanceEventId"`
+	RevisionNo          int       `db:"revision_no"           json:"revisionNo"`
+	Status              string    `db:"status"                json:"status"`
+	StartAt             time.Time `db:"start_at"              json:"startAt"`
+	EndAt               time.Time `db:"end_at"                json:"endAt"`
+	UnavailableMachines int       `db:"unavailable_machines"  json:"unavailableMachines"`
+	UnavailableWorkers  int       `db:"unavailable_workers"   json:"unavailableWorkers"`
+	Reason              string    `db:"reason"                json:"reason"`
+	SourceRef           string    `db:"source_ref"            json:"sourceRef"`
+	ActorUserID         uuid.UUID `db:"actor_user_id"         json:"actorUserId"`
+	ActorUsername       string    `db:"actor_username"        json:"actorUsername"`
+	OccurredAt          time.Time `db:"occurred_at"           json:"occurredAt"`
+}
+
+// CurrentMaintenanceEvent is the latest revision joined to the Work Center.
+type CurrentMaintenanceEvent struct {
+	ID                  uuid.UUID `db:"id"                   json:"id"`
+	WorkCenterID        uuid.UUID `db:"work_center_id"       json:"workCenterId"`
+	WorkCenterCode      string    `db:"work_center_code"     json:"workCenterCode"`
+	WorkCenterName      string    `db:"work_center_name"     json:"workCenterName"`
+	EventType           string    `db:"event_type"           json:"eventType"`
+	RevisionID          uuid.UUID `db:"revision_id"          json:"revisionId"`
+	RevisionNo          int       `db:"revision_no"          json:"revisionNo"`
+	Status              string    `db:"status"               json:"status"`
+	StartAt             time.Time `db:"start_at"             json:"startAt"`
+	EndAt               time.Time `db:"end_at"               json:"endAt"`
+	UnavailableMachines int       `db:"unavailable_machines" json:"unavailableMachines"`
+	UnavailableWorkers  int       `db:"unavailable_workers"  json:"unavailableWorkers"`
+	Reason              string    `db:"reason"               json:"reason"`
+	SourceRef           string    `db:"source_ref"           json:"sourceRef"`
+	CreatedByUserID     uuid.UUID `db:"created_by_user_id"   json:"createdByUserId"`
+	CreatedBy           string    `db:"created_by"           json:"createdBy"`
+	CreatedAt           time.Time `db:"created_at"           json:"createdAt"`
+	ActorUserID         uuid.UUID `db:"actor_user_id"        json:"actorUserId"`
+	ActorUsername       string    `db:"actor_username"       json:"actorUsername"`
+	OccurredAt          time.Time `db:"occurred_at"          json:"occurredAt"`
+}
+
+type MaintenanceEventDetail struct {
+	Event     MaintenanceEvent           `json:"event"`
+	Current   *CurrentMaintenanceEvent   `json:"current,omitempty"`
+	Revisions []MaintenanceEventRevision `json:"revisions"`
+}
+
+// DetailedScheduleMaintenanceSnapshot freezes the exact capacity reductions
+// that were considered by one persisted Detailed Scheduling run.
+type DetailedScheduleMaintenanceSnapshot struct {
+	RunID               uuid.UUID `db:"run_id"                json:"runId"`
+	MaintenanceEventID  uuid.UUID `db:"maintenance_event_id"  json:"maintenanceEventId"`
+	RevisionID          uuid.UUID `db:"revision_id"           json:"revisionId"`
+	RevisionNo          int       `db:"revision_no"           json:"revisionNo"`
+	WorkCenterID        uuid.UUID `db:"work_center_id"        json:"workCenterId"`
+	EventType           string    `db:"event_type"            json:"eventType"`
+	Status              string    `db:"status"                json:"status"`
+	StartAt             time.Time `db:"start_at"              json:"startAt"`
+	EndAt               time.Time `db:"end_at"                json:"endAt"`
+	UnavailableMachines int       `db:"unavailable_machines"  json:"unavailableMachines"`
+	UnavailableWorkers  int       `db:"unavailable_workers"   json:"unavailableWorkers"`
+	Reason              string    `db:"reason"                json:"reason"`
+	SourceRef           string    `db:"source_ref"            json:"sourceRef"`
+}
+
+// ====================================================================
 // CRP / Routing
 // ====================================================================
 
@@ -973,13 +1053,14 @@ type DetailedScheduleSummary struct {
 }
 
 type DetailedScheduleResult struct {
-	Run          DetailedScheduleRun          `json:"run"`
-	Summary      DetailedScheduleSummary      `json:"summary"`
-	Orders       []DetailedScheduleOrder      `json:"orders"`
-	Batches      []DetailedScheduleBatch      `json:"batches"`
-	Dependencies []DetailedScheduleDependency `json:"dependencies"`
-	Segments     []DetailedScheduleSegment    `json:"segments"`
-	Loads        []CapacityLoadRow            `json:"loads"`
+	Run          DetailedScheduleRun                   `json:"run"`
+	Summary      DetailedScheduleSummary               `json:"summary"`
+	Orders       []DetailedScheduleOrder               `json:"orders"`
+	Batches      []DetailedScheduleBatch               `json:"batches"`
+	Dependencies []DetailedScheduleDependency          `json:"dependencies"`
+	Segments     []DetailedScheduleSegment             `json:"segments"`
+	Loads        []CapacityLoadRow                     `json:"loads"`
+	Maintenance  []DetailedScheduleMaintenanceSnapshot `json:"maintenance"`
 }
 
 // ====================================================================

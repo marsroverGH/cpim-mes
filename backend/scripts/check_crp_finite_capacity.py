@@ -26,7 +26,7 @@ checks={
  'schedule history API': '/crp/schedule-runs' in routes and 'ListFiniteRuns' in svc,
  'CRP UI finite schedule': '有限能力日程を作成' in ui and '工程セグメント' in ui,
  'migration manager fingerprints 0029': '{29,' in mgr,
- 'CRP service owns DB for snapshots': 'db    *sqlx.DB' in cap,
+ 'CRP service owns DB for snapshots': '*sqlx.DB' in cap and 'type CRPService struct' in cap,
 }
 failed=[]
 for name,ok in checks.items():

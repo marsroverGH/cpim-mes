@@ -73,12 +73,24 @@ type laborReservation struct {
 	workers int
 }
 
-type detailedWCState struct {
-	wc       domain.WorkCenter
-	calendar *CalendarSnapshot
+type machineReservation struct {
+	start    time.Time
 	end      time.Time
-	lanes    []*machineLaneState
-	labor    []laborReservation
+	machines int
+}
+
+type maintenanceBlock struct {
+	event domain.CurrentMaintenanceEvent
+}
+
+type detailedWCState struct {
+	wc          domain.WorkCenter
+	calendar    *CalendarSnapshot
+	end         time.Time
+	lanes       []*machineLaneState
+	labor       []laborReservation
+	machine     []machineReservation
+	maintenance []maintenanceBlock
 }
 
 type clockFragment struct{ start, end time.Time }
@@ -158,6 +170,19 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 		}
 		states[wc.ID] = st
 	}
+	maintenanceEvents := []domain.CurrentMaintenanceEvent{}
+	if s.maintenance != nil {
+		maintenanceEvents, err = s.maintenance.CapacityEvents(ctx, start, end.AddDate(0, 0, 1))
+		if err != nil {
+			return nil, err
+		}
+		for _, ev := range maintenanceEvents {
+			if st := states[ev.WorkCenterID]; st != nil {
+				st.maintenance = append(st.maintenance, maintenanceBlock{event: ev})
+			}
+		}
+	}
+
 	setupMatrix, err := s.loadSetupMatrix(ctx)
 	if err != nil {
 		return nil, err
@@ -181,7 +206,10 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	if actor.UserID != uuid.Nil {
 		run.GeneratedByUserID = &actor.UserID
 	}
-	res := &domain.DetailedScheduleResult{Run: run, Orders: []domain.DetailedScheduleOrder{}, Batches: []domain.DetailedScheduleBatch{}, Dependencies: []domain.DetailedScheduleDependency{}, Segments: []domain.DetailedScheduleSegment{}, Loads: []domain.CapacityLoadRow{}}
+	res := &domain.DetailedScheduleResult{Run: run, Orders: []domain.DetailedScheduleOrder{}, Batches: []domain.DetailedScheduleBatch{}, Dependencies: []domain.DetailedScheduleDependency{}, Segments: []domain.DetailedScheduleSegment{}, Loads: []domain.CapacityLoadRow{}, Maintenance: []domain.DetailedScheduleMaintenanceSnapshot{}}
+	for _, ev := range maintenanceEvents {
+		res.Maintenance = append(res.Maintenance, domain.DetailedScheduleMaintenanceSnapshot{RunID: run.ID, MaintenanceEventID: ev.ID, RevisionID: ev.RevisionID, RevisionNo: ev.RevisionNo, WorkCenterID: ev.WorkCenterID, EventType: ev.EventType, Status: ev.Status, StartAt: ev.StartAt, EndAt: ev.EndAt, UnavailableMachines: ev.UnavailableMachines, UnavailableWorkers: ev.UnavailableWorkers, Reason: ev.Reason, SourceRef: ev.SourceRef})
+	}
 
 	for _, task := range tasks {
 		order := domain.DetailedScheduleOrder{ID: uuid.New(), RunID: run.ID, SourceType: task.sourceType, SourceRef: task.sourceRef, WorkOrderID: task.workOrderID, ItemID: task.itemID, ItemCode: task.itemCode, Quantity: task.quantity, Priority: task.priority, EarliestStart: task.earliest, DueAt: task.dueAt}
@@ -201,6 +229,19 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 			for bi, qty := range batchQtys {
 				cumulative += qty
 				b := domain.DetailedScheduleBatch{ID: uuid.New(), RunID: run.ID, ScheduleOrderID: order.ID, OperationSeq: op.seq, OperationDesc: op.description, BatchNo: bi + 1, BatchQty: qty, CumulativeQty: cumulative, SetupFamily: op.setupFamily, ScheduleStatus: "UNSCHEDULED", MachineCapacitySnapshot: maxInt(op.machinesRequired, 1), WorkerCapacitySnapshot: maxInt(op.workersRequired, 0), MachinesRequired: maxInt(op.machinesRequired, 1), WorkersRequired: maxInt(op.workersRequired, 0)}
+				// Preserve the primary Work Center even when maintenance/capacity makes the
+				// batch unschedulable. Pegging then has a causal capacity anchor instead
+				// of an anonymous UNSCHEDULED batch. A successful alternative candidate
+				// below replaces these fields with the actually selected Work Center.
+				if primary := states[op.primaryWC]; primary != nil {
+					wcID := primary.wc.ID
+					b.WorkCenterID = &wcID
+					b.WorkCenterCode = primary.wc.Code
+					b.WorkCenterName = primary.wc.Name
+					b.PrimaryWorkCenter = true
+					b.MachineCapacitySnapshot = primary.wc.MachineCount
+					b.WorkerCapacitySnapshot = primary.wc.WorkerCount
+				}
 				earliest := task.earliest
 				deps := []domain.DetailedScheduleDependency{}
 				if bi > 0 {
@@ -370,6 +411,18 @@ func (s *CRPService) SimulateCTPOrder(ctx context.Context, itemID uuid.UUID, qty
 		}
 		states[wc.ID] = st
 	}
+	if s.maintenance != nil {
+		maintenanceEvents, e := s.maintenance.CapacityEvents(ctx, start, end.AddDate(0, 0, 1))
+		if e != nil {
+			return nil, e
+		}
+		for _, ev := range maintenanceEvents {
+			if st := states[ev.WorkCenterID]; st != nil {
+				st.maintenance = append(st.maintenance, maintenanceBlock{event: ev})
+			}
+		}
+	}
+
 	setupMatrix, err := s.loadSetupMatrix(ctx)
 	if err != nil {
 		return nil, err
@@ -430,6 +483,17 @@ func (s *CRPService) SimulateCTPOrder(ctx context.Context, itemID uuid.UUID, qty
 			for bi, batchQty := range batchQtys {
 				cumulative += batchQty
 				b := domain.DetailedScheduleBatch{ID: uuid.New(), ScheduleOrderID: order.ID, OperationSeq: op.seq, BatchNo: bi + 1, BatchQty: batchQty, CumulativeQty: cumulative, SetupFamily: op.setupFamily, ScheduleStatus: "UNSCHEDULED"}
+				if primary := states[op.primaryWC]; primary != nil {
+					wcID := primary.wc.ID
+					b.WorkCenterID = &wcID
+					b.WorkCenterCode = primary.wc.Code
+					b.WorkCenterName = primary.wc.Name
+					b.PrimaryWorkCenter = true
+					b.MachineCapacitySnapshot = primary.wc.MachineCount
+					b.WorkerCapacitySnapshot = primary.wc.WorkerCount
+					b.MachinesRequired = maxInt(op.machinesRequired, 1)
+					b.WorkersRequired = maxInt(op.workersRequired, 0)
+				}
 				ready := task.earliest
 				if bi > 0 {
 					pred := curr[bi-1].batch
@@ -583,11 +647,11 @@ func planDetailedOnWC(st *detailedWCState, op detailedOperationSpec, qty float64
 		return nil
 	}
 	runClock := op.runMinutesPerUnit * qty * alt.runMult / speed
-	setupFrags, afterSetup, ok := st.planClock(anchor, setup, op.workersRequired, nil)
+	setupFrags, afterSetup, ok := st.planClock(anchor, setup, op.workersRequired, op.machinesRequired, nil)
 	if !ok {
 		return nil
 	}
-	runFrags, end, ok := st.planClock(afterSetup, runClock, op.workersRequired, setupFrags)
+	runFrags, end, ok := st.planClock(afterSetup, runClock, op.workersRequired, op.machinesRequired, setupFrags)
 	if !ok {
 		return nil
 	}
@@ -662,7 +726,7 @@ func sequenceSetupMinutes(matrix map[setupKey]float64, wc uuid.UUID, from, to st
 	return math.Max(base, 0)
 }
 
-func (st *detailedWCState) planClock(earliest time.Time, minutes float64, workers int, extra []clockFragment) ([]clockFragment, time.Time, bool) {
+func (st *detailedWCState) planClock(earliest time.Time, minutes float64, workers, machines int, extra []clockFragment) ([]clockFragment, time.Time, bool) {
 	if minutes <= 1e-9 {
 		return nil, earliest, true
 	}
@@ -677,21 +741,46 @@ func (st *detailedWCState) planClock(earliest time.Time, minutes float64, worker
 		t = ws
 		for t.Before(we) && remaining > 1e-9 {
 			next := we
-			used := 0
+			usedWorkers, usedMachines := 0, 0
 			for _, r := range st.labor {
 				if !t.Before(r.start) && t.Before(r.end) {
-					used += r.workers
+					usedWorkers += r.workers
 				}
 				if r.start.After(t) && r.start.Before(next) {
 					next = r.start
 				}
 				if r.end.After(t) && r.end.Before(next) {
 					next = r.end
+				}
+			}
+			for _, r := range st.machine {
+				if !t.Before(r.start) && t.Before(r.end) {
+					usedMachines += r.machines
+				}
+				if r.start.After(t) && r.start.Before(next) {
+					next = r.start
+				}
+				if r.end.After(t) && r.end.Before(next) {
+					next = r.end
+				}
+			}
+			for _, b := range st.maintenance {
+				r := b.event
+				if !t.Before(r.StartAt) && t.Before(r.EndAt) {
+					usedWorkers += r.UnavailableWorkers
+					usedMachines += r.UnavailableMachines
+				}
+				if r.StartAt.After(t) && r.StartAt.Before(next) {
+					next = r.StartAt
+				}
+				if r.EndAt.After(t) && r.EndAt.Before(next) {
+					next = r.EndAt
 				}
 			}
 			for _, r := range extra {
 				if !t.Before(r.start) && t.Before(r.end) {
-					used += workers
+					usedWorkers += workers
+					usedMachines += machines
 				}
 				if r.start.After(t) && r.start.Before(next) {
 					next = r.start
@@ -700,7 +789,9 @@ func (st *detailedWCState) planClock(earliest time.Time, minutes float64, worker
 					next = r.end
 				}
 			}
-			if workers == 0 || used+workers <= st.wc.WorkerCount {
+			workerOK := workers == 0 || usedWorkers+workers <= st.wc.WorkerCount
+			machineOK := machines == 0 || usedMachines+machines <= maxInt(st.wc.MachineCount, 1)
+			if workerOK && machineOK {
 				avail := next.Sub(t).Minutes()
 				use := math.Min(remaining, avail)
 				if use > 1e-9 {
@@ -779,9 +870,15 @@ func (s *CRPService) commitDetailedCandidate(st *detailedWCState, p *detailedCan
 			}
 		}
 	}
+	fragments := append(append([]clockFragment{}, p.setup...), p.run...)
 	if workers > 0 {
-		for _, f := range append(append([]clockFragment{}, p.setup...), p.run...) {
+		for _, f := range fragments {
 			st.labor = append(st.labor, laborReservation{f.start, f.end, workers})
+		}
+	}
+	if len(p.lanes) > 0 {
+		for _, f := range fragments {
+			st.machine = append(st.machine, machineReservation{f.start, f.end, len(p.lanes)})
 		}
 	}
 }
@@ -918,6 +1015,9 @@ func buildDetailedLoadRows(segs []domain.DetailedScheduleSegment, wcs map[uuid.U
 			mins = float64(st.calendar.MinutesAvailable(key.day))
 		}
 		avail := mins * float64(maxInt(wc.MachineCount, 1))
+		if st := states[key.wc]; st != nil {
+			avail = maintenanceAdjustedMachineMinutes(st, key.day, mins)
+		}
 		pct := 0.0
 		if avail > 0 {
 			pct = u / avail * 100
@@ -931,6 +1031,57 @@ func buildDetailedLoadRows(segs []domain.DetailedScheduleSegment, wcs map[uuid.U
 		return out[i].Date.Before(out[j].Date)
 	})
 	return out
+}
+
+func maintenanceAdjustedMachineMinutes(st *detailedWCState, day time.Time, baseMinutes float64) float64 {
+	machines := maxInt(st.wc.MachineCount, 1)
+	if baseMinutes <= 0 {
+		return 0
+	}
+	shift := st.wc.ShiftStartMinute
+	if shift < 0 || shift > 1439 {
+		shift = 480
+	}
+	ws := TruncateDay(day).Add(time.Duration(shift) * time.Minute)
+	we := ws.Add(time.Duration(baseMinutes) * time.Minute)
+	points := []time.Time{ws, we}
+	for _, b := range st.maintenance {
+		ev := b.event
+		if !ev.EndAt.After(ws) || !ev.StartAt.Before(we) {
+			continue
+		}
+		if ev.StartAt.After(ws) && ev.StartAt.Before(we) {
+			points = append(points, ev.StartAt)
+		}
+		if ev.EndAt.After(ws) && ev.EndAt.Before(we) {
+			points = append(points, ev.EndAt)
+		}
+	}
+	sort.Slice(points, func(i, j int) bool { return points[i].Before(points[j]) })
+	avail := 0.0
+	for i := 0; i+1 < len(points); i++ {
+		a, b := points[i], points[i+1]
+		if !b.After(a) {
+			continue
+		}
+		down := 0
+		for _, mb := range st.maintenance {
+			ev := mb.event
+			if !a.Before(ev.StartAt) && a.Before(ev.EndAt) {
+				down += ev.UnavailableMachines
+			}
+		}
+		up := machines - minInt(down, machines)
+		avail += b.Sub(a).Minutes() * float64(up)
+	}
+	return math.Max(avail, 0)
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func peakDetailedWorkers(segs []domain.DetailedScheduleSegment) int {
@@ -992,6 +1143,12 @@ func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.De
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 			res.Run.ID, load.WorkCenterID, load.WorkCenterCode, load.WorkCenterName, TruncateDay(load.Date),
 			load.RequiredMinutes, load.AvailableMinutes, load.LoadPct, load.IsHoliday); err != nil {
+			return err
+		}
+	}
+	for i := range res.Maintenance {
+		m := &res.Maintenance[i]
+		if _, err = tx.NamedExecContext(ctx, `INSERT INTO detailed_schedule_maintenance_snapshots(run_id,maintenance_event_id,revision_id,revision_no,work_center_id,event_type,status,start_at,end_at,unavailable_machines,unavailable_workers,reason,source_ref) VALUES (:run_id,:maintenance_event_id,:revision_id,:revision_no,:work_center_id,:event_type,:status,:start_at,:end_at,:unavailable_machines,:unavailable_workers,:reason,:source_ref)`, m); err != nil {
 			return err
 		}
 	}
@@ -1057,6 +1214,9 @@ func (s *CRPService) GetDetailedRun(ctx context.Context, id uuid.UUID) (*domain.
 	}
 	for _, x := range loadRows {
 		res.Loads = append(res.Loads, domain.CapacityLoadRow{WorkCenterID: x.WorkCenterID, WorkCenterCode: x.WorkCenterCode, WorkCenterName: x.WorkCenterName, Date: x.Date, RequiredMinutes: x.RequiredMinutes, AvailableMinutes: x.AvailableMinutes, LoadPct: x.LoadPct, IsHoliday: x.IsHoliday})
+	}
+	if err := s.db.SelectContext(ctx, &res.Maintenance, `SELECT * FROM detailed_schedule_maintenance_snapshots WHERE run_id=$1 ORDER BY start_at,work_center_id,maintenance_event_id`, id); err != nil {
+		return nil, err
 	}
 	for _, o := range res.Orders {
 		if o.SourceType == "FIRM_WO" {

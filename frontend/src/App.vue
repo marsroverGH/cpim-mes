@@ -60,6 +60,7 @@ const links = [
   { to: '/items',           title: '品目マスタ',      icon: 'mdi-package-variant-closed' },
   { to: '/bom',             title: 'BOM',             icon: 'mdi-file-tree' },
   { to: '/work-centers',    title: '作業区',          icon: 'mdi-factory' },
+  { to: '/maintenance',     title: 'Maintenance / Downtime', icon: 'mdi-tools' },
   { to: '/calendars',       title: '作業カレンダー',  icon: 'mdi-calendar-month' },
   { to: '/routings',        title: 'ルーティング',    icon: 'mdi-routes' },
   { to: '/demand',          title: '旧需要データ',    icon: 'mdi-database-clock' },

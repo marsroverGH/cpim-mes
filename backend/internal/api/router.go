@@ -146,6 +146,12 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 
 			// Work Centers
+			// Maintenance / Capacity Downtime
+			secured.Get("/maintenance-events", srv.listMaintenanceEvents)
+			secured.Get("/maintenance-events/{id}", srv.getMaintenanceEvent)
+			secured.With(requirePermission(PermMaintenanceManage)).Post("/maintenance-events", srv.createMaintenanceEvent)
+			secured.With(requirePermission(PermMaintenanceManage)).Post("/maintenance-events/{id}/revisions", srv.reviseMaintenanceEvent)
+
 			secured.Get("/work-centers", srv.listWorkCenters)
 			secured.With(requirePermission(PermCapacityMaster)).Post("/work-centers", srv.createWorkCenter)
 			secured.With(requirePermission(PermCapacityMaster)).Put("/work-centers/{id}", srv.updateWorkCenter)

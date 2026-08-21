@@ -86,6 +86,10 @@
     {
       "name": "Inventory Policy",
       "description": "Versioned statistical safety stock, reorder point and Min/Max policies"
+    },
+    {
+      "name": "Maintenance",
+      "description": "Preventive maintenance, breakdown and capacity downtime"
     }
   ],
   "components": {
@@ -1125,6 +1129,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CapacityLoadRow"
+            }
+          },
+          "maintenance": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetailedScheduleMaintenanceSnapshot"
             }
           }
         }
@@ -2585,6 +2595,242 @@
                 }
               }
             }
+          }
+        }
+      },
+      "CurrentMaintenanceEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "workCenterName": {
+            "type": "string"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "PREVENTIVE_MAINTENANCE",
+              "BREAKDOWN",
+              "PLANNED_DOWNTIME",
+              "UNPLANNED_DOWNTIME"
+            ]
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionNo": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unavailableMachines": {
+            "type": "integer"
+          },
+          "unavailableWorkers": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MaintenanceEventInput": {
+        "type": "object",
+        "required": [
+          "workCenterId",
+          "eventType",
+          "startAt",
+          "endAt",
+          "unavailableMachines",
+          "unavailableWorkers"
+        ],
+        "properties": {
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "PREVENTIVE_MAINTENANCE",
+              "BREAKDOWN",
+              "PLANNED_DOWNTIME",
+              "UNPLANNED_DOWNTIME"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "ACTIVE"
+            ]
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unavailableMachines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unavailableWorkers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          }
+        }
+      },
+      "MaintenanceRevisionInput": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unavailableMachines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unavailableWorkers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          }
+        }
+      },
+      "MaintenanceEventDetail": {
+        "type": "object",
+        "properties": {
+          "event": {
+            "type": "object"
+          },
+          "current": {
+            "$ref": "#/components/schemas/CurrentMaintenanceEvent"
+          },
+          "revisions": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "DetailedScheduleMaintenanceSnapshot": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maintenanceEventId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionNo": {
+            "type": "integer"
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "eventType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "unavailableMachines": {
+            "type": "integer"
+          },
+          "unavailableWorkers": {
+            "type": "integer"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
           }
         }
       }
@@ -5619,6 +5865,166 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InventoryPolicyRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/maintenance-events": {
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "List current maintenance/downtime events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workCenterId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "includeTerminal",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Maintenance events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CurrentMaintenanceEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Create maintenance/downtime event",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceEventInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created maintenance event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceEventDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/maintenance-events/{id}": {
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Get maintenance event revision history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Maintenance event detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceEventDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/maintenance-events/{id}/revisions": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Append a maintenance event revision",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceRevisionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Revised maintenance event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceEventDetail"
                 }
               }
             }

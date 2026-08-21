@@ -25,7 +25,7 @@
         </v-row>
 
         <v-tabs v-if="result" v-model="tab" class="mt-4">
-          <v-tab value="orders">オーダ</v-tab><v-tab value="batches">Transfer Batch</v-tab><v-tab value="segments">資源セグメント</v-tab><v-tab value="loads">設備負荷</v-tab><v-tab value="history">履歴</v-tab>
+          <v-tab value="orders">オーダ</v-tab><v-tab value="batches">Transfer Batch</v-tab><v-tab value="segments">資源セグメント</v-tab><v-tab value="loads">設備負荷</v-tab><v-tab value="maintenance">Maintenance</v-tab><v-tab value="history">履歴</v-tab>
         </v-tabs>
         <v-window v-if="result" v-model="tab">
           <v-window-item value="orders">
@@ -47,6 +47,7 @@
             </v-data-table>
           </v-window-item>
           <v-window-item value="loads"><v-data-table :items="result.loads" :headers="loadHeaders" density="compact"><template #item.date="{item}">{{ d(item.date) }}</template><template #item.loadPct="{item}">{{ item.loadPct.toFixed(0) }}%</template></v-data-table></v-window-item>
+          <v-window-item value="maintenance"><v-data-table :items="result.maintenance || []" :headers="maintenanceHeaders" density="compact"><template #item.window="{item}">{{dt(item.startAt)}} → {{dt(item.endAt)}}</template></v-data-table></v-window-item>
           <v-window-item value="history"><v-data-table :items="runs" :headers="runHeaders" density="compact" @click:row="openRun"><template #item.generatedAt="{item}">{{ dt(item.generatedAt) }}</template></v-data-table></v-window-item>
         </v-window>
       </v-card-text>
@@ -64,6 +65,7 @@ const orderHeaders=[{title:'区分',key:'sourceType'},{title:'参照',key:'sourc
 const batchHeaders=[{title:'工程',key:'operationSeq'},{title:'Batch',key:'batchNo'},{title:'数量',key:'batchQty'},{title:'累計',key:'cumulativeQty'},{title:'WC',key:'workCenterCode'},{title:'設備Lane',key:'machineLanes'},{title:'作業者',key:'workersRequired'},{title:'Setup Family',key:'setupFamily'},{title:'Seq段取(分)',key:'sequenceSetupMinutes'},{title:'開始',key:'scheduledStart'},{title:'終了',key:'scheduledEnd'}]
 const segmentHeaders=[{title:'工程',key:'operationSeq'},{title:'Batch',key:'batchNo'},{title:'種別',key:'segmentType'},{title:'WC',key:'workCenterCode'},{title:'設備Lane',key:'machineLanes'},{title:'作業者',key:'workersRequired'},{title:'開始',key:'startAt'},{title:'終了',key:'endAt'},{title:'分',key:'clockMinutes'}]
 const loadHeaders=[{title:'日付',key:'date'},{title:'WC',key:'workCenterCode'},{title:'設備分',key:'requiredMinutes'},{title:'設備能力分',key:'availableMinutes'},{title:'負荷率',key:'loadPct'}]
+const maintenanceHeaders=[{title:'Type',key:'eventType'},{title:'Status',key:'status'},{title:'期間',key:'window'},{title:'停止設備',key:'unavailableMachines'},{title:'停止作業者',key:'unavailableWorkers'},{title:'理由',key:'reason'},{title:'Rev',key:'revisionNo'}]
 const runHeaders=[{title:'開始',key:'startDate'},{title:'終了',key:'endDate'},{title:'期間',key:'horizonDays'},{title:'作成者',key:'generatedBy'},{title:'作成日時',key:'generatedAt'}]
 async function loadRuns(){runs.value=(await DetailedSchedulingApi.runs())??[]}
 onMounted(loadRuns)

@@ -730,6 +730,51 @@ export const MrpApi = {
     http.post<MrpResult[]>('/mrp/run', req).then(r => r.data)
 }
 
+// ------- Maintenance / Capacity Downtime -------
+export type MaintenanceEventType = 'PREVENTIVE_MAINTENANCE'|'BREAKDOWN'|'PLANNED_DOWNTIME'|'UNPLANNED_DOWNTIME'
+export type MaintenanceStatus = 'PLANNED'|'ACTIVE'|'COMPLETED'|'CANCELLED'
+export interface CurrentMaintenanceEvent {
+  id: string
+  workCenterId: string
+  workCenterCode: string
+  workCenterName: string
+  eventType: MaintenanceEventType
+  revisionId: string
+  revisionNo: number
+  status: MaintenanceStatus
+  startAt: string
+  endAt: string
+  unavailableMachines: number
+  unavailableWorkers: number
+  reason: string
+  sourceRef: string
+  createdBy: string
+  createdAt: string
+  actorUsername: string
+  occurredAt: string
+}
+export interface MaintenanceRevision {
+  id: string; maintenanceEventId: string; revisionNo: number; status: MaintenanceStatus
+  startAt: string; endAt: string; unavailableMachines: number; unavailableWorkers: number
+  reason: string; sourceRef: string; actorUsername: string; occurredAt: string
+}
+export interface MaintenanceEventDetail {
+  event: { id:string; workCenterId:string; eventType:MaintenanceEventType; createdBy:string; createdAt:string }
+  current?: CurrentMaintenanceEvent
+  revisions: MaintenanceRevision[]
+}
+export interface DetailedScheduleMaintenanceSnapshot {
+  runId: string; maintenanceEventId: string; revisionId: string; revisionNo: number; workCenterId: string
+  eventType: MaintenanceEventType; status: MaintenanceStatus; startAt: string; endAt: string
+  unavailableMachines: number; unavailableWorkers: number; reason: string; sourceRef: string
+}
+export const MaintenanceApi = {
+  list: (workCenterId?: string, includeTerminal=false) => http.get<CurrentMaintenanceEvent[]>('/maintenance-events', { params: { workCenterId, includeTerminal } }).then(r => r.data),
+  get: (id:string) => http.get<MaintenanceEventDetail>(`/maintenance-events/${id}`).then(r => r.data),
+  create: (x:{workCenterId:string; eventType:MaintenanceEventType; status?:MaintenanceStatus; startAt:string; endAt:string; unavailableMachines:number; unavailableWorkers:number; reason?:string; sourceRef?:string}) => http.post<MaintenanceEventDetail>('/maintenance-events', x).then(r => r.data),
+  revise: (id:string, x:{status?:MaintenanceStatus; startAt?:string; endAt?:string; unavailableMachines?:number; unavailableWorkers?:number; reason?:string; sourceRef?:string}) => http.post<MaintenanceEventDetail>(`/maintenance-events/${id}/revisions`, x).then(r => r.data)
+}
+
 // ------- Work Centers -------
 export interface WorkCenter {
   id?: string
@@ -875,6 +920,7 @@ export interface CrpFiniteScheduleResult {
   orders: CrpScheduleOrder[]
   segments: CrpScheduleSegment[]
   loads: CapacityLoadRow[]
+  maintenance: DetailedScheduleMaintenanceSnapshot[]
 }
 export const CrpApi = {
   run: (req: { horizonDays?: number; startDate?: string }) =>

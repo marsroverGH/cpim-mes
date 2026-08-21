@@ -158,6 +158,21 @@ type detailedEvidence struct {
 	GeneratedAt    time.Time  `db:"generated_at"`
 }
 
+type maintenanceEvidence struct {
+	MaintenanceEventID  uuid.UUID `db:"maintenance_event_id"`
+	RevisionID          uuid.UUID `db:"revision_id"`
+	RevisionNo          int       `db:"revision_no"`
+	WorkCenterID        uuid.UUID `db:"work_center_id"`
+	EventType           string    `db:"event_type"`
+	Status              string    `db:"status"`
+	StartAt             time.Time `db:"start_at"`
+	EndAt               time.Time `db:"end_at"`
+	UnavailableMachines int       `db:"unavailable_machines"`
+	UnavailableWorkers  int       `db:"unavailable_workers"`
+	Reason              string    `db:"reason"`
+	SourceRef           string    `db:"source_ref"`
+}
+
 type workCenterEvidence struct {
 	ID              uuid.UUID  `db:"id"`
 	Code            string     `db:"code"`
@@ -217,7 +232,8 @@ func jsonDetail(v any) json.RawMessage {
 	return b
 }
 
-func floatPtr(v float64) *float64 { return &v }
+func floatPtr(v float64) *float64           { return &v }
+func peggingTimePtr(v time.Time) *time.Time { return &v }
 
 func (g *graphBuilder) node(key, typ, label string, entityID *uuid.UUID, entityRef string, itemID *uuid.UUID, itemCode string, qty *float64, due *time.Time, status string, detail any) uuid.UUID {
 	if id, ok := g.nodeByKey[key]; ok {
@@ -951,7 +967,15 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		wn := g.node("WC:"+ev.ID.String()+":"+wc.ID.String(), "WORK_CENTER", wc.Code+" / "+wc.Name, &wid, wc.Code, nil, "", nil, wc.ScheduledEnd, wc.BatchStatus,
 			map[string]any{"machinesRequired": wc.MachinesReq, "workersRequired": wc.WorkersReq, "machineCapacity": wc.MachineCapacity, "workerCapacity": wc.WorkerCapacity})
 		g.edge(ds, wn, "USES_WORK_CENTER", nil, nil)
-		if wc.BatchStatus == "UNSCHEDULED" {
+		maintenanceRoot, maintenanceKey, err := s.addMaintenanceCapacityEvidence(ctx, tx, g, order, line, *ev, wc, wn, needDate, append(path, "DS:"+ev.ID.String(), "WC:"+ev.ID.String()+":"+wc.ID.String()))
+		if err != nil {
+			return err
+		}
+		if maintenanceRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
+			root = maintenanceRoot
+			_ = maintenanceKey
+		}
+		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil {
 			root = wn
 		}
 	}
@@ -1004,7 +1028,15 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		wid := wc.ID
 		wn := g.node("WC:"+ev.ID.String()+":"+wc.ID.String(), "WORK_CENTER", wc.Code+" / "+wc.Name, &wid, wc.Code, nil, "", nil, wc.ScheduledEnd, wc.BatchStatus, map[string]any{"machinesRequired": wc.MachinesReq, "workersRequired": wc.WorkersReq, "machineCapacity": wc.MachineCapacity, "workerCapacity": wc.WorkerCapacity})
 		g.edge(ds, wn, "USES_WORK_CENTER", nil, nil)
-		if wc.BatchStatus == "UNSCHEDULED" {
+		maintenanceRoot, maintenanceKey, err := s.addMaintenanceCapacityEvidence(ctx, tx, g, order, line, ev, wc, wn, needDate, append(path, "DS:"+ev.ID.String(), "WC:"+ev.ID.String()+":"+wc.ID.String()))
+		if err != nil {
+			return err
+		}
+		if maintenanceRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
+			root = maintenanceRoot
+			_ = maintenanceKey
+		}
+		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil {
 			root = wn
 		}
 	}
@@ -1019,6 +1051,58 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		g.exception(order, line, "CAPACITY_LATE", severityFor("CAPACITY_LATE", d), root, fmt.Sprintf("Capacity schedule for WO %s finishes %d day(s) late", wo.OrderNo, d), &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, d, p2, map[string]any{"workOrderNo": wo.OrderNo, "tardyMinutes": ev.TardyMinutes})
 	}
 	return nil
+}
+
+func (s *PeggingService) addMaintenanceCapacityEvidence(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, order peggingOrder, line *peggingLine, ev detailedEvidence, wc workCenterEvidence, wcNode uuid.UUID, needDate time.Time, path []string) (uuid.UUID, string, error) {
+	var rows []maintenanceEvidence
+	if err := tx.SelectContext(ctx, &rows, `
+SELECT maintenance_event_id,revision_id,revision_no,work_center_id,event_type,status,start_at,end_at,
+       unavailable_machines,unavailable_workers,reason,source_ref
+  FROM detailed_schedule_maintenance_snapshots
+ WHERE run_id=$1 AND work_center_id=$2
+ ORDER BY start_at,maintenance_event_id`, ev.RunID, wc.ID); err != nil {
+		return uuid.Nil, "", err
+	}
+	impactEnd := needDate
+	if ev.ScheduledEnd != nil && ev.ScheduledEnd.After(impactEnd) {
+		impactEnd = *ev.ScheduledEnd
+	}
+	impactStart := ev.GeneratedAt
+	if ev.ScheduledStart != nil && ev.ScheduledStart.Before(impactStart) {
+		impactStart = *ev.ScheduledStart
+	}
+	var root uuid.UUID
+	rootKey := ""
+	for _, m := range rows {
+		if !m.StartAt.Before(impactEnd) || !m.EndAt.After(impactStart) {
+			continue
+		}
+		mid := m.MaintenanceEventID
+		key := "MAINT:" + m.MaintenanceEventID.String() + ":R" + fmt.Sprint(m.RevisionNo)
+		label := strings.ReplaceAll(m.EventType, "_", " ")
+		mn := g.node(key, "MAINTENANCE_EVENT", label, &mid, m.SourceRef, nil, "", nil, peggingTimePtr(m.EndAt), m.Status, map[string]any{
+			"eventType": m.EventType, "revisionNo": m.RevisionNo, "startAt": m.StartAt, "endAt": m.EndAt,
+			"unavailableMachines": m.UnavailableMachines, "unavailableWorkers": m.UnavailableWorkers,
+			"reason": m.Reason, "workCenterCode": wc.Code,
+		})
+		g.edge(wcNode, mn, "CAPACITY_REDUCED_BY", nil, map[string]any{"workCenterCode": wc.Code})
+		if root == uuid.Nil {
+			root, rootKey = mn, key
+		}
+		if ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate)) {
+			typ := MaintenanceExceptionType(m.EventType)
+			severity := "WARNING"
+			if m.EventType == "BREAKDOWN" || m.EventType == "UNPLANNED_DOWNTIME" {
+				severity = "CRITICAL"
+			}
+			msg := fmt.Sprintf("%s reduces %s capacity from %s to %s", label, wc.Code, m.StartAt.Format(time.RFC3339), m.EndAt.Format(time.RFC3339))
+			g.exception(order, line, typ, severity, mn, msg, &line.RequestedDate, line.PromisedDate, peggingTimePtr(m.EndAt), daysLate(m.EndAt, needDate), append(append([]string{}, path...), key), map[string]any{
+				"maintenanceEventId": m.MaintenanceEventID, "revisionNo": m.RevisionNo, "eventType": m.EventType,
+				"unavailableMachines": m.UnavailableMachines, "unavailableWorkers": m.UnavailableWorkers,
+			})
+		}
+	}
+	return root, rootKey, nil
 }
 
 func canonicalPeggingHash(g *graphBuilder) string {

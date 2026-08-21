@@ -105,8 +105,8 @@ checks = {
     'E2E verifies supplier schedule idempotent retry': has_all(e2e, 'confirmEventId', 'retry.status()).toBe(201)', 'history).toHaveLength(2)'),
     'OpenAPI requires supplier schedule idempotency key': 'eventId' in openapi['paths']['/purchase-orders/{id}/supplier-schedule/events']['post']['requestBody']['content']['application/json']['schema'].get('required', []),
     'migration manager fingerprints 0035': '{35,' in manager and 'supplier_schedule_events' in manager and 'supplier_lead_time_runs' in manager,
-    'migration manager includes 0035 under current migration set': '{35,' in manager and 'len(migs) != 36' in manager_test,
-    'migration guard advances beyond 0035 without losing it': "'36 ordered SQL migrations exist'" in manager_guard and 'len(files) == 36' in manager_guard,
+    'migration manager includes 0035 under current migration set': '{35,' in manager and 'len(migs) != 37' in manager_test,
+    'migration guard advances beyond 0035 without losing it': "'37 ordered SQL migrations exist'" in manager_guard and 'len(files) == 37' in manager_guard,
     'CI runs 0035 guard': 'check_supplier_scheduling_reliability.py' in ci,
 }
 

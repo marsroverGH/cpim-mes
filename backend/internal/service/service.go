@@ -29,6 +29,7 @@ type Services struct {
 	Pegging            *PeggingService
 	SupplierScheduling *SupplierSchedulingService
 	InventoryPolicy    *InventoryPolicyService
+	Maintenance        *MaintenanceService
 	MRP                *MRPService
 
 	WorkCenters *WorkCenterService
@@ -74,7 +75,8 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	kpiSvc := &KPIService{repos: r, mrp: mrp, am: actions}
 	salesOrders := &SalesOrderService{db: db, ledger: ledger}
 	atp := &ATPService{db: db, repos: r, inventoryPolicy: inventoryPolicy}
-	crp := &CRPService{db: db, repos: r, mrp: mrp}
+	maintenance := &MaintenanceService{db: db}
+	crp := &CRPService{db: db, repos: r, mrp: mrp, maintenance: maintenance}
 	ctp := &CTPEngine{db: db, repos: r, crp: crp, inventoryPolicy: inventoryPolicy}
 	orderPromising := &OrderPromisingService{db: db, sales: salesOrders, atp: atp, ctp: ctp}
 	productAllocation := &ProductAllocationService{db: db}
@@ -96,6 +98,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Pegging:            pegging,
 		SupplierScheduling: supplierScheduling,
 		InventoryPolicy:    inventoryPolicy,
+		Maintenance:        maintenance,
 		MRP:                mrp,
 		WorkCenters:        &WorkCenterService{r: r.WorkCenters},
 		Routings:           &RoutingService{r: r.Routings},

@@ -337,3 +337,6 @@ Supplier commitments and ASN are now append-only scheduling evidence. Historical
 
 ### 0036 Statistical Safety Stock / Inventory Policy
 Versioned Service-Level policies calculate statistical Safety Stock, Reorder Point and Min/Max targets from ISSUE demand variability and 0035 supplier lead-time reliability. MRP, ATP/CTP and Full Pegging consume the same effective policy; policy breaches appear as planning exceptions. See `docs/STATISTICAL_INVENTORY_POLICY.md`.
+
+### 0037 Maintenance + Capacity Downtime
+Preventive Maintenance, Breakdown, Planned Downtime and Unplanned Downtime are modeled as append-only Work Center capacity events. Detailed Scheduling subtracts machine/worker capacity at exact time boundaries, CTP reuses the same allocator, and every persisted schedule freezes the maintenance revisions it used. Full Pegging traces those snapshots to maintenance-specific root-cause exceptions. See `docs/MAINTENANCE_CAPACITY_DOWNTIME.md`.

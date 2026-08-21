@@ -149,9 +149,10 @@ func (s *RoutingService) DeleteOperation(ctx context.Context, id uuid.UUID) erro
 //   - リソース別の代替・優先順位は考慮しない
 
 type CRPService struct {
-	db    *sqlx.DB
-	repos *repository.Repositories
-	mrp   *MRPService
+	db          *sqlx.DB
+	repos       *repository.Repositories
+	mrp         *MRPService
+	maintenance *MaintenanceService
 }
 
 type CRPRequest struct {
