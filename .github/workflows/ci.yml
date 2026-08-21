@@ -112,6 +112,7 @@ jobs:
           python3 backend/scripts/check_sales_order_management.py
           python3 backend/scripts/check_advanced_order_promising.py
           python3 backend/scripts/check_backorder_processing.py
+          python3 backend/scripts/check_full_pegging_exception_management.py
           python3 backend/scripts/check_migration_manager.py
           python3 scripts/check_ci_dependency_policy.py
 

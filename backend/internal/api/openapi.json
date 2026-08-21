@@ -74,6 +74,10 @@
     {
       "name": "Backorders",
       "description": "Backorder Processing and Product Allocation"
+    },
+    {
+      "name": "Pegging",
+      "description": "Full supply/demand pegging and planning exception management"
     }
   ],
   "components": {
@@ -1759,6 +1763,254 @@
           },
           "publication": {
             "$ref": "#/components/schemas/BackorderPublication"
+          }
+        }
+      },
+      "PeggingRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "generatedBy": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "PeggingNode": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nodeKey": {
+            "type": "string"
+          },
+          "nodeType": {
+            "type": "string"
+          },
+          "entityRef": {
+            "type": "string"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "nullable": true
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "PeggingEdge": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fromNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "toNodeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "edgeType": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number",
+            "nullable": true
+          },
+          "detail": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "PlanningException": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "exceptionType": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "WARNING",
+              "CRITICAL"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "impactDays": {
+            "type": "integer"
+          },
+          "rootCausePath": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACKNOWLEDGED",
+              "RESOLVED"
+            ]
+          }
+        }
+      },
+      "PlanningExceptionAction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "exceptionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "ACKNOWLEDGE",
+              "RESOLVE",
+              "REOPEN"
+            ]
+          },
+          "fromStatus": {
+            "type": "string"
+          },
+          "toStatus": {
+            "type": "string"
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PeggingResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/PeggingRun"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PeggingNode"
+            }
+          },
+          "edges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PeggingEdge"
+            }
+          },
+          "exceptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanningException"
+            }
+          }
+        }
+      },
+      "ExceptionScanResult": {
+        "type": "object",
+        "properties": {
+          "peggingRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PeggingRun"
+            }
+          },
+          "exceptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanningException"
+            }
           }
         }
       }
@@ -3919,6 +4171,297 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BackorderResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/pegging/run": {
+      "post": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "Create immutable full-pegging snapshot for a Sales Order",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "horizonDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 366
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pegging result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeggingResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales-orders/{id}/pegging-runs": {
+      "get": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "List Sales Order pegging history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pegging runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PeggingRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pegging-runs/{id}": {
+      "get": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "Get one pegging graph snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pegging result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeggingResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/planning-exceptions": {
+      "get": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "List current planning exceptions from latest Sales Order snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "ACKNOWLEDGED",
+                "RESOLVED"
+              ]
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "INFO",
+                "WARNING",
+                "CRITICAL"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current exceptions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanningException"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/planning-exceptions/scan": {
+      "post": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "Scan current open Sales Orders and create fresh pegging snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "horizonDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 366
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Exception scan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExceptionScanResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/planning-exceptions/{id}/actions": {
+      "post": {
+        "tags": [
+          "Pegging"
+        ],
+        "summary": "Acknowledge, resolve or reopen a planning exception",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "actionType"
+                ],
+                "properties": {
+                  "actionType": {
+                    "type": "string",
+                    "enum": [
+                      "ACKNOWLEDGE",
+                      "RESOLVE",
+                      "REOPEN"
+                    ]
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Exception action",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanningExceptionAction"
                 }
               }
             }

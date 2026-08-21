@@ -33,6 +33,10 @@ func TestRBACCriticalPermissions(t *testing.T) {
 		{"planner can run BOP", domain.RolePlanner, PermBackorderRun, true},
 		{"operator cannot manage product allocation", domain.RoleOperator, PermProductAllocation, false},
 		{"planner can manage product allocation", domain.RolePlanner, PermProductAllocation, true},
+		{"operator cannot run full pegging", domain.RoleOperator, PermPeggingRun, false},
+		{"planner can run full pegging", domain.RolePlanner, PermPeggingRun, true},
+		{"operator cannot manage planning exceptions", domain.RoleOperator, PermExceptionManage, false},
+		{"planner can manage planning exceptions", domain.RolePlanner, PermExceptionManage, true},
 		{"operator can create NCR", domain.RoleOperator, PermNCRCreate, true},
 		{"operator cannot disposition NCR", domain.RoleOperator, PermNCRDisposition, false},
 		{"planner can disposition NCR", domain.RolePlanner, PermNCRDisposition, true},
@@ -67,7 +71,7 @@ func TestAdminHasEveryDeclaredPermission(t *testing.T) {
 func TestViewerHasNoMutationPermission(t *testing.T) {
 	mutationPerms := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

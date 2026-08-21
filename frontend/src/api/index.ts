@@ -372,6 +372,108 @@ export const BackordersApi = {
   deactivatePlan: (id: string) => http.post<ProductAllocationPlanDetail>(`/product-allocation-plans/${id}/deactivate`, {}).then(r => r.data)
 }
 
+// ------- Full Pegging / Exception Management -------
+export interface PeggingRun {
+  id: string
+  salesOrderId: string
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  asOf: string
+  horizonDays: number
+  resultHash?: string
+  errorText: string
+  generatedBy: string
+  completedAt?: string
+  createdAt: string
+}
+export interface PeggingNode {
+  id: string
+  runId: string
+  nodeKey: string
+  nodeType: 'SALES_ORDER' | 'SALES_ORDER_LINE' | 'PROMISE' | 'BACKORDER' | 'INVENTORY' | 'ITEM' | 'WORK_ORDER' | 'PLANNED_ORDER' | 'PURCHASE_ORDER' | 'SUPPLIER' | 'QUALITY_HOLD' | 'DETAILED_SCHEDULE' | 'WORK_CENTER' | 'SHORTAGE'
+  entityId?: string
+  entityRef: string
+  itemId?: string
+  itemCode: string
+  label: string
+  quantity?: number
+  dueDate?: string
+  status: string
+  detail: Record<string, unknown>
+}
+export interface PeggingEdge {
+  id: string
+  runId: string
+  fromNodeId: string
+  toNodeId: string
+  edgeType: string
+  quantity?: number
+  detail: Record<string, unknown>
+}
+export interface PlanningException {
+  id: string
+  runId: string
+  salesOrderId: string
+  salesOrderLineId?: string
+  exceptionKey: string
+  exceptionType: 'LATE_PROMISE' | 'BACKORDER' | 'UNCONVERTED_CTP' | 'MATERIAL_SHORTAGE' | 'LATE_PURCHASE_ORDER' | 'SUPPLIER_BLOCKED' | 'QUALITY_HOLD' | 'LATE_WORK_ORDER' | 'CAPACITY_LATE' | 'CAPACITY_UNSCHEDULED'
+  severity: 'INFO' | 'WARNING' | 'CRITICAL'
+  rootNodeId: string
+  message: string
+  requestedDate?: string
+  promisedDate?: string
+  impactDate?: string
+  impactDays: number
+  rootCausePath: string[]
+  detail: Record<string, unknown>
+  detectedAt: string
+  currentStatus?: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+  salesOrderNo?: string
+  customerNo?: string
+  customerName?: string
+  lineNo?: number
+  itemCode?: string
+  itemName?: string
+  latestActionType?: string
+  latestActor?: string
+  latestComment?: string
+  latestActionAt?: string
+}
+export interface PlanningExceptionAction {
+  id: string
+  exceptionId: string
+  actionType: 'ACKNOWLEDGE' | 'RESOLVE' | 'REOPEN'
+  fromStatus: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+  toStatus: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED'
+  actorUsername: string
+  comment: string
+  occurredAt: string
+}
+export interface PeggingResult {
+  run: PeggingRun
+  nodes: PeggingNode[]
+  edges: PeggingEdge[]
+  exceptions: PlanningException[]
+}
+export interface ExceptionScanResult {
+  peggingRuns: PeggingRun[]
+  exceptions: PlanningException[]
+}
+export const PeggingApi = {
+  run: (salesOrderId: string, horizonDays = 180) => http.post<PeggingResult>(`/sales-orders/${salesOrderId}/pegging/run`, { horizonDays }).then(r => r.data),
+  runs: (salesOrderId: string) => http.get<PeggingRun[]>(`/sales-orders/${salesOrderId}/pegging-runs`).then(r => r.data),
+  runDetail: (runId: string) => http.get<PeggingResult>(`/pegging-runs/${runId}`).then(r => r.data),
+  scan: (horizonDays = 180) => http.post<ExceptionScanResult>('/planning-exceptions/scan', { horizonDays }).then(r => r.data),
+  exceptions: (filters: { status?: string; severity?: string; type?: string } = {}) => {
+    const q = new URLSearchParams()
+    if (filters.status) q.set('status', filters.status)
+    if (filters.severity) q.set('severity', filters.severity)
+    if (filters.type) q.set('type', filters.type)
+    const suffix = q.toString() ? `?${q.toString()}` : ''
+    return http.get<PlanningException[]>(`/planning-exceptions${suffix}`).then(r => r.data)
+  },
+  act: (id: string, actionType: 'ACKNOWLEDGE' | 'RESOLVE' | 'REOPEN', comment = '') => http.post<PlanningExceptionAction>(`/planning-exceptions/${id}/actions`, { actionType, comment }).then(r => r.data)
+}
+
 // ------- MPS -------
 export interface MpsEntry {
   id?: string

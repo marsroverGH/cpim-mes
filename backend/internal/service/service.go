@@ -26,6 +26,7 @@ type Services struct {
 	OrderPromising    *OrderPromisingService
 	ProductAllocation *ProductAllocationService
 	Backorders        *BackorderService
+	Pegging           *PeggingService
 	MRP               *MRPService
 
 	WorkCenters *WorkCenterService
@@ -75,6 +76,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	orderPromising := &OrderPromisingService{db: db, sales: salesOrders, atp: atp, ctp: ctp}
 	productAllocation := &ProductAllocationService{db: db}
 	backorders := &BackorderService{db: db, atp: atp, ctp: ctp, allocation: productAllocation}
+	pegging := &PeggingService{db: db}
 	svc := &Services{
 		Items:             itemsSvc,
 		BOM:               &BOMService{db: db, r: r.BOM},
@@ -87,6 +89,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		OrderPromising:    orderPromising,
 		ProductAllocation: productAllocation,
 		Backorders:        backorders,
+		Pegging:           pegging,
 		MRP:               mrp,
 		WorkCenters:       &WorkCenterService{r: r.WorkCenters},
 		Routings:          &RoutingService{r: r.Routings},

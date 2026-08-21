@@ -1,0 +1,30 @@
+diff --git a/backend/internal/service/pegging.go b/backend/internal/service/pegging.go
+index a88f683..360cb26 100644
+--- a/backend/internal/service/pegging.go
++++ b/backend/internal/service/pegging.go
+@@ -244,13 +244,6 @@ func (g *graphBuilder) exception(order peggingOrder, line *peggingLine, typ, sev
+ 	})
+ }
+ 
+-func maxInt(a, b int) int {
+-	if a > b {
+-		return a
+-	}
+-	return b
+-}
+-
+ func dateOnly(t time.Time) time.Time {
+ 	y, m, d := t.Date()
+ 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+diff --git a/backend/scripts/check_full_pegging_exception_management.py b/backend/scripts/check_full_pegging_exception_management.py
+index ac0ab97..87d5580 100755
+--- a/backend/scripts/check_full_pegging_exception_management.py
++++ b/backend/scripts/check_full_pegging_exception_management.py
+@@ -46,6 +46,7 @@ checks = {
+     'Detailed Scheduling evidence is traced': 'detailed_schedule_orders' in svc and 'detailed_schedule_batches' in svc and '"DETAILED_SCHEDULE"' in svc,
+     'Work Center capacity nodes are traced': '"WORK_CENTER"' in svc and '"USES_WORK_CENTER"' in svc,
+     'formal supply pools prevent double pegging': all(x in svc for x in ['inventory  map[uuid.UUID]float64','wo         map[uuid.UUID]float64','po         map[uuid.UUID]float64','planned    map[uuid.UUID]float64']),
++    'Pegging reuses shared maxInt helper without redeclaration': 'func maxInt(' not in svc,
+     'material shortage exception exists': '"MATERIAL_SHORTAGE"' in svc and '"SHORTAGE"' in svc,
+     'late PO and WO exceptions exist': '"LATE_PURCHASE_ORDER"' in svc and '"LATE_WORK_ORDER"' in svc,
+     'capacity late/unscheduled exceptions exist': '"CAPACITY_LATE"' in svc and '"CAPACITY_UNSCHEDULED"' in svc,

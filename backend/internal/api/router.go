@@ -119,6 +119,14 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/backorders/runs", srv.listBackorderRuns)
 			secured.Get("/backorders/runs/{id}", srv.getBackorderRun)
 
+			// Full Pegging / Exception Management
+			secured.With(requirePermission(PermPeggingRun)).Post("/sales-orders/{id}/pegging/run", srv.runSalesOrderPegging)
+			secured.Get("/sales-orders/{id}/pegging-runs", srv.listSalesOrderPeggingRuns)
+			secured.Get("/pegging-runs/{id}", srv.getPeggingRun)
+			secured.With(requirePermission(PermExceptionManage)).Post("/planning-exceptions/scan", srv.scanPlanningExceptions)
+			secured.Get("/planning-exceptions", srv.listPlanningExceptions)
+			secured.With(requirePermission(PermExceptionManage)).Post("/planning-exceptions/{id}/actions", srv.actOnPlanningException)
+
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 
 			// Work Centers

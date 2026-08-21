@@ -405,6 +405,109 @@ type BackorderResult struct {
 	Publication   *BackorderPublication      `json:"publication,omitempty"`
 }
 
+// PeggingRun is an immutable point-in-time full-pegging snapshot for one Sales Order.
+type PeggingRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	SalesOrderID      uuid.UUID  `db:"sales_order_id"       json:"salesOrderId"`
+	Status            string     `db:"status"               json:"status"`
+	AsOf              time.Time  `db:"as_of"                json:"asOf"`
+	HorizonDays       int        `db:"horizon_days"         json:"horizonDays"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	GeneratedByUserID uuid.UUID  `db:"generated_by_user_id" json:"generatedByUserId"`
+	GeneratedBy       string     `db:"generated_by"         json:"generatedBy"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+}
+
+// PeggingNode is a demand, supply, material, quality or capacity node in a pegging graph.
+type PeggingNode struct {
+	ID        uuid.UUID       `db:"id"         json:"id"`
+	RunID     uuid.UUID       `db:"run_id"     json:"runId"`
+	NodeKey   string          `db:"node_key"   json:"nodeKey"`
+	NodeType  string          `db:"node_type"  json:"nodeType"`
+	EntityID  *uuid.UUID      `db:"entity_id"  json:"entityId,omitempty"`
+	EntityRef string          `db:"entity_ref" json:"entityRef"`
+	ItemID    *uuid.UUID      `db:"item_id"    json:"itemId,omitempty"`
+	ItemCode  string          `db:"item_code"  json:"itemCode"`
+	Label     string          `db:"label"      json:"label"`
+	Quantity  *float64        `db:"quantity"   json:"quantity,omitempty"`
+	DueDate   *time.Time      `db:"due_date"   json:"dueDate,omitempty"`
+	Status    string          `db:"status"     json:"status"`
+	Detail    json.RawMessage `db:"detail"     json:"detail"`
+	CreatedAt time.Time       `db:"created_at" json:"createdAt"`
+}
+
+// PeggingEdge describes one causal/supply relationship between graph nodes.
+type PeggingEdge struct {
+	ID         uuid.UUID       `db:"id"           json:"id"`
+	RunID      uuid.UUID       `db:"run_id"       json:"runId"`
+	FromNodeID uuid.UUID       `db:"from_node_id" json:"fromNodeId"`
+	ToNodeID   uuid.UUID       `db:"to_node_id"   json:"toNodeId"`
+	EdgeType   string          `db:"edge_type"    json:"edgeType"`
+	Quantity   *float64        `db:"quantity"     json:"quantity,omitempty"`
+	Detail     json.RawMessage `db:"detail"       json:"detail"`
+	CreatedAt  time.Time       `db:"created_at"   json:"createdAt"`
+}
+
+// PlanningException is immutable detection evidence produced by a pegging run.
+type PlanningException struct {
+	ID               uuid.UUID       `db:"id"                    json:"id"`
+	RunID            uuid.UUID       `db:"run_id"                json:"runId"`
+	SalesOrderID     uuid.UUID       `db:"sales_order_id"        json:"salesOrderId"`
+	SalesOrderLineID *uuid.UUID      `db:"sales_order_line_id"   json:"salesOrderLineId,omitempty"`
+	ExceptionKey     string          `db:"exception_key"         json:"exceptionKey"`
+	ExceptionType    string          `db:"exception_type"        json:"exceptionType"`
+	Severity         string          `db:"severity"              json:"severity"`
+	RootNodeID       uuid.UUID       `db:"root_node_id"          json:"rootNodeId"`
+	Message          string          `db:"message"               json:"message"`
+	RequestedDate    *time.Time      `db:"requested_date"        json:"requestedDate,omitempty"`
+	PromisedDate     *time.Time      `db:"promised_date"         json:"promisedDate,omitempty"`
+	ImpactDate       *time.Time      `db:"impact_date"           json:"impactDate,omitempty"`
+	ImpactDays       int             `db:"impact_days"           json:"impactDays"`
+	RootCausePath    json.RawMessage `db:"root_cause_path"       json:"rootCausePath"`
+	Detail           json.RawMessage `db:"detail"                json:"detail"`
+	DetectedAt       time.Time       `db:"detected_at"           json:"detectedAt"`
+	CurrentStatus    string          `db:"current_status"        json:"currentStatus,omitempty"`
+	SalesOrderNo     string          `db:"sales_order_no"        json:"salesOrderNo,omitempty"`
+	CustomerNo       string          `db:"customer_no"           json:"customerNo,omitempty"`
+	CustomerName     string          `db:"customer_name"         json:"customerName,omitempty"`
+	LineNo           *int            `db:"line_no"               json:"lineNo,omitempty"`
+	ItemCode         string          `db:"item_code"             json:"itemCode,omitempty"`
+	ItemName         string          `db:"item_name"             json:"itemName,omitempty"`
+	LatestActionType *string         `db:"latest_action_type"    json:"latestActionType,omitempty"`
+	LatestActor      *string         `db:"latest_actor"          json:"latestActor,omitempty"`
+	LatestComment    *string         `db:"latest_comment"        json:"latestComment,omitempty"`
+	LatestActionAt   *time.Time      `db:"latest_action_at"      json:"latestActionAt,omitempty"`
+}
+
+// PlanningExceptionAction is append-only acknowledgement/resolution evidence.
+type PlanningExceptionAction struct {
+	ID            uuid.UUID `db:"id"             json:"id"`
+	ExceptionID   uuid.UUID `db:"exception_id"   json:"exceptionId"`
+	ActionType    string    `db:"action_type"    json:"actionType"`
+	FromStatus    string    `db:"from_status"    json:"fromStatus"`
+	ToStatus      string    `db:"to_status"      json:"toStatus"`
+	ActorUserID   uuid.UUID `db:"actor_user_id"  json:"actorUserId"`
+	ActorUsername string    `db:"actor_username" json:"actorUsername"`
+	Comment       string    `db:"comment"        json:"comment"`
+	OccurredAt    time.Time `db:"occurred_at"    json:"occurredAt"`
+}
+
+// PeggingResult is the full immutable graph plus its detected exceptions.
+type PeggingResult struct {
+	Run        PeggingRun          `json:"run"`
+	Nodes      []PeggingNode       `json:"nodes"`
+	Edges      []PeggingEdge       `json:"edges"`
+	Exceptions []PlanningException `json:"exceptions"`
+}
+
+// ExceptionScanResult is returned by a global scan across committed open orders.
+type ExceptionScanResult struct {
+	PeggingRuns []PeggingRun        `json:"peggingRuns"`
+	Exceptions  []PlanningException `json:"exceptions"`
+}
+
 // MRPResult — MRP計算結果 (1品目1期間)
 type MRPResult struct {
 	ItemID             uuid.UUID  `json:"itemId"`

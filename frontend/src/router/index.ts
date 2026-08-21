@@ -14,6 +14,7 @@ const router = createRouter({
     { path: '/demand',          component: () => import('@/views/Demand.vue') },
     { path: '/sales-orders',     component: () => import('@/views/SalesOrders.vue') },
     { path: '/backorders',        component: () => import('@/views/Backorders.vue') },
+    { path: '/pegging-exceptions', component: () => import('@/views/PeggingExceptions.vue') },
     { path: '/forecast',        component: () => import('@/views/Forecast.vue') },
     { path: '/atp',             component: () => import('@/views/Atp.vue') },
     { path: '/sop',             component: () => import('@/views/Sop.vue') },
