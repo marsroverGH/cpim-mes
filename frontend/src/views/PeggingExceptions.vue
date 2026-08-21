@@ -22,7 +22,7 @@
               <v-col cols="12" md="2"><v-text-field v-model.number="scanHorizon" type="number" min="1" max="366" label="Horizon days" /></v-col>
               <v-col cols="12" md="2"><v-select v-model="statusFilter" :items="['OPEN','ACKNOWLEDGED','RESOLVED']" clearable label="Status" /></v-col>
               <v-col cols="12" md="2"><v-select v-model="severityFilter" :items="['CRITICAL','WARNING','INFO']" clearable label="Severity" /></v-col>
-              <v-col cols="12" md="3"><v-select v-model="typeFilter" :items="exceptionTypes" clearable label="Exception type" /></v-col>
+              <v-col cols="12" md="3"><v-combobox v-model="typeFilter" :items="exceptionTypes" clearable label="Exception type" /></v-col>
               <v-col cols="12" md="3" class="d-flex ga-2">
                 <v-btn color="primary" :loading="loading" :disabled="!canManage" prepend-icon="mdi-radar" @click="scan">全受注Scan</v-btn>
                 <v-btn variant="outlined" @click="loadExceptions">Filter</v-btn>

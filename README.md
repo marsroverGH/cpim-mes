@@ -346,3 +346,29 @@ Shop Floor START/STOP/COMPLETE/SCRAP evidence, operation standards and 0037 Main
 
 ### 0039 Real-Time Dispatching + Dynamic Rescheduling + Schedule Adherence
 Detailed Scheduling now has an explicit Active Execution Schedule. Work Center dispatch lists combine current Shop Floor state, due-date/priority urgency and setup-family continuity; Schedule Adherence compares planned vs actual start/completion without counting untouched future operations as on-time observations. Shop Floor, Maintenance/Breakdown, OEE Capacity Feedback and Quality HOLD evidence queue auditable reschedule signals. Dynamic rescheduling creates a new immutable candidate, blocks Frozen-horizon commitment changes, audits Firm/Flexible changes, and atomically activates safe candidates. Full Pegging follows the active execution run and traces `RESCHEDULE_RUN` / `RESCHEDULED_BY` root-cause evidence. See `docs/REALTIME_DISPATCH_DYNAMIC_RESCHEDULING_SCHEDULE_ADHERENCE.md`.
+
+## 0040 Production Control Tower
+
+Production Control Tower / Constraint & Exception Prioritization adds an
+operational intervention layer above Full Pegging and Planning Exceptions.
+
+It ranks current Sales Order risks using severity, lateness, revenue at risk,
+customer importance, constraint impact and aging, and preserves each scoring
+result as immutable evidence.
+
+Key capabilities:
+
+- stable Control Tower cases derived from Planning Exceptions
+- Revenue at Risk and Open Order Value
+- P1/P2/P3/P4 priority scoring
+- material / capacity / supplier / execution constraint scoring
+- immutable canonical snapshots with refresh idempotency
+- ranked recommended interventions
+- ACKNOWLEDGE / ASSIGN / START / RESOLVE / REOPEN / CLOSE workflow
+- planner/admin RBAC
+- Production Control Tower dashboard and case history UI
+
+Operations and implementation details:
+
+- `docs/0040-production-control-tower.md`
+

@@ -68,6 +68,7 @@ const links = [
   { to: '/sales-orders',     title: 'Sales Orders',    icon: 'mdi-file-document-outline' },
   { to: '/backorders',        title: 'Backorder / Allocation', icon: 'mdi-swap-horizontal-bold' },
   { to: '/pegging-exceptions', title: 'Pegging / Exceptions', icon: 'mdi-family-tree' },
+  { to: '/production-control-tower', title: 'Production Control Tower', icon: 'mdi-view-dashboard-variant-outline' },
   { to: '/forecast',        title: '需要予測',        icon: 'mdi-chart-line' },
   { to: '/sop',             title: 'S&OP 月次計画',   icon: 'mdi-chart-timeline' },
   { to: '/rccp',            title: 'RCCP',            icon: 'mdi-chart-gantt' },

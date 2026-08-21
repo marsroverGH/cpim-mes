@@ -334,6 +334,7 @@ var legacyChecks = []legacyCheck{
 	{37, `SELECT to_regclass('public.maintenance_events') IS NOT NULL AND to_regclass('public.maintenance_event_revisions') IS NOT NULL AND to_regclass('public.v_current_maintenance_events') IS NOT NULL AND to_regclass('public.detailed_schedule_maintenance_snapshots') IS NOT NULL`},
 	{38, `SELECT to_regclass('public.production_performance_runs') IS NOT NULL AND to_regclass('public.production_performance_results') IS NOT NULL AND to_regclass('public.capacity_feedback_versions') IS NOT NULL AND to_regclass('public.v_current_capacity_feedback') IS NOT NULL AND to_regclass('public.detailed_schedule_capacity_feedback_snapshots') IS NOT NULL`},
 	{39, `SELECT to_regclass('public.dispatch_policy_versions') IS NOT NULL AND to_regclass('public.detailed_schedule_execution_state') IS NOT NULL AND to_regclass('public.dynamic_reschedule_runs') IS NOT NULL AND to_regclass('public.schedule_adherence_snapshots') IS NOT NULL`},
+	{40, `SELECT to_regclass('public.control_tower_cases') IS NOT NULL AND to_regclass('public.control_tower_case_snapshots') IS NOT NULL AND to_regclass('public.control_tower_recommendations') IS NOT NULL AND to_regclass('public.control_tower_case_actions') IS NOT NULL AND to_regclass('public.v_current_control_tower_cases') IS NOT NULL`},
 }
 
 func bootstrapLegacyDatabase(ctx context.Context, conn *sqlx.Conn, migrations []Migration, installedBy string, logger *log.Logger) ([]int, error) {

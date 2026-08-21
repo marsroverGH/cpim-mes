@@ -415,7 +415,7 @@ export interface PlanningException {
   salesOrderId: string
   salesOrderLineId?: string
   exceptionKey: string
-  exceptionType: 'LATE_PROMISE' | 'BACKORDER' | 'UNCONVERTED_CTP' | 'MATERIAL_SHORTAGE' | 'LATE_PURCHASE_ORDER' | 'SUPPLIER_BLOCKED' | 'QUALITY_HOLD' | 'LATE_WORK_ORDER' | 'CAPACITY_LATE' | 'CAPACITY_UNSCHEDULED'
+  exceptionType: string
   severity: 'INFO' | 'WARNING' | 'CRITICAL'
   rootNodeId: string
   message: string
@@ -1830,4 +1830,184 @@ export const DispatchApi = {
   processPending: () => http.post<DynamicRescheduleResult | null>('/dynamic-rescheduling/process-pending', {}).then(r => r.data),
   rescheduleRuns: () => http.get<DynamicRescheduleRun[]>('/dynamic-rescheduling/runs').then(r => r.data),
   signals: () => http.get<RescheduleSignal[]>('/dynamic-rescheduling/signals').then(r => r.data)
+}
+
+// ------- Production Control Tower / Constraint & Exception Prioritization -------
+
+export type ControlTowerCaseStatus =
+  'OPEN' |
+  'ACKNOWLEDGED' |
+  'ASSIGNED' |
+  'IN_PROGRESS' |
+  'RESOLVED' |
+  'CLOSED'
+
+export type ControlTowerPriorityBand = 'P1' | 'P2' | 'P3' | 'P4'
+
+export type ControlTowerCaseActionType =
+  'ACKNOWLEDGE' |
+  'ASSIGN' |
+  'START' |
+  'RESOLVE' |
+  'REOPEN' |
+  'CLOSE'
+
+export interface ControlTowerRefreshResult {
+  asOf: string
+  exceptionsEvaluated: number
+  casesTouched: number
+  snapshotsCreated: number
+  recommendationsCreated: number
+}
+
+export interface ControlTowerDashboardSummary {
+  totalCases: number
+  openCases: number
+  p1Cases: number
+  p2Cases: number
+  unassignedCases: number
+  revenueAtRisk: number
+}
+
+export interface ControlTowerCurrentCase {
+  caseId: string
+  caseKey: string
+
+  salesOrderId: string
+  salesOrderLineId?: string
+
+  exceptionType: string
+  firstExceptionId: string
+  firstDetectedAt: string
+  caseCreatedAt: string
+
+  currentStatus: ControlTowerCaseStatus
+
+  latestActionType?: string
+  latestActor?: string
+  latestComment?: string
+  latestActionAt?: string
+
+  ownerUserId?: string
+  ownerUsername?: string
+
+  snapshotId?: string
+  planningExceptionId?: string
+  peggingRunId?: string
+  asOf?: string
+
+  severity?: 'INFO' | 'WARNING' | 'CRITICAL'
+  impactDays?: number
+
+  orderValue?: number
+  openOrderValue?: number
+  orderPriority?: 'EXPEDITE' | 'HIGH' | 'NORMAL'
+  serviceClassCode?: string
+  revenueAtRisk?: number
+
+  severityScore?: number
+  latenessScore?: number
+  revenueScore?: number
+  customerScore?: number
+  materialScore?: number
+  capacityScore?: number
+  supplierScore?: number
+  executionScore?: number
+  agingScore?: number
+
+  priorityScore?: number
+  priorityBand?: ControlTowerPriorityBand
+
+  rootCauseType?: string
+  rootCauseRef?: string
+  resultHash?: string
+  snapshotCreatedAt?: string
+
+  salesOrderNo: string
+  customerNo: string
+  customerName: string
+  lineNo?: number
+  itemCode?: string
+  itemName?: string
+}
+
+export interface ControlTowerRecommendation {
+  id: string
+  snapshotId: string
+  rankNo: number
+  actionType: string
+  targetType: string
+  targetRef: string
+  title: string
+  reason: string
+  estimatedEffect: Record<string, unknown>
+  requiresApproval: boolean
+  createdAt: string
+}
+
+export interface ControlTowerCaseAction {
+  id: string
+  caseId: string
+  actionType: ControlTowerCaseActionType
+  fromStatus: ControlTowerCaseStatus
+  toStatus: ControlTowerCaseStatus
+  assignedToUserId?: string
+  assignedToUsername?: string
+  actorUserId: string
+  actorUsername: string
+  comment: string
+  occurredAt: string
+}
+
+export interface ControlTowerDashboard {
+  asOf: string
+  summary: ControlTowerDashboardSummary
+  cases: ControlTowerCurrentCase[]
+}
+
+export const ControlTowerApi = {
+  refresh: (asOf?: string) =>
+    http.post<ControlTowerRefreshResult>(
+      '/control-tower/refresh',
+      asOf ? { asOf } : {}
+    ).then(r => r.data),
+
+  dashboard: (
+    filters: {
+      status?: string
+      priorityBand?: string
+    } = {}
+  ) =>
+    http.get<ControlTowerDashboard>(
+      '/control-tower',
+      { params: filters }
+    ).then(r => r.data),
+
+  case: (id: string) =>
+    http.get<ControlTowerCurrentCase>(
+      `/control-tower/cases/${id}`
+    ).then(r => r.data),
+
+  recommendations: (id: string) =>
+    http.get<ControlTowerRecommendation[]>(
+      `/control-tower/cases/${id}/recommendations`
+    ).then(r => r.data),
+
+  actions: (id: string) =>
+    http.get<ControlTowerCaseAction[]>(
+      `/control-tower/cases/${id}/actions`
+    ).then(r => r.data),
+
+  act: (
+    id: string,
+    body: {
+      actionType: ControlTowerCaseActionType
+      assignedToUserId?: string
+      comment?: string
+    }
+  ) =>
+    http.post<ControlTowerCaseAction>(
+      `/control-tower/cases/${id}/actions`,
+      body
+    ).then(r => r.data)
 }

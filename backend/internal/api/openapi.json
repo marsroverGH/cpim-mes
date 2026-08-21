@@ -3361,6 +3361,341 @@
             "format": "date-time"
           }
         }
+      },
+      "ControlTowerRefreshResult": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exceptionsEvaluated": {
+            "type": "integer"
+          },
+          "casesTouched": {
+            "type": "integer"
+          },
+          "snapshotsCreated": {
+            "type": "integer"
+          },
+          "recommendationsCreated": {
+            "type": "integer"
+          }
+        }
+      },
+      "ControlTowerDashboardSummary": {
+        "type": "object",
+        "properties": {
+          "totalCases": {
+            "type": "integer"
+          },
+          "openCases": {
+            "type": "integer"
+          },
+          "p1Cases": {
+            "type": "integer"
+          },
+          "p2Cases": {
+            "type": "integer"
+          },
+          "unassignedCases": {
+            "type": "integer"
+          },
+          "revenueAtRisk": {
+            "type": "number"
+          }
+        }
+      },
+      "ControlTowerCurrentCase": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseKey": {
+            "type": "string"
+          },
+          "salesOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "salesOrderLineId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "exceptionType": {
+            "type": "string"
+          },
+          "currentStatus": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ACKNOWLEDGED",
+              "ASSIGNED",
+              "IN_PROGRESS",
+              "RESOLVED",
+              "CLOSED"
+            ]
+          },
+          "ownerUserId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "ownerUsername": {
+            "type": "string",
+            "nullable": true
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "WARNING",
+              "CRITICAL"
+            ]
+          },
+          "impactDays": {
+            "type": "integer"
+          },
+          "orderValue": {
+            "type": "number"
+          },
+          "openOrderValue": {
+            "type": "number"
+          },
+          "orderPriority": {
+            "type": "string",
+            "enum": [
+              "EXPEDITE",
+              "HIGH",
+              "NORMAL"
+            ]
+          },
+          "serviceClassCode": {
+            "type": "string"
+          },
+          "revenueAtRisk": {
+            "type": "number"
+          },
+          "severityScore": {
+            "type": "number"
+          },
+          "latenessScore": {
+            "type": "number"
+          },
+          "revenueScore": {
+            "type": "number"
+          },
+          "customerScore": {
+            "type": "number"
+          },
+          "materialScore": {
+            "type": "number"
+          },
+          "capacityScore": {
+            "type": "number"
+          },
+          "supplierScore": {
+            "type": "number"
+          },
+          "executionScore": {
+            "type": "number"
+          },
+          "agingScore": {
+            "type": "number"
+          },
+          "priorityScore": {
+            "type": "number"
+          },
+          "priorityBand": {
+            "type": "string",
+            "enum": [
+              "P1",
+              "P2",
+              "P3",
+              "P4"
+            ]
+          },
+          "rootCauseType": {
+            "type": "string"
+          },
+          "rootCauseRef": {
+            "type": "string"
+          },
+          "salesOrderNo": {
+            "type": "string"
+          },
+          "customerNo": {
+            "type": "string"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "lineNo": {
+            "type": "integer",
+            "nullable": true
+          },
+          "itemCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "itemName": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstDetectedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snapshotCreatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "ControlTowerRecommendation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "snapshotId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rankNo": {
+            "type": "integer"
+          },
+          "actionType": {
+            "type": "string"
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "targetRef": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "estimatedEffect": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ControlTowerCaseAction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "ACKNOWLEDGE",
+              "ASSIGN",
+              "START",
+              "RESOLVE",
+              "REOPEN",
+              "CLOSE"
+            ]
+          },
+          "fromStatus": {
+            "type": "string"
+          },
+          "toStatus": {
+            "type": "string"
+          },
+          "assignedToUserId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "assignedToUsername": {
+            "type": "string",
+            "nullable": true
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ControlTowerCaseActionInput": {
+        "type": "object",
+        "required": [
+          "actionType"
+        ],
+        "properties": {
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "ACKNOWLEDGE",
+              "ASSIGN",
+              "START",
+              "RESOLVE",
+              "REOPEN",
+              "CLOSE"
+            ]
+          },
+          "assignedToUserId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string"
+          }
+        }
+      },
+      "ControlTowerDashboard": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ControlTowerDashboardSummary"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ControlTowerCurrentCase"
+            }
+          }
+        }
       }
     }
   },
@@ -7322,6 +7657,259 @@
                   "items": {
                     "$ref": "#/components/schemas/ScheduleRescheduleSignal"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/control-tower": {
+      "get": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "Current Production Control Tower",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OPEN",
+                "ACKNOWLEDGED",
+                "ASSIGNED",
+                "IN_PROGRESS",
+                "RESOLVED",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "name": "priorityBand",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "P1",
+                "P2",
+                "P3",
+                "P4"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current intervention dashboard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlTowerDashboard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/control-tower/refresh": {
+      "post": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "Refresh Control Tower from current planning exceptions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "asOf": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Control Tower refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlTowerRefreshResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/control-tower/cases/{id}": {
+      "get": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "Get current Control Tower case",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Control Tower case",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlTowerCurrentCase"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/control-tower/cases/{id}/recommendations": {
+      "get": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "List latest intervention recommendations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ControlTowerRecommendation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/control-tower/cases/{id}/actions": {
+      "get": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "List Control Tower case action history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Case actions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ControlTowerCaseAction"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Control Tower"
+        ],
+        "summary": "Append Control Tower case workflow action",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlTowerCaseActionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Action recorded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ControlTowerCaseAction"
                 }
               }
             }

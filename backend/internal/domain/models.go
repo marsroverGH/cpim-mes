@@ -2053,3 +2053,164 @@ type ECOComponent struct {
 	NewScrapPct float64   `db:"new_scrap_pct"  json:"newScrapPct"`
 	Notes       string    `db:"notes"          json:"notes"`
 }
+
+// Production Control Tower / Constraint & Exception Prioritization
+
+// ControlTowerCase is the stable operational identity for an intervention case.
+// Analytical priority values are intentionally stored separately as immutable
+// ControlTowerCaseSnapshot evidence.
+type ControlTowerCase struct {
+	ID               uuid.UUID  `db:"id"                    json:"id"`
+	CaseKey          string     `db:"case_key"              json:"caseKey"`
+	SalesOrderID     uuid.UUID  `db:"sales_order_id"        json:"salesOrderId"`
+	SalesOrderLineID *uuid.UUID `db:"sales_order_line_id"   json:"salesOrderLineId,omitempty"`
+	ExceptionType    string     `db:"exception_type"        json:"exceptionType"`
+	FirstExceptionID uuid.UUID  `db:"first_exception_id"    json:"firstExceptionId"`
+	FirstDetectedAt  time.Time  `db:"first_detected_at"     json:"firstDetectedAt"`
+	CreatedAt        time.Time  `db:"created_at"            json:"createdAt"`
+}
+
+// ControlTowerCaseSnapshot is immutable evidence of business impact and
+// intervention priority at one point in time.
+type ControlTowerCaseSnapshot struct {
+	ID                  uuid.UUID `db:"id"                    json:"id"`
+	CaseID              uuid.UUID `db:"case_id"               json:"caseId"`
+	PlanningExceptionID uuid.UUID `db:"planning_exception_id" json:"planningExceptionId"`
+	PeggingRunID        uuid.UUID `db:"pegging_run_id"        json:"peggingRunId"`
+	AsOf                time.Time `db:"as_of"                 json:"asOf"`
+
+	Severity         string  `db:"severity"           json:"severity"`
+	ImpactDays       int     `db:"impact_days"        json:"impactDays"`
+	OrderValue       float64 `db:"order_value"        json:"orderValue"`
+	OpenOrderValue   float64 `db:"open_order_value"   json:"openOrderValue"`
+	OrderPriority    string  `db:"order_priority"     json:"orderPriority"`
+	ServiceClassCode string  `db:"service_class_code" json:"serviceClassCode"`
+	RevenueAtRisk    float64 `db:"revenue_at_risk"    json:"revenueAtRisk"`
+
+	SeverityScore  float64 `db:"severity_score"  json:"severityScore"`
+	LatenessScore  float64 `db:"lateness_score"  json:"latenessScore"`
+	RevenueScore   float64 `db:"revenue_score"   json:"revenueScore"`
+	CustomerScore  float64 `db:"customer_score"  json:"customerScore"`
+	MaterialScore  float64 `db:"material_score"  json:"materialScore"`
+	CapacityScore  float64 `db:"capacity_score"  json:"capacityScore"`
+	SupplierScore  float64 `db:"supplier_score"  json:"supplierScore"`
+	ExecutionScore float64 `db:"execution_score" json:"executionScore"`
+	AgingScore     float64 `db:"aging_score"     json:"agingScore"`
+
+	PriorityScore float64 `db:"priority_score" json:"priorityScore"`
+	PriorityBand  string  `db:"priority_band"  json:"priorityBand"`
+
+	RootCauseType string    `db:"root_cause_type" json:"rootCauseType"`
+	RootCauseRef  string    `db:"root_cause_ref"  json:"rootCauseRef"`
+	ResultHash    string    `db:"result_hash"      json:"resultHash"`
+	CreatedAt     time.Time `db:"created_at"       json:"createdAt"`
+}
+
+// ControlTowerRecommendation is an immutable ranked intervention suggestion
+// generated from one case snapshot.
+type ControlTowerRecommendation struct {
+	ID               uuid.UUID       `db:"id"                json:"id"`
+	SnapshotID       uuid.UUID       `db:"snapshot_id"       json:"snapshotId"`
+	RankNo           int             `db:"rank_no"           json:"rankNo"`
+	ActionType       string          `db:"action_type"       json:"actionType"`
+	TargetType       string          `db:"target_type"       json:"targetType"`
+	TargetRef        string          `db:"target_ref"        json:"targetRef"`
+	Title            string          `db:"title"             json:"title"`
+	Reason           string          `db:"reason"            json:"reason"`
+	EstimatedEffect  json.RawMessage `db:"estimated_effect"  json:"estimatedEffect"`
+	RequiresApproval bool            `db:"requires_approval" json:"requiresApproval"`
+	CreatedAt        time.Time       `db:"created_at"        json:"createdAt"`
+}
+
+// ControlTowerCaseAction is append-only workflow / assignment evidence.
+type ControlTowerCaseAction struct {
+	ID                 uuid.UUID  `db:"id"                    json:"id"`
+	CaseID             uuid.UUID  `db:"case_id"               json:"caseId"`
+	ActionType         string     `db:"action_type"           json:"actionType"`
+	FromStatus         string     `db:"from_status"           json:"fromStatus"`
+	ToStatus           string     `db:"to_status"             json:"toStatus"`
+	AssignedToUserID   *uuid.UUID `db:"assigned_to_user_id"   json:"assignedToUserId,omitempty"`
+	AssignedToUsername *string    `db:"assigned_to_username"  json:"assignedToUsername,omitempty"`
+	ActorUserID        uuid.UUID  `db:"actor_user_id"         json:"actorUserId"`
+	ActorUsername      string     `db:"actor_username"        json:"actorUsername"`
+	Comment            string     `db:"comment"               json:"comment"`
+	OccurredAt         time.Time  `db:"occurred_at"           json:"occurredAt"`
+}
+
+// ControlTowerCurrentCase is the read model returned by the operational
+// Control Tower dashboard.
+type ControlTowerCurrentCase struct {
+	CaseID           uuid.UUID  `db:"case_id"               json:"caseId"`
+	CaseKey          string     `db:"case_key"              json:"caseKey"`
+	SalesOrderID     uuid.UUID  `db:"sales_order_id"        json:"salesOrderId"`
+	SalesOrderLineID *uuid.UUID `db:"sales_order_line_id"   json:"salesOrderLineId,omitempty"`
+	ExceptionType    string     `db:"exception_type"        json:"exceptionType"`
+	FirstExceptionID uuid.UUID  `db:"first_exception_id"    json:"firstExceptionId"`
+	FirstDetectedAt  time.Time  `db:"first_detected_at"     json:"firstDetectedAt"`
+	CaseCreatedAt    time.Time  `db:"case_created_at"       json:"caseCreatedAt"`
+
+	CurrentStatus    string     `db:"current_status"     json:"currentStatus"`
+	LatestActionType *string    `db:"latest_action_type" json:"latestActionType,omitempty"`
+	LatestActor      *string    `db:"latest_actor"       json:"latestActor,omitempty"`
+	LatestComment    *string    `db:"latest_comment"     json:"latestComment,omitempty"`
+	LatestActionAt   *time.Time `db:"latest_action_at"   json:"latestActionAt,omitempty"`
+
+	OwnerUserID   *uuid.UUID `db:"owner_user_id" json:"ownerUserId,omitempty"`
+	OwnerUsername *string    `db:"owner_username" json:"ownerUsername,omitempty"`
+
+	SnapshotID          *uuid.UUID `db:"snapshot_id"           json:"snapshotId,omitempty"`
+	PlanningExceptionID *uuid.UUID `db:"planning_exception_id" json:"planningExceptionId,omitempty"`
+	PeggingRunID        *uuid.UUID `db:"pegging_run_id"        json:"peggingRunId,omitempty"`
+	AsOf                *time.Time `db:"as_of"                 json:"asOf,omitempty"`
+
+	Severity         *string  `db:"severity"           json:"severity,omitempty"`
+	ImpactDays       *int     `db:"impact_days"        json:"impactDays,omitempty"`
+	OrderValue       *float64 `db:"order_value"        json:"orderValue,omitempty"`
+	OpenOrderValue   *float64 `db:"open_order_value"   json:"openOrderValue,omitempty"`
+	OrderPriority    *string  `db:"order_priority"     json:"orderPriority,omitempty"`
+	ServiceClassCode *string  `db:"service_class_code" json:"serviceClassCode,omitempty"`
+	RevenueAtRisk    *float64 `db:"revenue_at_risk"    json:"revenueAtRisk,omitempty"`
+
+	SeverityScore  *float64 `db:"severity_score"  json:"severityScore,omitempty"`
+	LatenessScore  *float64 `db:"lateness_score"  json:"latenessScore,omitempty"`
+	RevenueScore   *float64 `db:"revenue_score"   json:"revenueScore,omitempty"`
+	CustomerScore  *float64 `db:"customer_score"  json:"customerScore,omitempty"`
+	MaterialScore  *float64 `db:"material_score"  json:"materialScore,omitempty"`
+	CapacityScore  *float64 `db:"capacity_score"  json:"capacityScore,omitempty"`
+	SupplierScore  *float64 `db:"supplier_score"  json:"supplierScore,omitempty"`
+	ExecutionScore *float64 `db:"execution_score" json:"executionScore,omitempty"`
+	AgingScore     *float64 `db:"aging_score"     json:"agingScore,omitempty"`
+
+	PriorityScore *float64 `db:"priority_score" json:"priorityScore,omitempty"`
+	PriorityBand  *string  `db:"priority_band"  json:"priorityBand,omitempty"`
+
+	RootCauseType     *string    `db:"root_cause_type" json:"rootCauseType,omitempty"`
+	RootCauseRef      *string    `db:"root_cause_ref"  json:"rootCauseRef,omitempty"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	SnapshotCreatedAt *time.Time `db:"snapshot_created_at" json:"snapshotCreatedAt,omitempty"`
+
+	SalesOrderNo string  `db:"sales_order_no" json:"salesOrderNo"`
+	CustomerNo   string  `db:"customer_no"     json:"customerNo"`
+	CustomerName string  `db:"customer_name"   json:"customerName"`
+	LineNo       *int    `db:"line_no"         json:"lineNo,omitempty"`
+	ItemCode     *string `db:"item_code"       json:"itemCode,omitempty"`
+	ItemName     *string `db:"item_name"       json:"itemName,omitempty"`
+}
+
+// ControlTowerDashboardSummary is the intervention-level summary shown at the
+// top of the Production Control Tower.
+type ControlTowerDashboardSummary struct {
+	TotalCases      int     `json:"totalCases"`
+	OpenCases       int     `json:"openCases"`
+	P1Cases         int     `json:"p1Cases"`
+	P2Cases         int     `json:"p2Cases"`
+	UnassignedCases int     `json:"unassignedCases"`
+	RevenueAtRisk   float64 `json:"revenueAtRisk"`
+}
+
+// ControlTowerDashboard is the current operational intervention board.
+type ControlTowerDashboard struct {
+	AsOf    time.Time                    `json:"asOf"`
+	Summary ControlTowerDashboardSummary `json:"summary"`
+	Cases   []ControlTowerCurrentCase    `json:"cases"`
+}
