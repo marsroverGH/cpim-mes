@@ -371,4 +371,3 @@ Key capabilities:
 Operations and implementation details:
 
 - `docs/0040-production-control-tower.md`
-
