@@ -143,6 +143,14 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/planning-exceptions", srv.listPlanningExceptions)
 			secured.With(requirePermission(PermExceptionManage)).Post("/planning-exceptions/{id}/actions", srv.actOnPlanningException)
 
+			// Production Control Tower / Constraint & Exception Prioritization
+			secured.With(requirePermission(PermControlTowerRefresh)).Post("/control-tower/refresh", srv.refreshControlTower)
+			secured.Get("/control-tower", srv.controlTowerDashboard)
+			secured.Get("/control-tower/cases/{id}", srv.getControlTowerCase)
+			secured.Get("/control-tower/cases/{id}/recommendations", srv.controlTowerRecommendations)
+			secured.Get("/control-tower/cases/{id}/actions", srv.controlTowerCaseActions)
+			secured.With(requirePermission(PermControlTowerManage)).Post("/control-tower/cases/{id}/actions", srv.actOnControlTowerCase)
+
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 
 			// Work Centers

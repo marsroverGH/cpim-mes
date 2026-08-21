@@ -27,6 +27,7 @@ type Services struct {
 	ProductAllocation     *ProductAllocationService
 	Backorders            *BackorderService
 	Pegging               *PeggingService
+	ControlTower          *ControlTowerService
 	SupplierScheduling    *SupplierSchedulingService
 	InventoryPolicy       *InventoryPolicyService
 	Maintenance           *MaintenanceService
@@ -85,6 +86,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	productAllocation := &ProductAllocationService{db: db}
 	backorders := &BackorderService{db: db, atp: atp, ctp: ctp, allocation: productAllocation}
 	pegging := &PeggingService{db: db}
+	controlTower := NewControlTowerService(db)
 	supplierScheduling := &SupplierSchedulingService{db: db}
 	scheduleExecution := &ScheduleExecutionService{db: db, crp: crp}
 	shopFloor := &ShopFloorService{db: db, r: r.ShopFloor, rescheduler: scheduleExecution}
@@ -103,6 +105,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		ProductAllocation:     productAllocation,
 		Backorders:            backorders,
 		Pegging:               pegging,
+		ControlTower:          controlTower,
 		SupplierScheduling:    supplierScheduling,
 		InventoryPolicy:       inventoryPolicy,
 		Maintenance:           maintenance,
