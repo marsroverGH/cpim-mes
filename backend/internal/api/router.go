@@ -95,6 +95,16 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/supplier-scheduling/reliability-runs/{id}", srv.getSupplierReliabilityRun)
 			secured.With(requirePermission(PermSupplierReliabilityRun)).Post("/supplier-scheduling/reliability/refresh", srv.refreshSupplierReliability)
 
+			// Statistical Safety Stock / Inventory Policy
+			secured.Get("/inventory-policies", srv.listInventoryPolicies)
+			secured.Get("/inventory-policy-versions", srv.listInventoryPolicyVersions)
+			secured.With(requirePermission(PermInventoryPolicyManage)).Post("/inventory-policy-versions", srv.createInventoryPolicyVersion)
+			secured.With(requirePermission(PermInventoryPolicyManage)).Post("/inventory-policy-versions/{id}/activate", srv.activateInventoryPolicyVersion)
+			secured.With(requirePermission(PermInventoryPolicyManage)).Post("/inventory-policy-versions/{id}/archive", srv.archiveInventoryPolicyVersion)
+			secured.With(requirePermission(PermInventoryPolicyRun)).Post("/inventory-policies/refresh", srv.refreshInventoryPolicies)
+			secured.Get("/inventory-policy-runs", srv.listInventoryPolicyRuns)
+			secured.Get("/inventory-policy-runs/{id}", srv.getInventoryPolicyRun)
+
 			// Customers / Sales Orders
 			secured.Get("/customers", srv.listCustomers)
 			secured.With(requirePermission(PermSalesOrderManage)).Post("/customers", srv.createCustomer)

@@ -11,8 +11,8 @@ func TestEmbeddedMigrationsAreSequentialAndComplete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(migs) != 35 {
-		t.Fatalf("expected 35 migrations, got %d", len(migs))
+	if len(migs) != 36 {
+		t.Fatalf("expected 36 migrations, got %d", len(migs))
 	}
 	for i, m := range migs {
 		want := i + 1

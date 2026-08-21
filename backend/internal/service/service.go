@@ -28,6 +28,7 @@ type Services struct {
 	Backorders         *BackorderService
 	Pegging            *PeggingService
 	SupplierScheduling *SupplierSchedulingService
+	InventoryPolicy    *InventoryPolicyService
 	MRP                *MRPService
 
 	WorkCenters *WorkCenterService
@@ -64,16 +65,17 @@ type ServicesConfig struct {
 }
 
 func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *Services {
-	mrp := &MRPService{repos: r}
+	inventoryPolicy := &InventoryPolicyService{db: db}
+	mrp := &MRPService{repos: r, inventoryPolicy: inventoryPolicy}
 	abc := &ABCService{repos: r}
 	ledger := NewInventoryLedgerService(db)
 	actions := &ActionMessageService{repos: r, mrp: mrp}
 	itemsSvc := &ItemService{r: r.Items}
 	kpiSvc := &KPIService{repos: r, mrp: mrp, am: actions}
 	salesOrders := &SalesOrderService{db: db, ledger: ledger}
-	atp := &ATPService{db: db, repos: r}
+	atp := &ATPService{db: db, repos: r, inventoryPolicy: inventoryPolicy}
 	crp := &CRPService{db: db, repos: r, mrp: mrp}
-	ctp := &CTPEngine{db: db, repos: r, crp: crp}
+	ctp := &CTPEngine{db: db, repos: r, crp: crp, inventoryPolicy: inventoryPolicy}
 	orderPromising := &OrderPromisingService{db: db, sales: salesOrders, atp: atp, ctp: ctp}
 	productAllocation := &ProductAllocationService{db: db}
 	backorders := &BackorderService{db: db, atp: atp, ctp: ctp, allocation: productAllocation}
@@ -93,6 +95,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Backorders:         backorders,
 		Pegging:            pegging,
 		SupplierScheduling: supplierScheduling,
+		InventoryPolicy:    inventoryPolicy,
 		MRP:                mrp,
 		WorkCenters:        &WorkCenterService{r: r.WorkCenters},
 		Routings:           &RoutingService{r: r.Routings},
@@ -291,7 +294,8 @@ func (s *PurchaseService) ListReceipts(ctx context.Context, poID uuid.UUID) ([]d
 //   - Items are processed in ascending Low-Level Code (LLC), so all parent-generated
 //     dependent demand is accumulated before a lower-level item is netted.
 type MRPService struct {
-	repos *repository.Repositories
+	repos           *repository.Repositories
+	inventoryPolicy *InventoryPolicyService
 }
 
 type MRPRequest struct {
@@ -507,6 +511,10 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 
 		for _, itemID := range ids {
 			it := itemByID[itemID]
+			policy, err := s.inventoryPolicy.Effective(ctx, it)
+			if err != nil {
+				return nil, err
+			}
 			planningLeadTimeDays := it.LeadTimeDays
 			leadTimeSource := "ITEM_MASTER"
 			if it.Type == domain.ItemTypeRawMaterial || it.Type == domain.ItemTypePurchasedPart {
@@ -537,7 +545,11 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 					dateSet[k.Day] = true
 				}
 			}
-			if stock[itemID] < it.SafetyStock {
+			startThreshold := policy.SafetyStock
+			if policy.ReplenishmentMethod == "MIN_MAX" && policy.CalculationStatus == "CALCULATED" {
+				startThreshold = policy.ReorderPoint
+			}
+			if stock[itemID] < startThreshold {
 				dateSet[startDay] = true
 			}
 			if len(dateSet) == 0 {
@@ -571,8 +583,8 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 				grossQty := levelGross[k]
 				scheduledQty := scheduled[k]
 
-				net, plannedReceipt, projected := netMRPBucket(
-					stock[itemID], grossQty, scheduledQty, it.SafetyStock,
+				net, plannedReceipt, projected := netMRPBucketWithInventoryPolicy(
+					stock[itemID], grossQty, scheduledQty, policy,
 					it.LotSize, eoq, method,
 				)
 				stock[itemID] = projected
@@ -591,21 +603,29 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 				sort.Strings(pegs)
 
 				results = append(results, domain.MRPResult{
-					ItemID:               itemID,
-					ItemCode:             it.Code,
-					Period:               day,
-					GrossReq:             grossQty,
-					ScheduledRcpt:        scheduledQty,
-					OnHand:               projected,
-					NetReq:               net,
-					PlannedReceipt:       plannedReceipt,
-					PlannedOrder:         plannedReceipt,
-					PlannedReleaseDate:   releaseDate,
-					PlanningLeadTimeDays: planningLeadTimeDays,
-					LeadTimeSource:       leadTimeSource,
-					LotMethod:            string(method),
-					EOQ:                  eoq,
-					Pegging:              pegs,
+					ItemID:                itemID,
+					ItemCode:              it.Code,
+					Period:                day,
+					GrossReq:              grossQty,
+					ScheduledRcpt:         scheduledQty,
+					OnHand:                projected,
+					NetReq:                net,
+					PlannedReceipt:        plannedReceipt,
+					PlannedOrder:          plannedReceipt,
+					PlannedReleaseDate:    releaseDate,
+					PlanningLeadTimeDays:  planningLeadTimeDays,
+					LeadTimeSource:        leadTimeSource,
+					SafetyStockTarget:     policy.SafetyStock,
+					ReorderPoint:          policy.ReorderPoint,
+					MinQty:                policy.MinQty,
+					MaxQty:                policy.MaxQty,
+					InventoryPolicyID:     policy.PolicyVersionID,
+					InventoryPolicyMode:   policy.ReplenishmentMethod,
+					InventoryPolicyStatus: policy.CalculationStatus,
+					ServiceLevel:          policy.ServiceLevel,
+					LotMethod:             string(method),
+					EOQ:                   eoq,
+					Pegging:               pegs,
 				})
 
 				// -----------------------------------------------------------------

@@ -38,6 +38,9 @@
           <strong class="text-primary">
             {{ result.buckets.length ? result.buckets[result.buckets.length-1].cumulativeAtp.toFixed(0) : 0 }}
           </strong>
+          <v-chip size="small" class="ml-3" color="warning">Safety Stock保護 {{ result.safetyStockProtected.toFixed(2) }}</v-chip>
+          <v-chip v-if="result.serviceLevel" size="small" class="ml-2">Service {{ (result.serviceLevel*100).toFixed(1) }}%</v-chip>
+          <span class="ml-2 text-caption text-medium-emphasis">{{ result.policyStatus }}</span>
         </div>
 
         <v-data-table :items="result.buckets" :headers="headers" density="compact" :items-per-page="-1">

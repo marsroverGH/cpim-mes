@@ -28,6 +28,10 @@ func TestRBACCriticalPermissions(t *testing.T) {
 		{"planner can manage supplier schedule", domain.RolePlanner, PermSupplierScheduleManage, true},
 		{"operator cannot run supplier reliability", domain.RoleOperator, PermSupplierReliabilityRun, false},
 		{"planner can run supplier reliability", domain.RolePlanner, PermSupplierReliabilityRun, true},
+		{"operator cannot manage inventory policy", domain.RoleOperator, PermInventoryPolicyManage, false},
+		{"planner can manage inventory policy", domain.RolePlanner, PermInventoryPolicyManage, true},
+		{"operator cannot refresh inventory policy", domain.RoleOperator, PermInventoryPolicyRun, false},
+		{"planner can refresh inventory policy", domain.RolePlanner, PermInventoryPolicyRun, true},
 		{"operator cannot manage sales orders", domain.RoleOperator, PermSalesOrderManage, false},
 		{"operator can ship sales orders", domain.RoleOperator, PermSalesOrderShip, true},
 		{"planner can manage sales orders", domain.RolePlanner, PermSalesOrderManage, true},
@@ -75,7 +79,7 @@ func TestAdminHasEveryDeclaredPermission(t *testing.T) {
 func TestViewerHasNoMutationPermission(t *testing.T) {
 	mutationPerms := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

@@ -79,6 +79,7 @@ const links = [
   { to: '/abc-analysis',    title: 'ABC分析',         icon: 'mdi-chart-bar-stacked' },
   { to: '/cycle-count',     title: 'サイクルカウント',icon: 'mdi-counter' },
   { to: '/inventory',       title: '在庫',            icon: 'mdi-warehouse' },
+  { to: '/inventory-policy', title: 'Inventory Policy', icon: 'mdi-shield-chart' },
   { to: '/lots',            title: 'ロット追跡',      icon: 'mdi-barcode' },
   { to: '/work-orders',     title: '製造指示',        icon: 'mdi-clipboard-list-outline' },
   { to: '/shop-floor',      title: 'Shop Floor',     icon: 'mdi-account-hard-hat' },

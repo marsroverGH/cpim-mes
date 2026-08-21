@@ -82,6 +82,10 @@
     {
       "name": "Supplier Scheduling",
       "description": "Supplier confirmations, ASN scheduling and lead-time reliability"
+    },
+    {
+      "name": "Inventory Policy",
+      "description": "Versioned statistical safety stock, reorder point and Min/Max policies"
     }
   ],
   "components": {
@@ -314,6 +318,36 @@
               "ITEM_MASTER",
               "SUPPLIER_RELIABILITY"
             ]
+          },
+          "safetyStockTarget": {
+            "type": "number"
+          },
+          "reorderPoint": {
+            "type": "number"
+          },
+          "minQty": {
+            "type": "number"
+          },
+          "maxQty": {
+            "type": "number"
+          },
+          "inventoryPolicyId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "inventoryPolicyMode": {
+            "type": "string",
+            "enum": [
+              "SAFETY_STOCK",
+              "MIN_MAX"
+            ]
+          },
+          "inventoryPolicyStatus": {
+            "type": "string"
+          },
+          "serviceLevel": {
+            "type": "number"
           }
         }
       },
@@ -2192,6 +2226,364 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/SupplierLeadTimeResult"
+            }
+          }
+        }
+      },
+      "InventoryPolicyVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "policyMethod": {
+            "type": "string",
+            "enum": [
+              "STATISTICAL",
+              "FIXED"
+            ]
+          },
+          "replenishmentMethod": {
+            "type": "string",
+            "enum": [
+              "SAFETY_STOCK",
+              "MIN_MAX"
+            ]
+          },
+          "serviceLevel": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 0.9999
+          },
+          "demandWindowDays": {
+            "type": "integer"
+          },
+          "minHistoryDays": {
+            "type": "integer"
+          },
+          "orderCycleDays": {
+            "type": "integer"
+          },
+          "fixedSafetyStock": {
+            "type": "number",
+            "nullable": true
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activatedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "archivedBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "archivedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "InventoryPolicyResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policyVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "demandObservationDays": {
+            "type": "integer"
+          },
+          "nonzeroDemandDays": {
+            "type": "integer"
+          },
+          "averageDailyDemand": {
+            "type": "number"
+          },
+          "stddevDailyDemand": {
+            "type": "number"
+          },
+          "leadTimeMeanDays": {
+            "type": "number"
+          },
+          "leadTimeStddevDays": {
+            "type": "number"
+          },
+          "serviceLevel": {
+            "type": "number"
+          },
+          "zValue": {
+            "type": "number"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "reorderPoint": {
+            "type": "number"
+          },
+          "minQty": {
+            "type": "number"
+          },
+          "maxQty": {
+            "type": "number"
+          },
+          "demandSource": {
+            "type": "string"
+          },
+          "leadTimeSource": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          }
+        }
+      },
+      "InventoryPolicyRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "asOfDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "COMPLETE",
+              "FAILED"
+            ]
+          },
+          "resultHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "generatedBy": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "errorText": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InventoryPolicyRunResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/InventoryPolicyRun"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InventoryPolicyResult"
+            }
+          }
+        }
+      },
+      "EffectiveInventoryPolicy": {
+        "type": "object",
+        "properties": {
+          "policyVersionId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "policyMethod": {
+            "type": "string"
+          },
+          "replenishmentMethod": {
+            "type": "string",
+            "enum": [
+              "SAFETY_STOCK",
+              "MIN_MAX"
+            ]
+          },
+          "serviceLevel": {
+            "type": "number"
+          },
+          "demandWindowDays": {
+            "type": "integer"
+          },
+          "minHistoryDays": {
+            "type": "integer"
+          },
+          "orderCycleDays": {
+            "type": "integer"
+          },
+          "safetyStock": {
+            "type": "number"
+          },
+          "reorderPoint": {
+            "type": "number"
+          },
+          "minQty": {
+            "type": "number"
+          },
+          "maxQty": {
+            "type": "number"
+          },
+          "averageDailyDemand": {
+            "type": "number"
+          },
+          "stddevDailyDemand": {
+            "type": "number"
+          },
+          "leadTimeMeanDays": {
+            "type": "number"
+          },
+          "leadTimeStddevDays": {
+            "type": "number"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "calculationStatus": {
+            "type": "string"
+          },
+          "demandSource": {
+            "type": "string"
+          },
+          "leadTimeSource": {
+            "type": "string"
+          },
+          "calculatedAsOf": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          }
+        }
+      },
+      "ATPResult": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "safetyStockProtected": {
+            "type": "number"
+          },
+          "inventoryPolicyId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "serviceLevel": {
+            "type": "number"
+          },
+          "policyStatus": {
+            "type": "string"
+          },
+          "buckets": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "period": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "startingOnHand": {
+                  "type": "number"
+                },
+                "scheduledIn": {
+                  "type": "number"
+                },
+                "committedOut": {
+                  "type": "number"
+                },
+                "endingProjected": {
+                  "type": "number"
+                },
+                "atp": {
+                  "type": "number"
+                },
+                "cumulativeAtp": {
+                  "type": "number"
+                }
+              }
             }
           }
         }
@@ -4907,6 +5299,326 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SupplierLeadTimeRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policies": {
+      "get": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "List current effective statistical/fixed inventory policies",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current effective policies",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EffectiveInventoryPolicy"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policy-versions": {
+      "get": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "List inventory policy version history",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Policy versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryPolicyVersion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "Create DRAFT inventory policy version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "itemId"
+                ],
+                "properties": {
+                  "itemId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "policyMethod": {
+                    "type": "string",
+                    "enum": [
+                      "STATISTICAL",
+                      "FIXED"
+                    ]
+                  },
+                  "replenishmentMethod": {
+                    "type": "string",
+                    "enum": [
+                      "SAFETY_STOCK",
+                      "MIN_MAX"
+                    ]
+                  },
+                  "serviceLevel": {
+                    "type": "number"
+                  },
+                  "demandWindowDays": {
+                    "type": "integer"
+                  },
+                  "minHistoryDays": {
+                    "type": "integer"
+                  },
+                  "orderCycleDays": {
+                    "type": "integer"
+                  },
+                  "fixedSafetyStock": {
+                    "type": "number"
+                  },
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created DRAFT version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPolicyVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policy-versions/{id}/activate": {
+      "post": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "Activate inventory policy version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPolicyVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policy-versions/{id}/archive": {
+      "post": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "Archive inventory policy version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPolicyVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policies/refresh": {
+      "post": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "Recalculate statistical Safety Stock / ROP / Min-Max for all active policies",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "asOfDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Immutable calculation snapshot",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPolicyRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policy-runs": {
+      "get": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "List inventory policy calculation runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InventoryPolicyRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory-policy-runs/{id}": {
+      "get": {
+        "tags": [
+          "Inventory Policy"
+        ],
+        "summary": "Get inventory policy calculation snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Run result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPolicyRunResult"
                 }
               }
             }

@@ -189,6 +189,103 @@ type SupplierLeadTimeRunResult struct {
 	Results []SupplierLeadTimeResult `json:"results"`
 }
 
+// InventoryPolicyVersion is planner-owned versioned inventory policy configuration.
+type InventoryPolicyVersion struct {
+	ID                  uuid.UUID  `db:"id"                     json:"id"`
+	ItemID              uuid.UUID  `db:"item_id"                json:"itemId"`
+	ItemCode            string     `db:"item_code"              json:"itemCode,omitempty"`
+	VersionNo           int        `db:"version_no"             json:"versionNo"`
+	Status              string     `db:"status"                 json:"status"`
+	PolicyMethod        string     `db:"policy_method"          json:"policyMethod"`
+	ReplenishmentMethod string     `db:"replenishment_method"   json:"replenishmentMethod"`
+	ServiceLevel        float64    `db:"service_level"          json:"serviceLevel"`
+	DemandWindowDays    int        `db:"demand_window_days"     json:"demandWindowDays"`
+	MinHistoryDays      int        `db:"min_history_days"       json:"minHistoryDays"`
+	OrderCycleDays      int        `db:"order_cycle_days"       json:"orderCycleDays"`
+	FixedSafetyStock    *float64   `db:"fixed_safety_stock"     json:"fixedSafetyStock,omitempty"`
+	EffectiveFrom       time.Time  `db:"effective_from"         json:"effectiveFrom"`
+	Notes               string     `db:"notes"                  json:"notes"`
+	CreatedByUserID     uuid.UUID  `db:"created_by_user_id"     json:"createdByUserId"`
+	CreatedBy           string     `db:"created_by"             json:"createdBy"`
+	CreatedAt           time.Time  `db:"created_at"             json:"createdAt"`
+	ActivatedByUserID   *uuid.UUID `db:"activated_by_user_id"   json:"activatedByUserId,omitempty"`
+	ActivatedBy         *string    `db:"activated_by"           json:"activatedBy,omitempty"`
+	ActivatedAt         *time.Time `db:"activated_at"           json:"activatedAt,omitempty"`
+	ArchivedByUserID    *uuid.UUID `db:"archived_by_user_id"    json:"archivedByUserId,omitempty"`
+	ArchivedBy          *string    `db:"archived_by"            json:"archivedBy,omitempty"`
+	ArchivedAt          *time.Time `db:"archived_at"            json:"archivedAt,omitempty"`
+}
+
+// InventoryPolicyRun is an immutable calculation snapshot over all active policies.
+type InventoryPolicyRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	AsOfDate          time.Time  `db:"as_of_date"           json:"asOfDate"`
+	Status            string     `db:"status"               json:"status"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	GeneratedByUserID uuid.UUID  `db:"generated_by_user_id" json:"generatedByUserId"`
+	GeneratedBy       string     `db:"generated_by"         json:"generatedBy"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	CreatedAt         time.Time  `db:"created_at"            json:"createdAt"`
+}
+
+// InventoryPolicyResult contains statistical demand/lead-time evidence and calculated targets.
+type InventoryPolicyResult struct {
+	ID                    uuid.UUID `db:"id"                      json:"id"`
+	RunID                 uuid.UUID `db:"run_id"                  json:"runId"`
+	PolicyVersionID       uuid.UUID `db:"policy_version_id"       json:"policyVersionId"`
+	ItemID                uuid.UUID `db:"item_id"                 json:"itemId"`
+	ItemCode              string    `db:"item_code"               json:"itemCode,omitempty"`
+	DemandObservationDays int       `db:"demand_observation_days" json:"demandObservationDays"`
+	NonzeroDemandDays     int       `db:"nonzero_demand_days"     json:"nonzeroDemandDays"`
+	AverageDailyDemand    float64   `db:"average_daily_demand"    json:"averageDailyDemand"`
+	StddevDailyDemand     float64   `db:"stddev_daily_demand"     json:"stddevDailyDemand"`
+	LeadTimeMeanDays      float64   `db:"lead_time_mean_days"     json:"leadTimeMeanDays"`
+	LeadTimeStddevDays    float64   `db:"lead_time_stddev_days"   json:"leadTimeStddevDays"`
+	ServiceLevel          float64   `db:"service_level"            json:"serviceLevel"`
+	ZValue                float64   `db:"z_value"                  json:"zValue"`
+	SafetyStock           float64   `db:"safety_stock"             json:"safetyStock"`
+	ReorderPoint          float64   `db:"reorder_point"            json:"reorderPoint"`
+	MinQty                float64   `db:"min_qty"                  json:"minQty"`
+	MaxQty                float64   `db:"max_qty"                  json:"maxQty"`
+	DemandSource          string    `db:"demand_source"            json:"demandSource"`
+	LeadTimeSource        string    `db:"lead_time_source"         json:"leadTimeSource"`
+	Confidence            string    `db:"confidence"               json:"confidence"`
+	CreatedAt             time.Time `db:"created_at"               json:"createdAt"`
+}
+
+type InventoryPolicyRunResult struct {
+	Run     InventoryPolicyRun      `json:"run"`
+	Results []InventoryPolicyResult `json:"results"`
+}
+
+// EffectiveInventoryPolicy is the canonical current policy consumed by planning engines.
+type EffectiveInventoryPolicy struct {
+	PolicyVersionID     *uuid.UUID `db:"policy_version_id"       json:"policyVersionId,omitempty"`
+	ItemID              uuid.UUID  `db:"item_id"                 json:"itemId"`
+	ItemCode            string     `db:"item_code"               json:"itemCode,omitempty"`
+	VersionNo           int        `db:"version_no"              json:"versionNo"`
+	PolicyMethod        string     `db:"policy_method"           json:"policyMethod"`
+	ReplenishmentMethod string     `db:"replenishment_method"    json:"replenishmentMethod"`
+	ServiceLevel        float64    `db:"service_level"           json:"serviceLevel"`
+	DemandWindowDays    int        `db:"demand_window_days"      json:"demandWindowDays"`
+	MinHistoryDays      int        `db:"min_history_days"        json:"minHistoryDays"`
+	OrderCycleDays      int        `db:"order_cycle_days"        json:"orderCycleDays"`
+	SafetyStock         float64    `db:"safety_stock"            json:"safetyStock"`
+	ReorderPoint        float64    `db:"reorder_point"           json:"reorderPoint"`
+	MinQty              float64    `db:"min_qty"                 json:"minQty"`
+	MaxQty              float64    `db:"max_qty"                 json:"maxQty"`
+	AverageDailyDemand  float64    `db:"average_daily_demand"    json:"averageDailyDemand"`
+	StddevDailyDemand   float64    `db:"stddev_daily_demand"     json:"stddevDailyDemand"`
+	LeadTimeMeanDays    float64    `db:"lead_time_mean_days"     json:"leadTimeMeanDays"`
+	LeadTimeStddevDays  float64    `db:"lead_time_stddev_days"   json:"leadTimeStddevDays"`
+	Confidence          string     `db:"confidence"              json:"confidence"`
+	CalculationStatus   string     `db:"calculation_status"      json:"calculationStatus"`
+	DemandSource        string     `db:"demand_source"           json:"demandSource"`
+	LeadTimeSource      string     `db:"lead_time_source"        json:"leadTimeSource"`
+	CalculatedAsOf      *time.Time `db:"calculated_as_of"        json:"calculatedAsOf,omitempty"`
+}
+
 // PurchaseReceipt is one immutable partial/full receipt event against a PO.
 // receiptId is supplied by the client for idempotency and is globally unique.
 type PurchaseReceipt struct {
@@ -582,21 +679,29 @@ type ExceptionScanResult struct {
 
 // MRPResult — MRP計算結果 (1品目1期間)
 type MRPResult struct {
-	ItemID               uuid.UUID  `json:"itemId"`
-	ItemCode             string     `json:"itemCode"`
-	Period               time.Time  `json:"period"` // gross requirement / planned receipt date
-	GrossReq             float64    `json:"grossRequirement"`
-	ScheduledRcpt        float64    `json:"scheduledReceipts"`
-	OnHand               float64    `json:"projectedOnHand"` // period-end projected available balance
-	NetReq               float64    `json:"netRequirement"`
-	PlannedReceipt       float64    `json:"plannedOrderReceipt"`
-	PlannedOrder         float64    `json:"plannedOrderRelease"` // quantity; kept for API compatibility
-	PlannedReleaseDate   *time.Time `json:"plannedOrderReleaseDate,omitempty"`
-	PlanningLeadTimeDays int        `json:"planningLeadTimeDays"`
-	LeadTimeSource       string     `json:"leadTimeSource"`
-	LotMethod            string     `json:"lotMethod"`         // LFL/FOQ/POQ/EOQ
-	EOQ                  float64    `json:"eoq,omitempty"`     // calculated EOQ (informational)
-	Pegging              []string   `json:"pegging,omitempty"` // originating MPS item codes
+	ItemID                uuid.UUID  `json:"itemId"`
+	ItemCode              string     `json:"itemCode"`
+	Period                time.Time  `json:"period"` // gross requirement / planned receipt date
+	GrossReq              float64    `json:"grossRequirement"`
+	ScheduledRcpt         float64    `json:"scheduledReceipts"`
+	OnHand                float64    `json:"projectedOnHand"` // period-end projected available balance
+	NetReq                float64    `json:"netRequirement"`
+	PlannedReceipt        float64    `json:"plannedOrderReceipt"`
+	PlannedOrder          float64    `json:"plannedOrderRelease"` // quantity; kept for API compatibility
+	PlannedReleaseDate    *time.Time `json:"plannedOrderReleaseDate,omitempty"`
+	PlanningLeadTimeDays  int        `json:"planningLeadTimeDays"`
+	LeadTimeSource        string     `json:"leadTimeSource"`
+	SafetyStockTarget     float64    `json:"safetyStockTarget"`
+	ReorderPoint          float64    `json:"reorderPoint"`
+	MinQty                float64    `json:"minQty"`
+	MaxQty                float64    `json:"maxQty"`
+	InventoryPolicyID     *uuid.UUID `json:"inventoryPolicyId,omitempty"`
+	InventoryPolicyMode   string     `json:"inventoryPolicyMode"`
+	InventoryPolicyStatus string     `json:"inventoryPolicyStatus"`
+	ServiceLevel          float64    `json:"serviceLevel,omitempty"`
+	LotMethod             string     `json:"lotMethod"`         // LFL/FOQ/POQ/EOQ
+	EOQ                   float64    `json:"eoq,omitempty"`     // calculated EOQ (informational)
+	Pegging               []string   `json:"pegging,omitempty"` // originating MPS item codes
 }
 
 // ====================================================================
@@ -1295,9 +1400,13 @@ type ATPBucket struct {
 }
 
 type ATPResult struct {
-	ItemID   uuid.UUID   `json:"itemId"`
-	ItemCode string      `json:"itemCode"`
-	Buckets  []ATPBucket `json:"buckets"`
+	ItemID               uuid.UUID   `json:"itemId"`
+	ItemCode             string      `json:"itemCode"`
+	SafetyStockProtected float64     `json:"safetyStockProtected"`
+	InventoryPolicyID    *uuid.UUID  `json:"inventoryPolicyId,omitempty"`
+	ServiceLevel         float64     `json:"serviceLevel,omitempty"`
+	PolicyStatus         string      `json:"policyStatus"`
+	Buckets              []ATPBucket `json:"buckets"`
 }
 
 // ====================================================================

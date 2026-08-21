@@ -334,3 +334,6 @@ Sales Orders can now be traced through Promise/BOP decisions, usable inventory, 
 ## v0.35.0 — Supplier Scheduling + Lead-Time Reliability (migration 0035)
 
 Supplier commitments and ASN are now append-only scheduling evidence. Historical completed PO receipts generate supplier/item lead-time reliability (P50/P90, variability, on-time rate and conservative recommended lead time). MRP, CTP and Full Pegging share one canonical Purchase Order planning date with provenance: ASN → supplier confirmation → reliability adjustment → original PO due date. See `docs/SUPPLIER_SCHEDULING_LEAD_TIME_RELIABILITY.md`.
+
+### 0036 Statistical Safety Stock / Inventory Policy
+Versioned Service-Level policies calculate statistical Safety Stock, Reorder Point and Min/Max targets from ISSUE demand variability and 0035 supplier lead-time reliability. MRP, ATP/CTP and Full Pegging consume the same effective policy; policy breaches appear as planning exceptions. See `docs/STATISTICAL_INVENTORY_POLICY.md`.

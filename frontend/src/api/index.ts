@@ -658,6 +658,47 @@ export const SupplierSchedulingApi = {
   run: (id: string) => http.get<SupplierLeadTimeRunResult>(`/supplier-scheduling/reliability-runs/${id}`).then(r => r.data)
 }
 
+// ------- Statistical Safety Stock / Inventory Policy -------
+export interface InventoryPolicyVersion {
+  id: string; itemId: string; itemCode?: string; versionNo: number; status: 'DRAFT'|'ACTIVE'|'ARCHIVED'
+  policyMethod: 'STATISTICAL'|'FIXED'; replenishmentMethod: 'SAFETY_STOCK'|'MIN_MAX'
+  serviceLevel: number; demandWindowDays: number; minHistoryDays: number; orderCycleDays: number
+  fixedSafetyStock?: number; effectiveFrom: string; notes: string; createdBy: string; createdAt: string
+  activatedBy?: string; activatedAt?: string; archivedBy?: string; archivedAt?: string
+}
+export interface EffectiveInventoryPolicy {
+  policyVersionId?: string; itemId: string; itemCode?: string; versionNo: number
+  policyMethod: string; replenishmentMethod: 'SAFETY_STOCK'|'MIN_MAX'; serviceLevel: number
+  demandWindowDays: number; minHistoryDays: number; orderCycleDays: number
+  safetyStock: number; reorderPoint: number; minQty: number; maxQty: number
+  averageDailyDemand: number; stddevDailyDemand: number; leadTimeMeanDays: number; leadTimeStddevDays: number
+  confidence: 'LOW'|'MEDIUM'|'HIGH'|string; calculationStatus: 'CALCULATED'|'FALLBACK'|'ITEM_MASTER'|string
+  demandSource: string; leadTimeSource: string; calculatedAsOf?: string
+}
+export interface InventoryPolicyRun {
+  id: string; asOfDate: string; status: 'RUNNING'|'COMPLETE'|'FAILED'; resultHash?: string
+  generatedBy: string; completedAt?: string; errorText: string; createdAt: string
+}
+export interface InventoryPolicyResult {
+  id: string; runId: string; policyVersionId: string; itemId: string; itemCode?: string
+  demandObservationDays: number; nonzeroDemandDays: number; averageDailyDemand: number; stddevDailyDemand: number
+  leadTimeMeanDays: number; leadTimeStddevDays: number; serviceLevel: number; zValue: number
+  safetyStock: number; reorderPoint: number; minQty: number; maxQty: number
+  demandSource: string; leadTimeSource: string; confidence: string; createdAt: string
+}
+export interface InventoryPolicyRunResult { run: InventoryPolicyRun; results: InventoryPolicyResult[] }
+export const InventoryPolicyApi = {
+  current: () => http.get<EffectiveInventoryPolicy[]>('/inventory-policies').then(r => r.data),
+  versions: (itemId?: string) => http.get<InventoryPolicyVersion[]>('/inventory-policy-versions', { params: itemId ? { itemId } : {} }).then(r => r.data),
+  createVersion: (body: { itemId: string; policyMethod?: string; replenishmentMethod?: string; serviceLevel?: number; demandWindowDays?: number; minHistoryDays?: number; orderCycleDays?: number; fixedSafetyStock?: number; effectiveFrom?: string; notes?: string }) =>
+    http.post<InventoryPolicyVersion>('/inventory-policy-versions', body).then(r => r.data),
+  activate: (id: string) => http.post<InventoryPolicyVersion>(`/inventory-policy-versions/${id}/activate`, {}).then(r => r.data),
+  archive: (id: string) => http.post<InventoryPolicyVersion>(`/inventory-policy-versions/${id}/archive`, {}).then(r => r.data),
+  refresh: (asOfDate?: string) => http.post<InventoryPolicyRunResult>('/inventory-policies/refresh', asOfDate ? { asOfDate } : {}).then(r => r.data),
+  runs: () => http.get<InventoryPolicyRun[]>('/inventory-policy-runs').then(r => r.data),
+  run: (id: string) => http.get<InventoryPolicyRunResult>(`/inventory-policy-runs/${id}`).then(r => r.data)
+}
+
 // ------- MRP -------
 export interface MrpResult {
   itemId: string
@@ -672,6 +713,14 @@ export interface MrpResult {
   plannedOrderReleaseDate?: string
   planningLeadTimeDays?: number
   leadTimeSource?: 'ITEM_MASTER' | 'SUPPLIER_RELIABILITY'
+  safetyStockTarget: number
+  reorderPoint: number
+  minQty: number
+  maxQty: number
+  inventoryPolicyId?: string
+  inventoryPolicyMode: 'SAFETY_STOCK'|'MIN_MAX'|string
+  inventoryPolicyStatus: string
+  serviceLevel?: number
   lotMethod: string
   eoq?: number
   pegging?: string[]
@@ -1264,6 +1313,10 @@ export interface ATPBucket {
 export interface ATPResult {
   itemId: string
   itemCode: string
+  safetyStockProtected: number
+  inventoryPolicyId?: string
+  serviceLevel?: number
+  policyStatus: string
   buckets: ATPBucket[]
 }
 export const ATPApi = {

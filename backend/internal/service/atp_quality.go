@@ -28,8 +28,9 @@ import (
 // 累積ATP は ATP の prefix sum で計算する。
 
 type ATPService struct {
-	db    *sqlx.DB
-	repos *repository.Repositories
+	db              *sqlx.DB
+	repos           *repository.Repositories
+	inventoryPolicy *InventoryPolicyService
 }
 
 // ATPInput — 純粋関数 CalcATP の入力
@@ -94,8 +95,13 @@ func (s *ATPService) Run(ctx context.Context, itemID uuid.UUID, horizonDays, buc
 	if err != nil {
 		return nil, err
 	}
+	policy, err := s.inventoryPolicy.Effective(ctx, *item)
+	if err != nil {
+		return nil, err
+	}
 
-	// 期首在庫 (= on_hand only。reserved は別系統)
+	// 期首在庫 (= on_hand only。reserved は別系統)。Safety Stock is protected
+	// from ATP so customer commitments cannot consume the inventory-policy buffer.
 	balance, err := s.repos.Inventory.BalanceFor(ctx, itemID)
 	if err != nil {
 		return nil, err
@@ -103,6 +109,10 @@ func (s *ATPService) Run(ctx context.Context, itemID uuid.UUID, horizonDays, buc
 	startingOH := 0.0
 	if balance != nil {
 		startingOH = balance.OnHand
+	}
+	startingOH -= policy.SafetyStock
+	if startingOH < 0 {
+		startingOH = 0
 	}
 
 	// 集計範囲
@@ -115,7 +125,7 @@ func (s *ATPService) Run(ctx context.Context, itemID uuid.UUID, horizonDays, buc
 		buckets = append(buckets, ATPBucketInput{Period: d})
 	}
 	if len(buckets) == 0 {
-		return &domain.ATPResult{ItemID: itemID, ItemCode: item.Code, Buckets: nil}, nil
+		return &domain.ATPResult{ItemID: itemID, ItemCode: item.Code, SafetyStockProtected: policy.SafetyStock, InventoryPolicyID: policy.PolicyVersionID, ServiceLevel: policy.ServiceLevel, PolicyStatus: policy.CalculationStatus, Buckets: nil}, nil
 	}
 
 	bucketStart := func(d time.Time) time.Time {
@@ -205,9 +215,13 @@ SELECT l.id AS id,l.item_id,
 
 	resBuckets := CalcATP(ATPInput{StartingOnHand: startingOH, Buckets: buckets})
 	return &domain.ATPResult{
-		ItemID:   itemID,
-		ItemCode: item.Code,
-		Buckets:  resBuckets,
+		ItemID:               itemID,
+		ItemCode:             item.Code,
+		SafetyStockProtected: policy.SafetyStock,
+		InventoryPolicyID:    policy.PolicyVersionID,
+		ServiceLevel:         policy.ServiceLevel,
+		PolicyStatus:         policy.CalculationStatus,
+		Buckets:              resBuckets,
 	}, nil
 }
 
@@ -228,6 +242,14 @@ func (s *ATPService) AvailableThrough(ctx context.Context, itemID uuid.UUID, thr
 		return 0, errors.New("itemId required")
 	}
 	through = TruncateDay(through)
+	item, err := s.repos.Items.Get(ctx, itemID)
+	if err != nil {
+		return 0, err
+	}
+	policy, err := s.inventoryPolicy.Effective(ctx, *item)
+	if err != nil {
+		return 0, err
+	}
 	var sellable, reserved float64
 	if err := s.db.GetContext(ctx, &sellable, `
 SELECT COALESCE(SUM(x.qty),0)::double precision
@@ -295,6 +317,7 @@ SELECT COALESCE(SUM(CASE WHEN txn_type='RESERVE' THEN ABS(quantity) WHEN txn_typ
 		return 0, err
 	}
 	available -= committed
+	available -= policy.SafetyStock
 	if available < 0 {
 		available = 0
 	}

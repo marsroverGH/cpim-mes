@@ -112,13 +112,22 @@ type peggingPO struct {
 }
 
 type stockSnapshot struct {
-	ItemID    uuid.UUID `db:"item_id"`
-	OnHand    float64   `db:"on_hand"`
-	Reserved  float64   `db:"reserved"`
-	Usable    float64   `db:"usable"`
-	Hold      float64   `db:"hold_qty"`
-	Rejected  float64   `db:"rejected_qty"`
-	Available float64   `db:"available"`
+	ItemID              uuid.UUID  `db:"item_id"`
+	OnHand              float64    `db:"on_hand"`
+	Reserved            float64    `db:"reserved"`
+	Usable              float64    `db:"usable"`
+	Hold                float64    `db:"hold_qty"`
+	Rejected            float64    `db:"rejected_qty"`
+	GrossAvailable      float64    `db:"gross_available"`
+	Available           float64    `db:"available"`
+	SafetyStock         float64    `db:"safety_stock"`
+	ReorderPoint        float64    `db:"reorder_point"`
+	MinQty              float64    `db:"min_qty"`
+	MaxQty              float64    `db:"max_qty"`
+	ServiceLevel        float64    `db:"service_level"`
+	PolicyVersionID     *uuid.UUID `db:"policy_version_id"`
+	PolicyStatus        string     `db:"policy_status"`
+	ReplenishmentMethod string     `db:"replenishment_method"`
 }
 
 type bomRequirement struct {
@@ -280,8 +289,10 @@ func severityFor(typ string, impactDays int) string {
 			return "CRITICAL"
 		}
 		return "WARNING"
-	case "SUPPLIER_RELIABILITY_RISK":
+	case "SUPPLIER_RELIABILITY_RISK", "REORDER_POINT_BREACH":
 		return "WARNING"
+	case "SAFETY_STOCK_BREACH":
+		return "CRITICAL"
 	case "LATE_PROMISE", "LATE_PURCHASE_ORDER", "LATE_WORK_ORDER", "CAPACITY_LATE", "UNCONVERTED_CTP", "SUPPLIER_CONFIRMATION_LATE":
 		if impactDays >= 7 {
 			return "CRITICAL"
@@ -412,6 +423,13 @@ func (s *PeggingService) calculateAndPersist(ctx context.Context, runID, salesOr
 			path := []string{"SO:" + order.ID.String(), "SOL:" + line.ID.String()}
 			g.exception(order, line, "LATE_PROMISE", severityFor("LATE_PROMISE", d), root, fmt.Sprintf("Promise is %d day(s) later than customer requested date", d), &line.RequestedDate, line.PromisedDate, line.PromisedDate, d, path, nil)
 		}
+
+		// Inventory policy is evaluated once per Sales Order line before consuming shared supply.
+		_, policyStock, e := s.inventoryNode(ctx, tx, g, pools, line.ItemID, line.ItemCode)
+		if e != nil {
+			return nil, e
+		}
+		s.traceInventoryPolicyRisk(g, order, line, policyStock, line.ItemID, line.ItemCode, []string{"SO:" + order.ID.String(), "SOL:" + line.ID.String()})
 
 		remaining := line.OpenQty
 		if line.AllocatedQty > 1e-9 {
@@ -554,7 +572,7 @@ func (s *PeggingService) stock(ctx context.Context, tx *sqlx.Tx, pools *supplyPo
 	var st stockSnapshot
 	err := tx.GetContext(ctx, &st, `
 WITH physical AS (
-  SELECT i.id AS item_id,
+  SELECT i.id AS item_id,i.safety_stock::double precision AS legacy_safety_stock,
          COALESCE(v.on_hand,0)::double precision AS on_hand,
          COALESCE(v.reserved,0)::double precision AS reserved
     FROM items i LEFT JOIN v_stock_balance v ON v.item_id=i.id
@@ -566,13 +584,28 @@ WITH physical AS (
          COALESCE(SUM(CASE WHEN l.quality_status='REJECTED' THEN lm.quantity ELSE 0 END),0)::double precision AS rejected_qty
     FROM lots l LEFT JOIN lot_movements lm ON lm.lot_id=l.id
    WHERE l.item_id=$1 GROUP BY l.item_id
+), base AS (
+  SELECT p.item_id,p.on_hand,p.reserved,
+         GREATEST(COALESCE(q.usable,p.on_hand),0)::double precision AS usable,
+         GREATEST(COALESCE(q.hold_qty,0),0)::double precision AS hold_qty,
+         GREATEST(COALESCE(q.rejected_qty,0),0)::double precision AS rejected_qty,
+         GREATEST(COALESCE(q.usable,p.on_hand)-p.reserved,0)::double precision AS gross_available,
+         COALESCE(ip.safety_stock,p.legacy_safety_stock,0)::double precision AS safety_stock,
+         COALESCE(ip.reorder_point,ip.safety_stock,p.legacy_safety_stock,0)::double precision AS reorder_point,
+         COALESCE(ip.min_qty,ip.reorder_point,ip.safety_stock,p.legacy_safety_stock,0)::double precision AS min_qty,
+         COALESCE(ip.max_qty,ip.min_qty,ip.reorder_point,ip.safety_stock,p.legacy_safety_stock,0)::double precision AS max_qty,
+         COALESCE(ip.service_level,0)::double precision AS service_level,
+         ip.policy_version_id,
+         COALESCE(ip.status,'LEGACY') AS policy_status,
+         COALESCE(ip.replenishment_method,'SAFETY_STOCK') AS replenishment_method
+    FROM physical p
+    LEFT JOIN quality q ON q.item_id=p.item_id
+    LEFT JOIN v_current_inventory_policy ip ON ip.item_id=p.item_id
 )
-SELECT p.item_id,p.on_hand,p.reserved,
-       GREATEST(COALESCE(q.usable,p.on_hand),0)::double precision AS usable,
-       GREATEST(COALESCE(q.hold_qty,0),0)::double precision AS hold_qty,
-       GREATEST(COALESCE(q.rejected_qty,0),0)::double precision AS rejected_qty,
-       GREATEST(COALESCE(q.usable,p.on_hand)-p.reserved,0)::double precision AS available
-  FROM physical p LEFT JOIN quality q ON q.item_id=p.item_id`, itemID)
+SELECT item_id,on_hand,reserved,usable,hold_qty,rejected_qty,gross_available,
+       GREATEST(gross_available-safety_stock,0)::double precision AS available,
+       safety_stock,reorder_point,min_qty,max_qty,service_level,policy_version_id,policy_status,replenishment_method
+  FROM base`, itemID)
 	if err != nil {
 		return st, err
 	}
@@ -581,14 +614,50 @@ SELECT p.item_id,p.on_hand,p.reserved,
 	return st, nil
 }
 
+func (s *PeggingService) inventoryPolicyNode(g *graphBuilder, st stockSnapshot, itemID uuid.UUID, itemCode string) *uuid.UUID {
+	if st.PolicyVersionID == nil {
+		return nil
+	}
+	versionID := *st.PolicyVersionID
+	n := g.node("IPOL:"+versionID.String(), "INVENTORY_POLICY", "Inventory policy / "+itemCode, &versionID, versionID.String(), &itemID, itemCode, floatPtr(st.SafetyStock), nil, st.PolicyStatus,
+		map[string]any{"safetyStock": st.SafetyStock, "reorderPoint": st.ReorderPoint, "minQty": st.MinQty, "maxQty": st.MaxQty, "serviceLevel": st.ServiceLevel, "replenishmentMethod": st.ReplenishmentMethod, "grossAvailable": st.GrossAvailable})
+	return &n
+}
+
+func (s *PeggingService) traceInventoryPolicyRisk(g *graphBuilder, order peggingOrder, line *peggingLine, st stockSnapshot, itemID uuid.UUID, itemCode string, path []string) {
+	policyNode := s.inventoryPolicyNode(g, st, itemID, itemCode)
+	if policyNode == nil {
+		return
+	}
+	policyKey := "IPOL:" + st.PolicyVersionID.String()
+	if st.GrossAvailable+1e-9 < st.SafetyStock {
+		short := st.SafetyStock - st.GrossAvailable
+		g.exception(order, line, "SAFETY_STOCK_BREACH", "CRITICAL", *policyNode,
+			fmt.Sprintf("%s gross available %.2f is %.2f below safety stock %.2f", itemCode, st.GrossAvailable, short, st.SafetyStock),
+			&line.RequestedDate, line.PromisedDate, nil, 0, append(append([]string{}, path...), policyKey),
+			map[string]any{"itemCode": itemCode, "grossAvailable": st.GrossAvailable, "safetyStock": st.SafetyStock, "shortageQty": short, "serviceLevel": st.ServiceLevel})
+		return
+	}
+	if st.GrossAvailable+1e-9 < st.ReorderPoint {
+		short := st.ReorderPoint - st.GrossAvailable
+		g.exception(order, line, "REORDER_POINT_BREACH", "WARNING", *policyNode,
+			fmt.Sprintf("%s gross available %.2f is %.2f below reorder point %.2f", itemCode, st.GrossAvailable, short, st.ReorderPoint),
+			&line.RequestedDate, line.PromisedDate, nil, 0, append(append([]string{}, path...), policyKey),
+			map[string]any{"itemCode": itemCode, "grossAvailable": st.GrossAvailable, "reorderPoint": st.ReorderPoint, "shortageQty": short, "serviceLevel": st.ServiceLevel})
+	}
+}
+
 func (s *PeggingService) inventoryNode(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, pools *supplyPools, itemID uuid.UUID, itemCode string) (uuid.UUID, stockSnapshot, error) {
 	st, err := s.stock(ctx, tx, pools, itemID)
 	if err != nil {
 		return uuid.Nil, st, err
 	}
 	id := itemID
-	n := g.node("INV:"+itemID.String(), "INVENTORY", "Usable inventory / "+itemCode, &id, itemCode, &id, itemCode, floatPtr(st.Usable), nil, "AVAILABLE",
-		map[string]any{"onHand": st.OnHand, "reserved": st.Reserved, "usable": st.Usable, "holdQty": st.Hold, "rejectedQty": st.Rejected, "available": st.Available})
+	n := g.node("INV:"+itemID.String(), "INVENTORY", "Usable inventory / "+itemCode, &id, itemCode, &id, itemCode, floatPtr(st.Available), nil, "AVAILABLE",
+		map[string]any{"onHand": st.OnHand, "reserved": st.Reserved, "usable": st.Usable, "holdQty": st.Hold, "rejectedQty": st.Rejected, "grossAvailable": st.GrossAvailable, "safetyStockProtected": st.SafetyStock, "availableAfterSafetyStock": st.Available, "reorderPoint": st.ReorderPoint, "minQty": st.MinQty, "maxQty": st.MaxQty, "policyStatus": st.PolicyStatus})
+	if p := s.inventoryPolicyNode(g, st, itemID, itemCode); p != nil {
+		g.edge(n, *p, "PROTECTED_BY", floatPtr(st.SafetyStock), nil)
+	}
 	return n, st, nil
 }
 
@@ -751,6 +820,7 @@ func (s *PeggingService) traceRequirement(ctx context.Context, tx *sqlx.Tx, g *g
 	if err != nil {
 		return err
 	}
+	s.traceInventoryPolicyRisk(g, order, line, st, r.ChildID, r.Code, p2)
 	use := math.Min(remaining, pools.inventory[r.ChildID])
 	if use > 1e-9 {
 		g.edge(reqNode, invNode, "SUPPLIED_BY", floatPtr(use), nil)

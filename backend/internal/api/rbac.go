@@ -26,6 +26,8 @@ const (
 	PermPOReceive              Permission = "po.receive"
 	PermSupplierScheduleManage Permission = "supplier.schedule.manage"
 	PermSupplierReliabilityRun Permission = "supplier.reliability.run"
+	PermInventoryPolicyManage  Permission = "inventory.policy.manage"
+	PermInventoryPolicyRun     Permission = "inventory.policy.run"
 	PermSalesOrderManage       Permission = "sales-order.manage"
 	PermSalesOrderShip         Permission = "sales-order.ship"
 	PermSalesOrderPromise      Permission = "sales-order.promise"
@@ -81,6 +83,8 @@ var rolePermissions = map[domain.Role]map[Permission]struct{}{
 		PermPOReceive:              {},
 		PermSupplierScheduleManage: {},
 		PermSupplierReliabilityRun: {},
+		PermInventoryPolicyManage:  {},
+		PermInventoryPolicyRun:     {},
 		PermSalesOrderManage:       {},
 		PermSalesOrderShip:         {},
 		PermSalesOrderPromise:      {},
@@ -121,7 +125,7 @@ func roleHasPermission(role domain.Role, permission Permission) bool {
 func permissionsForRole(role domain.Role) []Permission {
 	all := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

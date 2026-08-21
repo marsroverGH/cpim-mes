@@ -18,9 +18,10 @@ type CTPMaterialResult struct {
 }
 
 type CTPEngine struct {
-	db    *sqlx.DB
-	repos *repository.Repositories
-	crp   *CRPService
+	db              *sqlx.DB
+	repos           *repository.Repositories
+	crp             *CRPService
+	inventoryPolicy *InventoryPolicyService
 }
 
 type ctpSupplyEvent struct {
@@ -121,9 +122,14 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 	if free < 0 {
 		free = 0
 	}
+	policy, err := e.inventoryPolicy.Effective(ctx, it)
+	if err != nil {
+		return time.Time{}, false, nil, err
+	}
 
-	// Reuse MRP's safety-stock and lot-sizing netting semantics for shortage.
-	net, planned, _ := netMRPBucket(free, required, 0, it.SafetyStock, it.LotSize, 0, LotSizeMethod(it.LotSizeMethod))
+	// Reuse the same effective inventory-policy target as MRP. CTP must not
+	// promise by consuming statistically protected safety stock.
+	net, planned, _ := netMRPBucketWithInventoryPolicy(free, required, 0, policy, it.LotSize, 0, LotSizeMethod(it.LotSizeMethod))
 	if net <= 1e-9 {
 		return start, false, map[string]any{"itemCode": it.Code, "required": required, "free": free, "readyDate": start.Format("2006-01-02"), "shortage": 0}, nil
 	}
@@ -172,7 +178,7 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 		events = append(events, ctpSupplyEvent{d, remaining})
 	}
 	sort.Slice(events, func(i, j int) bool { return events[i].date.Before(events[j].date) })
-	need := required + it.SafetyStock
+	need := required + policy.SafetyStock
 	cum := free
 	existingReady := time.Time{}
 	for _, ev := range events {
@@ -200,5 +206,5 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 	if shortage < 0 {
 		shortage = 0
 	}
-	return candidate, true, map[string]any{"itemCode": it.Code, "required": required, "free": free, "shortage": shortage, "leadTimeDays": leadTimeDays, "nominalLeadTimeDays": it.LeadTimeDays, "readyDate": candidate.Format("2006-01-02")}, nil
+	return candidate, true, map[string]any{"itemCode": it.Code, "required": required, "free": free, "shortage": shortage, "leadTimeDays": leadTimeDays, "nominalLeadTimeDays": it.LeadTimeDays, "safetyStock": policy.SafetyStock, "reorderPoint": policy.ReorderPoint, "inventoryPolicyStatus": policy.CalculationStatus, "readyDate": candidate.Format("2006-01-02")}, nil
 }

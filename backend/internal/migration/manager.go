@@ -330,6 +330,7 @@ var legacyChecks = []legacyCheck{
 	{33, `SELECT to_regclass('public.backorder_runs') IS NOT NULL AND to_regclass('public.backorder_run_lines') IS NOT NULL AND to_regclass('public.backorder_publications') IS NOT NULL AND to_regclass('public.product_allocation_plans') IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='sales_orders' AND column_name='priority')`},
 	{34, `SELECT to_regclass('public.pegging_runs') IS NOT NULL AND to_regclass('public.pegging_nodes') IS NOT NULL AND to_regclass('public.pegging_edges') IS NOT NULL AND to_regclass('public.planning_exceptions') IS NOT NULL AND to_regclass('public.planning_exception_actions') IS NOT NULL AND to_regclass('public.v_current_planning_exceptions') IS NOT NULL`},
 	{35, `SELECT to_regclass('public.supplier_schedule_events') IS NOT NULL AND to_regclass('public.supplier_lead_time_runs') IS NOT NULL AND to_regclass('public.supplier_lead_time_results') IS NOT NULL AND to_regclass('public.v_purchase_order_planning_schedule') IS NOT NULL`},
+	{36, `SELECT to_regclass('public.inventory_policy_versions') IS NOT NULL AND to_regclass('public.inventory_policy_runs') IS NOT NULL AND to_regclass('public.inventory_policy_results') IS NOT NULL AND to_regclass('public.v_current_inventory_policy') IS NOT NULL`},
 }
 
 func bootstrapLegacyDatabase(ctx context.Context, conn *sqlx.Conn, migrations []Migration, installedBy string, logger *log.Logger) ([]int, error) {

@@ -62,6 +62,11 @@ const headers = [
   { title: '計画発行日',   key: 'plannedOrderReleaseDate' },
   { title: 'LT(日)',        key: 'planningLeadTimeDays', align: 'end' as const },
   { title: 'LT根拠',        key: 'leadTimeSource' },
+  { title: 'SS',            key: 'safetyStockTarget', align: 'end' as const },
+  { title: 'ROP',           key: 'reorderPoint', align: 'end' as const },
+  { title: 'Min',           key: 'minQty', align: 'end' as const },
+  { title: 'Max',           key: 'maxQty', align: 'end' as const },
+  { title: '在庫方針',       key: 'inventoryPolicyMode' },
   { title: '計画発行数量', key: 'plannedOrderRelease',    align: 'end' as const },
   { title: '起源 (Pegging)', key: 'pegging',         sortable: false }
 ]

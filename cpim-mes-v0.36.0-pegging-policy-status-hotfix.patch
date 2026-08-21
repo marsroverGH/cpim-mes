@@ -1,0 +1,25 @@
+diff --git a/backend/internal/service/pegging.go b/backend/internal/service/pegging.go
+index 2b7d3ec..6e06182 100644
+--- a/backend/internal/service/pegging.go
++++ b/backend/internal/service/pegging.go
+@@ -596,7 +596,7 @@ WITH physical AS (
+          COALESCE(ip.max_qty,ip.min_qty,ip.reorder_point,ip.safety_stock,p.legacy_safety_stock,0)::double precision AS max_qty,
+          COALESCE(ip.service_level,0)::double precision AS service_level,
+          ip.policy_version_id,
+-         COALESCE(ip.policy_status,'LEGACY') AS policy_status,
++         COALESCE(ip.status,'LEGACY') AS policy_status,
+          COALESCE(ip.replenishment_method,'SAFETY_STOCK') AS replenishment_method
+     FROM physical p
+     LEFT JOIN quality q ON q.item_id=p.item_id
+diff --git a/backend/scripts/check_inventory_policy.py b/backend/scripts/check_inventory_policy.py
+index a8b41b7..824e377 100755
+--- a/backend/scripts/check_inventory_policy.py
++++ b/backend/scripts/check_inventory_policy.py
+@@ -84,6 +84,7 @@ checks={
+  'CTP respects effective inventory policy': allin(ctp,'inventoryPolicy.Effective','netMRPBucketWithInventoryPolicy','policy.SafetyStock'),
+  'Pegging reserves safety stock from shared supply': allin(peg,'gross_available','GREATEST(gross_available-safety_stock,0)','pools.inventory[itemID] = st.Available'),
+  'Pegging creates inventory policy node': allin(peg,'inventoryPolicyNode','"INVENTORY_POLICY"'),
++ 'Pegging canonical policy view status column matches SQL contract': "COALESCE(ip.status,'LEGACY') AS policy_status" in peg and 'ip.policy_status' not in peg,
+  'Pegging links inventory to policy': '"PROTECTED_BY"' in peg,
+  'Pegging raises safety-stock breach': allin(peg,'"SAFETY_STOCK_BREACH"','st.GrossAvailable+1e-9 < st.SafetyStock'),
+  'Pegging raises reorder-point breach': allin(peg,'"REORDER_POINT_BREACH"','st.GrossAvailable+1e-9 < st.ReorderPoint'),

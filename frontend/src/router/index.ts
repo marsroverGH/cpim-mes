@@ -33,6 +33,7 @@ const router = createRouter({
     { path: '/gantt',           component: () => import('@/views/Gantt.vue') },
     { path: '/audit-log',       component: () => import('@/views/AuditLog.vue') },
     { path: '/inventory',       component: () => import('@/views/Inventory.vue') },
+    { path: '/inventory-policy', component: () => import('@/views/InventoryPolicy.vue') },
     { path: '/work-orders',     component: () => import('@/views/WorkOrders.vue') },
     { path: '/shop-floor',      component: () => import('@/views/ShopFloor.vue') },
     { path: '/purchase-orders', component: () => import('@/views/PurchaseOrders.vue') },
