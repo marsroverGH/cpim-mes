@@ -1,0 +1,49 @@
+diff --git a/backend/scripts/check_realtime_dispatch_rescheduling.py b/backend/scripts/check_realtime_dispatch_rescheduling.py
+index e77c785..948abf1 100755
+--- a/backend/scripts/check_realtime_dispatch_rescheduling.py
++++ b/backend/scripts/check_realtime_dispatch_rescheduling.py
+@@ -132,6 +132,7 @@ checks={
+  'E2E verifies frozen/firm policy': allin(e2e,'freezeMinutes','firmMinutes','/dispatch-policy-versions'),
+  'E2E verifies dynamic activation': allin(e2e,'/api/dynamic-rescheduling/run','ACTIVATED','candidateRunId'),
+  'E2E verifies autonomous signal path': allin(e2e,'actorType','SYSTEM','/api/dynamic-rescheduling/runs'),
++ 'E2E cleans started operation before repeated full-suite run': allin(e2e,'test.afterEach','cleanupStartedOperationId','/complete','0039 E2E cleanup'),
+  'E2E verifies Pegging reschedule evidence': allin(e2e,"nodeType === 'RESCHEDULE_RUN'","RESCHEDULED_BY"),
+  'migration manager fingerprints 0039': allin(manager,'{39,','dispatch_policy_versions','dynamic_reschedule_runs','schedule_adherence_snapshots'),
+  'migration manager tests expect 39': allin(manager_test,'len(migs) != 39','expected 39 migrations'),
+diff --git a/e2e/tests/dispatch-rescheduling.spec.ts b/e2e/tests/dispatch-rescheduling.spec.ts
+index 197884c..fd7ab2c 100644
+--- a/e2e/tests/dispatch-rescheduling.spec.ts
++++ b/e2e/tests/dispatch-rescheduling.spec.ts
+@@ -13,6 +13,24 @@ async function jsonArray(page: any, path: string, headers: any) {
+ const dateOnly = (d = 0) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10)
+ const dateTime = (d = 0) => `${dateOnly(d)}T00:00:00Z`
+ 
++// This spec is executed once as a dedicated acceptance test and then again as
++// part of the full suite against the same database. Do not leak an IN_PROGRESS
++// operation from the dedicated run into the full-suite run: that would
++// correctly be treated as an EXECUTED commitment and block the next candidate.
++let cleanupStartedOperationId = ''
++test.afterEach(async ({ page }) => {
++  const opId = cleanupStartedOperationId
++  cleanupStartedOperationId = ''
++  if (!opId) return
++  const login = await page.request.post('/api/auth/login', { data: { username: 'admin', password: 'admin123' } })
++  if (!login.ok()) return
++  const token = (await login.json()).token as string
++  await page.request.post(`/api/wo-operations/${opId}/complete`, {
++    headers: { Authorization: `Bearer ${token}` },
++    data: { completedQty: 1, notes: '0039 E2E cleanup after autonomous-reschedule assertion' }
++  })
++})
++
+ test.describe('Real-Time Dispatching / Dynamic Rescheduling / Schedule Adherence', () => {
+   test('active execution schedule dispatches work, re-plans future work and preserves auditable reschedule root cause', async ({ page }) => {
+     const token = await adminToken(page)
+@@ -96,6 +114,7 @@ test.describe('Real-Time Dispatching / Dynamic Rescheduling / Schedule Adherence
+     expect(op).toBeTruthy()
+     const startRes = await page.request.post(`/api/wo-operations/${op.id}/start`, { headers, data: {} })
+     expect(startRes.ok()).toBeTruthy()
++    cleanupStartedOperationId = op.id
+     const runs = await jsonArray(page, '/api/dynamic-rescheduling/runs', headers)
+     const systemRun = runs.find((x: any) => x.actorType === 'SYSTEM' && ['SHOP_FLOOR_PROGRESS','LATE_OPERATION'].includes(x.triggerType))
+     expect(systemRun).toBeTruthy()

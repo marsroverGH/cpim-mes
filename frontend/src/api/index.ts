@@ -1786,3 +1786,48 @@ export const SupplierQualityApi = {
     http.post<SupplierNCRDispositionRecord>(`/supplier-quality/ncrs/${id}/disposition`, p).then(r => r.data),
   closeRework: (id: string) => http.post<SupplierNCR>(`/supplier-quality/ncrs/${id}/close-rework`, {}).then(r => r.data)
 }
+
+// ------- Real-Time Dispatch / Dynamic Rescheduling / Schedule Adherence -------
+export interface DispatchPolicyVersion {
+  id: string; versionNo: number; status: 'DRAFT'|'ACTIVE'|'ARCHIVED'; freezeMinutes: number; firmMinutes: number
+  startLateThresholdMinutes: number; completionLateThresholdMinutes: number; autoReschedule: boolean
+  minAutoIntervalMinutes: number; setupMatchBonus: number; createdBy: string; createdAt: string
+}
+export interface ScheduleExecutionState { activeRunId: string; policyVersionId: string; activationHistoryId: string; activatedAt: string; updatedAt: string }
+export interface DispatchItem {
+  activeRunId: string; scheduleOrderId: string; workOrderId: string; woOperationId: string; orderNo: string; itemCode: string; itemName: string
+  operationSeq: number; operationDescription: string; workCenterId: string; workCenterCode: string; workCenterName: string; setupFamily: string
+  priority: number; dueAt: string; plannedStart?: string; plannedEnd?: string; actualStart?: string; actualEnd?: string
+  operationStatus: string; timeFence: 'FROZEN'|'FIRM'|'FLEXIBLE'|'EXECUTED'; dispatchStatus: string; blockedReason: string
+  startVarianceMinutes: number; completionVarianceMinutes: number; setupMatch: boolean; dispatchScore: number
+}
+export interface DispatchBoard { asOf: string; policy: DispatchPolicyVersion; execution: ScheduleExecutionState; items: DispatchItem[] }
+export interface ScheduleAdherenceSummary {
+  totalOperations: number; startedOperations: number; completedOperations: number; lateStarts: number; lateCompletions: number; blockedOperations: number
+  onTimeStartPct: number; onTimeCompletionPct: number; averageStartVarianceMinutes: number; averageCompletionVarianceMinutes: number
+}
+export interface ScheduleAdherenceSnapshot { id: string; activeRunId: string; policyVersionId: string; asOf: string; resultHash: string; generatedBy: string; createdAt: string }
+export interface ScheduleAdherenceResult { snapshot: ScheduleAdherenceSnapshot; summary: ScheduleAdherenceSummary; rows: any[] }
+export interface DynamicRescheduleRun {
+  id: string; sourceRunId: string; candidateRunId?: string; policyVersionId: string; adherenceSnapshotId?: string; triggerType: string; triggerRef: string; reason: string
+  asOf: string; freezeUntil: string; firmUntil: string; horizonDays: number; status: 'EVALUATING'|'ACTIVATED'|'BLOCKED'|'NO_CHANGE'|'FAILED'|'THROTTLED'
+  frozenConflicts: number; executionConflicts: number; firmChanges: number; flexibleChanges: number; impactedWorkOrders: number; resultHash?: string; actorType: string; actorUsername: string; createdAt: string; finishedAt?: string
+}
+export interface DynamicRescheduleChange { id: string; rescheduleRunId: string; workOrderId?: string; sourceRef: string; operationSeq: number; changeType: string; timeFence: string; startShiftMinutes: number; endShiftMinutes: number; frozenConflict: boolean; executionConflict: boolean }
+export interface DynamicRescheduleResult { run: DynamicRescheduleRun; changes: DynamicRescheduleChange[]; adherence?: ScheduleAdherenceResult; activation?: any }
+export interface RescheduleSignal { id: string; triggerType: string; sourceType: string; sourceRef: string; workCenterId?: string; workOrderId?: string; detectedAt: string; processedAt?: string; processedRunId?: string }
+export const DispatchApi = {
+  board: (workCenterId?: string) => http.get<DispatchBoard>('/dispatch', { params: workCenterId ? { workCenterId } : {} }).then(r => r.data),
+  execution: () => http.get<ScheduleExecutionState>('/schedule-execution').then(r => r.data),
+  currentPolicy: () => http.get<DispatchPolicyVersion>('/dispatch-policy/current').then(r => r.data),
+  policies: () => http.get<DispatchPolicyVersion[]>('/dispatch-policy-versions').then(r => r.data),
+  createPolicy: (p: Partial<DispatchPolicyVersion>) => http.post<DispatchPolicyVersion>('/dispatch-policy-versions', p).then(r => r.data),
+  activatePolicy: (id: string) => http.post<DispatchPolicyVersion>(`/dispatch-policy-versions/${id}/activate`, {}).then(r => r.data),
+  adherence: () => http.get<ScheduleAdherenceResult>('/schedule-adherence/current').then(r => r.data),
+  snapshotAdherence: () => http.post<ScheduleAdherenceResult>('/schedule-adherence/snapshots', {}).then(r => r.data),
+  adherenceSnapshots: () => http.get<ScheduleAdherenceSnapshot[]>('/schedule-adherence/snapshots').then(r => r.data),
+  reschedule: (body: { triggerType?: string; triggerRef?: string; reason?: string; asOf?: string; horizonDays?: number }) => http.post<DynamicRescheduleResult>('/dynamic-rescheduling/run', body).then(r => r.data),
+  processPending: () => http.post<DynamicRescheduleResult | null>('/dynamic-rescheduling/process-pending', {}).then(r => r.data),
+  rescheduleRuns: () => http.get<DynamicRescheduleRun[]>('/dynamic-rescheduling/runs').then(r => r.data),
+  signals: () => http.get<RescheduleSignal[]>('/dynamic-rescheduling/signals').then(r => r.data)
+}

@@ -1169,6 +1169,212 @@ type DetailedScheduleResult struct {
 }
 
 // ====================================================================
+// Real-Time Dispatching / Dynamic Rescheduling / Schedule Adherence
+// ====================================================================
+
+type DispatchPolicyVersion struct {
+	ID                             uuid.UUID  `db:"id"                                json:"id"`
+	VersionNo                      int        `db:"version_no"                        json:"versionNo"`
+	Status                         string     `db:"status"                            json:"status"`
+	FreezeMinutes                  int        `db:"freeze_minutes"                    json:"freezeMinutes"`
+	FirmMinutes                    int        `db:"firm_minutes"                      json:"firmMinutes"`
+	StartLateThresholdMinutes      int        `db:"start_late_threshold_minutes"      json:"startLateThresholdMinutes"`
+	CompletionLateThresholdMinutes int        `db:"completion_late_threshold_minutes" json:"completionLateThresholdMinutes"`
+	AutoReschedule                 bool       `db:"auto_reschedule"                   json:"autoReschedule"`
+	MinAutoIntervalMinutes         int        `db:"min_auto_interval_minutes"         json:"minAutoIntervalMinutes"`
+	SetupMatchBonus                float64    `db:"setup_match_bonus"                 json:"setupMatchBonus"`
+	CreatedByUserID                *uuid.UUID `db:"created_by_user_id"                json:"createdByUserId,omitempty"`
+	CreatedBy                      string     `db:"created_by"                        json:"createdBy"`
+	CreatedAt                      time.Time  `db:"created_at"                        json:"createdAt"`
+	ActivatedByUserID              *uuid.UUID `db:"activated_by_user_id"              json:"activatedByUserId,omitempty"`
+	ActivatedBy                    *string    `db:"activated_by"                      json:"activatedBy,omitempty"`
+	ActivatedAt                    *time.Time `db:"activated_at"                      json:"activatedAt,omitempty"`
+	ArchivedByUserID               *uuid.UUID `db:"archived_by_user_id"               json:"archivedByUserId,omitempty"`
+	ArchivedBy                     *string    `db:"archived_by"                       json:"archivedBy,omitempty"`
+	ArchivedAt                     *time.Time `db:"archived_at"                       json:"archivedAt,omitempty"`
+}
+
+type DetailedScheduleExecutionState struct {
+	ActiveRunID         uuid.UUID `db:"active_run_id"          json:"activeRunId"`
+	PolicyVersionID     uuid.UUID `db:"policy_version_id"      json:"policyVersionId"`
+	ActivationHistoryID uuid.UUID `db:"activation_history_id"  json:"activationHistoryId"`
+	ActivatedAt         time.Time `db:"activated_at"           json:"activatedAt"`
+	UpdatedAt           time.Time `db:"updated_at"             json:"updatedAt"`
+}
+
+type DetailedScheduleActivationHistory struct {
+	ID               uuid.UUID  `db:"id"                 json:"id"`
+	PreviousRunID    *uuid.UUID `db:"previous_run_id"    json:"previousRunId,omitempty"`
+	ActiveRunID      uuid.UUID  `db:"active_run_id"      json:"activeRunId"`
+	RescheduleRunID  *uuid.UUID `db:"reschedule_run_id"  json:"rescheduleRunId,omitempty"`
+	PolicyVersionID  uuid.UUID  `db:"policy_version_id"  json:"policyVersionId"`
+	ActivationReason string     `db:"activation_reason"  json:"activationReason"`
+	ActorType        string     `db:"actor_type"         json:"actorType"`
+	ActorUserID      *uuid.UUID `db:"actor_user_id"      json:"actorUserId,omitempty"`
+	ActorUsername    string     `db:"actor_username"     json:"actorUsername"`
+	ActivatedAt      time.Time  `db:"activated_at"       json:"activatedAt"`
+}
+
+type DispatchItem struct {
+	ActiveRunID           uuid.UUID  `json:"activeRunId"`
+	ScheduleOrderID       uuid.UUID  `json:"scheduleOrderId"`
+	WorkOrderID           uuid.UUID  `json:"workOrderId"`
+	WOOperationID         uuid.UUID  `json:"woOperationId"`
+	OrderNo               string     `json:"orderNo"`
+	ItemCode              string     `json:"itemCode"`
+	ItemName              string     `json:"itemName"`
+	OperationSeq          int        `json:"operationSeq"`
+	OperationDesc         string     `json:"operationDescription"`
+	WorkCenterID          uuid.UUID  `json:"workCenterId"`
+	WorkCenterCode        string     `json:"workCenterCode"`
+	WorkCenterName        string     `json:"workCenterName"`
+	SetupFamily           string     `json:"setupFamily"`
+	Priority              int        `json:"priority"`
+	DueAt                 time.Time  `json:"dueAt"`
+	PlannedStart          *time.Time `json:"plannedStart,omitempty"`
+	PlannedEnd            *time.Time `json:"plannedEnd,omitempty"`
+	ActualStart           *time.Time `json:"actualStart,omitempty"`
+	ActualEnd             *time.Time `json:"actualEnd,omitempty"`
+	OperationStatus       string     `json:"operationStatus"`
+	TimeFence             string     `json:"timeFence"`
+	DispatchStatus        string     `json:"dispatchStatus"`
+	BlockedReason         string     `json:"blockedReason"`
+	StartVarianceMin      float64    `json:"startVarianceMinutes"`
+	CompletionVarianceMin float64    `json:"completionVarianceMinutes"`
+	SetupMatch            bool       `json:"setupMatch"`
+	DispatchScore         float64    `json:"dispatchScore"`
+}
+
+type DispatchBoard struct {
+	AsOf      time.Time                      `json:"asOf"`
+	Policy    DispatchPolicyVersion          `json:"policy"`
+	Execution DetailedScheduleExecutionState `json:"execution"`
+	Items     []DispatchItem                 `json:"items"`
+}
+
+type ScheduleAdherenceSnapshot struct {
+	ID                uuid.UUID  `db:"id"                    json:"id"`
+	ActiveRunID       uuid.UUID  `db:"active_run_id"         json:"activeRunId"`
+	PolicyVersionID   uuid.UUID  `db:"policy_version_id"     json:"policyVersionId"`
+	AsOf              time.Time  `db:"as_of"                 json:"asOf"`
+	Status            string     `db:"status"                json:"status"`
+	ResultHash        string     `db:"result_hash"           json:"resultHash"`
+	GeneratedByUserID *uuid.UUID `db:"generated_by_user_id"  json:"generatedByUserId,omitempty"`
+	GeneratedBy       string     `db:"generated_by"          json:"generatedBy"`
+	CreatedAt         time.Time  `db:"created_at"            json:"createdAt"`
+}
+
+type ScheduleAdherenceRow struct {
+	ID                        uuid.UUID  `db:"id"                          json:"id"`
+	SnapshotID                uuid.UUID  `db:"snapshot_id"                 json:"snapshotId"`
+	ScheduleOrderID           uuid.UUID  `db:"schedule_order_id"           json:"scheduleOrderId"`
+	WorkOrderID               uuid.UUID  `db:"work_order_id"               json:"workOrderId"`
+	WOOperationID             uuid.UUID  `db:"wo_operation_id"             json:"woOperationId"`
+	WorkCenterID              uuid.UUID  `db:"work_center_id"              json:"workCenterId"`
+	OperationSeq              int        `db:"operation_seq"               json:"operationSeq"`
+	PlannedStart              *time.Time `db:"planned_start"               json:"plannedStart,omitempty"`
+	PlannedEnd                *time.Time `db:"planned_end"                 json:"plannedEnd,omitempty"`
+	ActualStart               *time.Time `db:"actual_start"                json:"actualStart,omitempty"`
+	ActualEnd                 *time.Time `db:"actual_end"                  json:"actualEnd,omitempty"`
+	OperationStatus           string     `db:"operation_status"            json:"operationStatus"`
+	StartVarianceMinutes      float64    `db:"start_variance_minutes"      json:"startVarianceMinutes"`
+	CompletionVarianceMinutes float64    `db:"completion_variance_minutes" json:"completionVarianceMinutes"`
+	StartOnTime               bool       `db:"start_on_time"               json:"startOnTime"`
+	CompletionOnTime          bool       `db:"completion_on_time"          json:"completionOnTime"`
+	TimeFence                 string     `db:"time_fence"                  json:"timeFence"`
+	DispatchStatus            string     `db:"dispatch_status"             json:"dispatchStatus"`
+	BlockedReason             string     `db:"blocked_reason"              json:"blockedReason"`
+}
+
+type ScheduleAdherenceSummary struct {
+	TotalOperations           int     `json:"totalOperations"`
+	StartedOperations         int     `json:"startedOperations"`
+	CompletedOperations       int     `json:"completedOperations"`
+	LateStarts                int     `json:"lateStarts"`
+	LateCompletions           int     `json:"lateCompletions"`
+	BlockedOperations         int     `json:"blockedOperations"`
+	OnTimeStartPct            float64 `json:"onTimeStartPct"`
+	OnTimeCompletionPct       float64 `json:"onTimeCompletionPct"`
+	AverageStartVariance      float64 `json:"averageStartVarianceMinutes"`
+	AverageCompletionVariance float64 `json:"averageCompletionVarianceMinutes"`
+}
+
+type ScheduleAdherenceResult struct {
+	Snapshot ScheduleAdherenceSnapshot `json:"snapshot"`
+	Summary  ScheduleAdherenceSummary  `json:"summary"`
+	Rows     []ScheduleAdherenceRow    `json:"rows"`
+}
+
+type DynamicRescheduleRun struct {
+	ID                  uuid.UUID  `db:"id"                    json:"id"`
+	SourceRunID         uuid.UUID  `db:"source_run_id"         json:"sourceRunId"`
+	CandidateRunID      *uuid.UUID `db:"candidate_run_id"      json:"candidateRunId,omitempty"`
+	PolicyVersionID     uuid.UUID  `db:"policy_version_id"     json:"policyVersionId"`
+	AdherenceSnapshotID *uuid.UUID `db:"adherence_snapshot_id" json:"adherenceSnapshotId,omitempty"`
+	TriggerType         string     `db:"trigger_type"          json:"triggerType"`
+	TriggerRef          string     `db:"trigger_ref"           json:"triggerRef"`
+	Reason              string     `db:"reason"                json:"reason"`
+	AsOf                time.Time  `db:"as_of"                 json:"asOf"`
+	FreezeUntil         time.Time  `db:"freeze_until"          json:"freezeUntil"`
+	FirmUntil           time.Time  `db:"firm_until"            json:"firmUntil"`
+	HorizonDays         int        `db:"horizon_days"          json:"horizonDays"`
+	Status              string     `db:"status"                json:"status"`
+	FrozenConflicts     int        `db:"frozen_conflicts"      json:"frozenConflicts"`
+	ExecutionConflicts  int        `db:"execution_conflicts"   json:"executionConflicts"`
+	FirmChanges         int        `db:"firm_changes"          json:"firmChanges"`
+	FlexibleChanges     int        `db:"flexible_changes"      json:"flexibleChanges"`
+	ImpactedWorkOrders  int        `db:"impacted_work_orders"  json:"impactedWorkOrders"`
+	ResultHash          *string    `db:"result_hash"           json:"resultHash,omitempty"`
+	ActorType           string     `db:"actor_type"            json:"actorType"`
+	ActorUserID         *uuid.UUID `db:"actor_user_id"         json:"actorUserId,omitempty"`
+	ActorUsername       string     `db:"actor_username"        json:"actorUsername"`
+	CreatedAt           time.Time  `db:"created_at"            json:"createdAt"`
+	FinishedAt          *time.Time `db:"finished_at"           json:"finishedAt,omitempty"`
+}
+
+type DynamicRescheduleChange struct {
+	ID                uuid.UUID       `db:"id"                    json:"id"`
+	RescheduleRunID   uuid.UUID       `db:"reschedule_run_id"     json:"rescheduleRunId"`
+	WorkOrderID       *uuid.UUID      `db:"work_order_id"         json:"workOrderId,omitempty"`
+	SourceRef         string          `db:"source_ref"            json:"sourceRef"`
+	OperationSeq      int             `db:"operation_seq"         json:"operationSeq"`
+	ChangeType        string          `db:"change_type"           json:"changeType"`
+	TimeFence         string          `db:"time_fence"            json:"timeFence"`
+	OldWorkCenterID   *uuid.UUID      `db:"old_work_center_id"    json:"oldWorkCenterId,omitempty"`
+	NewWorkCenterID   *uuid.UUID      `db:"new_work_center_id"    json:"newWorkCenterId,omitempty"`
+	OldStart          *time.Time      `db:"old_start"             json:"oldStart,omitempty"`
+	OldEnd            *time.Time      `db:"old_end"               json:"oldEnd,omitempty"`
+	NewStart          *time.Time      `db:"new_start"             json:"newStart,omitempty"`
+	NewEnd            *time.Time      `db:"new_end"               json:"newEnd,omitempty"`
+	StartShiftMinutes float64         `db:"start_shift_minutes"   json:"startShiftMinutes"`
+	EndShiftMinutes   float64         `db:"end_shift_minutes"     json:"endShiftMinutes"`
+	FrozenConflict    bool            `db:"frozen_conflict"       json:"frozenConflict"`
+	ExecutionConflict bool            `db:"execution_conflict"    json:"executionConflict"`
+	Detail            json.RawMessage `db:"detail"                json:"detail"`
+	CreatedAt         time.Time       `db:"created_at"            json:"createdAt"`
+}
+
+type DynamicRescheduleResult struct {
+	Run        DynamicRescheduleRun               `json:"run"`
+	Changes    []DynamicRescheduleChange          `json:"changes"`
+	Adherence  *ScheduleAdherenceResult           `json:"adherence,omitempty"`
+	Activation *DetailedScheduleActivationHistory `json:"activation,omitempty"`
+}
+
+type ScheduleRescheduleSignal struct {
+	ID             uuid.UUID       `db:"id"                json:"id"`
+	TriggerType    string          `db:"trigger_type"      json:"triggerType"`
+	SourceType     string          `db:"source_type"       json:"sourceType"`
+	SourceRef      string          `db:"source_ref"        json:"sourceRef"`
+	WorkCenterID   *uuid.UUID      `db:"work_center_id"    json:"workCenterId,omitempty"`
+	WorkOrderID    *uuid.UUID      `db:"work_order_id"     json:"workOrderId,omitempty"`
+	DetectedAt     time.Time       `db:"detected_at"       json:"detectedAt"`
+	Detail         json.RawMessage `db:"detail"            json:"detail"`
+	ProcessedAt    *time.Time      `db:"processed_at"      json:"processedAt,omitempty"`
+	ProcessedRunID *uuid.UUID      `db:"processed_run_id"  json:"processedRunId,omitempty"`
+}
+
+// ====================================================================
 // Working Calendar
 // ====================================================================
 

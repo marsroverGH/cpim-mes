@@ -745,7 +745,10 @@ SELECT w.id,w.order_no,w.item_id,i.code AS item_code,i.name AS item_name,i.type 
 func (s *PeggingService) peggPlannedSupply(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, pools *supplyPools, order peggingOrder, line *peggingLine, demandNode uuid.UUID, need float64, needDate time.Time, path []string) (float64, error) {
 	var rows []detailedEvidence
 	if err := tx.SelectContext(ctx, &rows, `
-WITH latest AS (SELECT id FROM detailed_schedule_runs WHERE status='COMPLETE' ORDER BY generated_at DESC,id DESC LIMIT 1)
+WITH latest AS (
+ SELECT COALESCE((SELECT active_run_id FROM detailed_schedule_execution_state WHERE singleton=true),
+                 (SELECT id FROM detailed_schedule_runs WHERE status='COMPLETE' ORDER BY generated_at DESC,id DESC LIMIT 1)) AS id
+)
 SELECT d.id,d.run_id,d.source_type,d.source_ref,d.work_order_id,d.item_id,d.item_code,
        d.quantity::double precision AS quantity,d.due_at,d.scheduled_start,d.scheduled_end,d.schedule_status,
        d.tardy_minutes::double precision AS tardy_minutes,r.generated_at
@@ -965,11 +968,113 @@ SELECT p.id,p.po_no,p.item_id,i.code AS item_code,i.name AS item_name,p.supplier
 	return nil
 }
 
+type reschedulePeggingEvidence struct {
+	ID                 uuid.UUID `db:"id"`
+	TriggerType        string    `db:"trigger_type"`
+	TriggerRef         string    `db:"trigger_ref"`
+	Reason             string    `db:"reason"`
+	Status             string    `db:"status"`
+	AsOf               time.Time `db:"as_of"`
+	FrozenConflicts    int       `db:"frozen_conflicts"`
+	ExecutionConflicts int       `db:"execution_conflicts"`
+	FirmChanges        int       `db:"firm_changes"`
+	FlexibleChanges    int       `db:"flexible_changes"`
+	ImpactedWorkOrders int       `db:"impacted_work_orders"`
+	ResultHash         *string   `db:"result_hash"`
+}
+
+func (s *PeggingService) addScheduleExecutionEvidence(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, order peggingOrder, line *peggingLine, ds uuid.UUID, ev detailedEvidence, workOrderID *uuid.UUID, needDate time.Time, path []string) error {
+	var rr reschedulePeggingEvidence
+	err := tx.GetContext(ctx, &rr, `
+SELECT r.id,r.trigger_type,r.trigger_ref,r.reason,r.status,r.as_of,r.frozen_conflicts,r.execution_conflicts,r.firm_changes,r.flexible_changes,r.impacted_work_orders,r.result_hash
+  FROM detailed_schedule_activation_history h JOIN dynamic_reschedule_runs r ON r.id=h.reschedule_run_id
+ WHERE h.active_run_id=$1 ORDER BY h.activated_at DESC,h.id DESC LIMIT 1`, ev.RunID)
+	if err == nil {
+		id := rr.ID
+		key := "RESCHEDULE:" + rr.ID.String()
+		rn := g.node(key, "RESCHEDULE_RUN", "Dynamic Reschedule / "+rr.TriggerType, &id, rr.TriggerRef, nil, "", nil, &rr.AsOf, rr.Status,
+			map[string]any{"reason": rr.Reason, "frozenConflicts": rr.FrozenConflicts, "executionConflicts": rr.ExecutionConflicts, "firmChanges": rr.FirmChanges, "flexibleChanges": rr.FlexibleChanges, "impactedWorkOrders": rr.ImpactedWorkOrders, "resultHash": rr.ResultHash})
+		g.edge(ds, rn, "RESCHEDULED_BY", nil, nil)
+		if rr.FirmChanges > 0 && (ev.ScheduleStatus == "LATE" || ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
+			g.exception(order, line, "FIRM_HORIZON_CHANGE", "WARNING", rn, "Active execution schedule includes firm-horizon changes from dynamic rescheduling", &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, append(path, key), map[string]any{"rescheduleRunId": rr.ID, "firmChanges": rr.FirmChanges, "triggerType": rr.TriggerType})
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "relation \"dynamic_reschedule_runs\" does not exist") {
+		return err
+	}
+	if workOrderID == nil {
+		return nil
+	}
+	var blocked reschedulePeggingEvidence
+	err = tx.GetContext(ctx, &blocked, `
+SELECT DISTINCT r.id,r.trigger_type,r.trigger_ref,r.reason,r.status,r.as_of,r.frozen_conflicts,r.execution_conflicts,r.firm_changes,r.flexible_changes,r.impacted_work_orders,r.result_hash
+  FROM dynamic_reschedule_runs r JOIN dynamic_reschedule_changes c ON c.reschedule_run_id=r.id
+ WHERE r.status='BLOCKED' AND c.work_order_id=$1 AND (c.frozen_conflict OR c.execution_conflict)
+ ORDER BY r.as_of DESC,r.id DESC LIMIT 1`, *workOrderID)
+	if err == nil {
+		id := blocked.ID
+		key := "RESCHEDULE:" + blocked.ID.String()
+		rn := g.node(key, "RESCHEDULE_RUN", "Blocked Reschedule / "+blocked.TriggerType, &id, blocked.TriggerRef, nil, "", nil, &blocked.AsOf, blocked.Status,
+			map[string]any{"reason": blocked.Reason, "frozenConflicts": blocked.FrozenConflicts, "executionConflicts": blocked.ExecutionConflicts, "firmChanges": blocked.FirmChanges, "flexibleChanges": blocked.FlexibleChanges})
+		g.edge(ds, rn, "RESCHEDULED_BY", nil, nil)
+		if blocked.ExecutionConflicts > 0 {
+			g.exception(order, line, "EXECUTION_COMMITMENT_CONFLICT", "CRITICAL", rn, "Dynamic reschedule was blocked because it would rewrite an in-process or completed execution commitment", &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, append(path, key), map[string]any{"rescheduleRunId": blocked.ID, "triggerType": blocked.TriggerType, "executionConflicts": blocked.ExecutionConflicts})
+		} else {
+			g.exception(order, line, "FROZEN_HORIZON_CONFLICT", "CRITICAL", rn, "Dynamic reschedule was blocked because it would change a frozen execution commitment", &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, append(path, key), map[string]any{"rescheduleRunId": blocked.ID, "triggerType": blocked.TriggerType, "frozenConflicts": blocked.FrozenConflicts})
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "relation \"dynamic_reschedule_runs\" does not exist") {
+		return err
+	}
+	var adh struct {
+		StartOnTime        bool      `db:"start_on_time"`
+		CompletionOnTime   bool      `db:"completion_on_time"`
+		StartVariance      float64   `db:"start_variance_minutes"`
+		CompletionVariance float64   `db:"completion_variance_minutes"`
+		DispatchStatus     string    `db:"dispatch_status"`
+		BlockedReason      string    `db:"blocked_reason"`
+		AsOf               time.Time `db:"as_of"`
+	}
+	err = tx.GetContext(ctx, &adh, `
+SELECT a.start_on_time,a.completion_on_time,a.start_variance_minutes::double precision,a.completion_variance_minutes::double precision,
+       a.dispatch_status,a.blocked_reason,s.as_of
+  FROM schedule_adherence_rows a JOIN schedule_adherence_snapshots s ON s.id=a.snapshot_id
+ WHERE a.work_order_id=$1
+ ORDER BY ((NOT a.start_on_time) OR (NOT a.completion_on_time) OR a.dispatch_status IN ('BLOCKED','PAUSED')) DESC,
+          s.as_of DESC,s.id DESC,a.operation_seq LIMIT 1`, *workOrderID)
+	if err == nil {
+		required := false
+		if !adh.StartOnTime {
+			required = true
+			g.exception(order, line, "SCHEDULE_START_LATE", "WARNING", ds, fmt.Sprintf("Execution started %.0f minute(s) later than the active schedule", adh.StartVariance), &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, path, map[string]any{"startVarianceMinutes": adh.StartVariance, "asOf": adh.AsOf})
+		}
+		if !adh.CompletionOnTime {
+			required = true
+			g.exception(order, line, "SCHEDULE_COMPLETION_LATE", "WARNING", ds, fmt.Sprintf("Execution completion is %.0f minute(s) behind the active schedule", adh.CompletionVariance), &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, path, map[string]any{"completionVarianceMinutes": adh.CompletionVariance, "asOf": adh.AsOf})
+		}
+		if adh.DispatchStatus == "BLOCKED" || adh.DispatchStatus == "PAUSED" {
+			required = true
+			reason := strings.TrimSpace(adh.BlockedReason)
+			if reason == "" {
+				reason = adh.DispatchStatus
+			}
+			g.exception(order, line, "DISPATCH_BLOCKED", "CRITICAL", ds, "Dispatch execution is blocked: "+reason, &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, path, map[string]any{"dispatchStatus": adh.DispatchStatus, "blockedReason": adh.BlockedReason, "asOf": adh.AsOf})
+		}
+		if required {
+			g.exception(order, line, "RESCHEDULE_REQUIRED", "WARNING", ds, "Active execution evidence indicates that rescheduling should be evaluated", &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, path, map[string]any{"dispatchStatus": adh.DispatchStatus, "startOnTime": adh.StartOnTime, "completionOnTime": adh.CompletionOnTime, "asOf": adh.AsOf})
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) && !strings.Contains(err.Error(), "relation \"schedule_adherence_rows\" does not exist") {
+		return err
+	}
+	return nil
+}
+
 func (s *PeggingService) addPlannedCapacityEvidence(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, order peggingOrder, line *peggingLine, plannedNode uuid.UUID, ev *detailedEvidence, needDate time.Time, path []string) error {
 	dsid := ev.ID
 	ds := g.node("DS:"+ev.ID.String(), "DETAILED_SCHEDULE", "Detailed Schedule / "+ev.SourceRef, &dsid, ev.SourceRef, &ev.ItemID, ev.ItemCode, floatPtr(ev.Quantity), ev.ScheduledEnd, ev.ScheduleStatus,
 		map[string]any{"scheduledStart": ev.ScheduledStart, "scheduledEnd": ev.ScheduledEnd, "tardyMinutes": ev.TardyMinutes, "generatedAt": ev.GeneratedAt, "sourceType": ev.SourceType})
 	g.edge(plannedNode, ds, "SCHEDULED_BY", nil, nil)
+	if err := s.addScheduleExecutionEvidence(ctx, tx, g, order, line, ds, *ev, ev.WorkOrderID, needDate, append(path, "DS:"+ev.ID.String())); err != nil {
+		return err
+	}
 	var wcs []workCenterEvidence
 	if err := tx.SelectContext(ctx, &wcs, `
 SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machines_required,b.workers_required,
@@ -1024,7 +1129,7 @@ SELECT d.id,d.run_id,d.source_type,d.source_ref,d.work_order_id,d.item_id,d.item
        d.tardy_minutes::double precision AS tardy_minutes,r.generated_at
   FROM detailed_schedule_orders d JOIN detailed_schedule_runs r ON r.id=d.run_id
  WHERE d.work_order_id=$1 AND r.status='COMPLETE'
- ORDER BY r.generated_at DESC,r.id DESC LIMIT 1`, wo.ID)
+ ORDER BY (r.id=COALESCE((SELECT active_run_id FROM detailed_schedule_execution_state WHERE singleton=true),r.id)) DESC, r.generated_at DESC,r.id DESC LIMIT 1`, wo.ID)
 	if errors.Is(err, sql.ErrNoRows) {
 		// A formal WO with no finite detailed schedule is itself actionable capacity evidence.
 		key := "DS:MISSING:" + wo.ID.String()
@@ -1039,6 +1144,9 @@ SELECT d.id,d.run_id,d.source_type,d.source_ref,d.work_order_id,d.item_id,d.item
 	dsid := ev.ID
 	ds := g.node("DS:"+ev.ID.String(), "DETAILED_SCHEDULE", "Detailed Schedule / "+wo.OrderNo, &dsid, ev.SourceRef, &wo.ItemID, wo.ItemCode, floatPtr(ev.Quantity), ev.ScheduledEnd, ev.ScheduleStatus, map[string]any{"scheduledStart": ev.ScheduledStart, "scheduledEnd": ev.ScheduledEnd, "tardyMinutes": ev.TardyMinutes, "generatedAt": ev.GeneratedAt})
 	g.edge(woNode, ds, "SCHEDULED_BY", nil, nil)
+	if err := s.addScheduleExecutionEvidence(ctx, tx, g, order, line, ds, ev, &wo.ID, needDate, append(path, "DS:"+ev.ID.String())); err != nil {
+		return err
+	}
 	var wcs []workCenterEvidence
 	if err := tx.SelectContext(ctx, &wcs, `
 SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machines_required,b.workers_required,

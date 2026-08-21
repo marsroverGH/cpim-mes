@@ -46,7 +46,10 @@ type MaintenanceRevisionInput struct {
 	SourceRef           *string    `json:"sourceRef,omitempty"`
 }
 
-type MaintenanceService struct{ db *sqlx.DB }
+type MaintenanceService struct {
+	db          *sqlx.DB
+	rescheduler *ScheduleExecutionService
+}
 
 func validateMaintenanceActor(actor SalesOrderActor) error {
 	if err := actor.validate(); err != nil {
@@ -144,6 +147,9 @@ func (s *MaintenanceService) Create(ctx context.Context, in MaintenanceEventInpu
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
+	}
 	return s.Get(ctx, eid)
 }
 
@@ -225,6 +231,9 @@ func (s *MaintenanceService) Revise(ctx context.Context, id uuid.UUID, in Mainte
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
 	}
 	_ = eventType
 	return s.Get(ctx, id)

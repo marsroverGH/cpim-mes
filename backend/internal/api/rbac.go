@@ -31,6 +31,8 @@ const (
 	PermMaintenanceManage        Permission = "maintenance.manage"
 	PermProductionPerformanceRun Permission = "production.performance.run"
 	PermCapacityFeedbackManage   Permission = "capacity.feedback.manage"
+	PermDispatchManage           Permission = "planning.dispatch.manage"
+	PermDynamicReschedule        Permission = "planning.reschedule.run"
 	PermSalesOrderManage         Permission = "sales-order.manage"
 	PermSalesOrderShip           Permission = "sales-order.ship"
 	PermSalesOrderPromise        Permission = "sales-order.promise"
@@ -91,6 +93,8 @@ var rolePermissions = map[domain.Role]map[Permission]struct{}{
 		PermMaintenanceManage:        {},
 		PermProductionPerformanceRun: {},
 		PermCapacityFeedbackManage:   {},
+		PermDispatchManage:           {},
+		PermDynamicReschedule:        {},
 		PermSalesOrderManage:         {},
 		PermSalesOrderShip:           {},
 		PermSalesOrderPromise:        {},
@@ -131,7 +135,7 @@ func roleHasPermission(role domain.Role, permission Permission) bool {
 func permissionsForRole(role domain.Role) []Permission {
 	all := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermDispatchManage, PermDynamicReschedule, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

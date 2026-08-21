@@ -3134,6 +3134,233 @@
             }
           }
         }
+      },
+      "DispatchPolicyVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "freezeMinutes": {
+            "type": "integer"
+          },
+          "firmMinutes": {
+            "type": "integer"
+          },
+          "autoReschedule": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DetailedScheduleExecutionState": {
+        "type": "object",
+        "properties": {
+          "activeRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "policyVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DispatchItem": {
+        "type": "object",
+        "properties": {
+          "workOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "orderNo": {
+            "type": "string"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "timeFence": {
+            "type": "string"
+          },
+          "dispatchStatus": {
+            "type": "string"
+          },
+          "dispatchScore": {
+            "type": "number"
+          }
+        }
+      },
+      "DispatchBoard": {
+        "type": "object",
+        "properties": {
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "policy": {
+            "$ref": "#/components/schemas/DispatchPolicyVersion"
+          },
+          "execution": {
+            "$ref": "#/components/schemas/DetailedScheduleExecutionState"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DispatchItem"
+            }
+          }
+        }
+      },
+      "ScheduleAdherenceSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "activeRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "asOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resultHash": {
+            "type": "string"
+          }
+        }
+      },
+      "ScheduleAdherenceResult": {
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "$ref": "#/components/schemas/ScheduleAdherenceSnapshot"
+          },
+          "summary": {
+            "type": "object"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "DynamicRescheduleRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "candidateRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "triggerType": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "frozenConflicts": {
+            "type": "integer"
+          },
+          "firmChanges": {
+            "type": "integer"
+          },
+          "flexibleChanges": {
+            "type": "integer"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "executionConflicts": {
+            "type": "integer"
+          }
+        }
+      },
+      "DynamicRescheduleChange": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "operationSeq": {
+            "type": "integer"
+          },
+          "changeType": {
+            "type": "string"
+          },
+          "timeFence": {
+            "type": "string"
+          },
+          "frozenConflict": {
+            "type": "boolean"
+          },
+          "executionConflict": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DynamicRescheduleResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/DynamicRescheduleRun"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DynamicRescheduleChange"
+            }
+          },
+          "adherence": {
+            "$ref": "#/components/schemas/ScheduleAdherenceResult"
+          }
+        }
+      },
+      "ScheduleRescheduleSignal": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "triggerType": {
+            "type": "string"
+          },
+          "sourceType": {
+            "type": "string"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "detectedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     }
   },
@@ -3292,7 +3519,18 @@
           "404": {
             "description": "存在しません"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -3313,7 +3551,18 @@
           "200": {
             "description": "成功"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -3324,7 +3573,18 @@
           "204": {
             "description": "削除"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     },
     "/items/export.csv": {
@@ -3603,7 +3863,18 @@
           "204": {
             "description": "成功"
           }
-        }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
       }
     },
     "/lots": {
@@ -3765,8 +4036,8 @@
         "summary": "Get forecast version and values",
         "parameters": [
           {
-            "in": "path",
             "name": "id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -3789,8 +4060,8 @@
         "summary": "Activate a DRAFT forecast version",
         "parameters": [
           {
-            "in": "path",
             "name": "id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -3813,8 +4084,8 @@
         "summary": "Calculate customer-order forecast consumption",
         "parameters": [
           {
-            "in": "path",
             "name": "id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -3837,8 +4108,8 @@
         "summary": "Publish consumed demand from ACTIVE version to MPS",
         "parameters": [
           {
-            "in": "path",
             "name": "id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
@@ -6623,6 +6894,437 @@
         "responses": {
           "204": {
             "description": "Scrap evidence recorded"
+          }
+        }
+      }
+    },
+    "/dispatch": {
+      "get": {
+        "summary": "Current real-time dispatch list",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchBoard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedule-execution": {
+      "get": {
+        "summary": "Current active execution schedule",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedScheduleExecutionState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dispatch-policy/current": {
+      "get": {
+        "summary": "Current dispatch policy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchPolicyVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dispatch-policy/defaults": {
+      "get": {
+        "summary": "Dispatch policy defaults",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/dispatch-policy-versions": {
+      "get": {
+        "summary": "List dispatch policy versions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DispatchPolicyVersion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create dispatch policy version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchPolicyVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dispatch-policy-versions/{id}/activate": {
+      "post": {
+        "summary": "Activate dispatch policy",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchPolicyVersion"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/schedule-adherence/current": {
+      "get": {
+        "summary": "Current schedule adherence",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleAdherenceResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedule-adherence/snapshots": {
+      "get": {
+        "summary": "List schedule adherence snapshots",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleAdherenceSnapshot"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Freeze schedule adherence snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleAdherenceResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schedule-adherence/snapshots/{id}": {
+      "get": {
+        "summary": "Get schedule adherence snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleAdherenceResult"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/dynamic-rescheduling/run": {
+      "post": {
+        "summary": "Run dynamic rescheduling",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicRescheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dynamic-rescheduling/process-pending": {
+      "post": {
+        "summary": "Process pending execution signals",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicRescheduleResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dynamic-rescheduling/runs": {
+      "get": {
+        "summary": "List dynamic reschedule runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DynamicRescheduleRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dynamic-rescheduling/runs/{id}": {
+      "get": {
+        "summary": "Get dynamic reschedule run",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DynamicRescheduleResult"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/dynamic-rescheduling/signals": {
+      "get": {
+        "summary": "List pending reschedule signals",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScheduleRescheduleSignal"
+                  }
+                }
+              }
+            }
           }
         }
       }

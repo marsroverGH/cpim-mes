@@ -20,7 +20,10 @@ import (
 // ProductionPerformanceService derives OEE and capacity recommendations from
 // immutable Shop Floor / Maintenance evidence. It never rewrites Work Center
 // master parameters; planners activate versioned feedback explicitly.
-type ProductionPerformanceService struct{ db *sqlx.DB }
+type ProductionPerformanceService struct {
+	db          *sqlx.DB
+	rescheduler *ScheduleExecutionService
+}
 
 type ProductionPerformanceActor struct {
 	UserID   uuid.UUID
@@ -448,6 +451,9 @@ func (s *ProductionPerformanceService) ActivateFeedback(ctx context.Context, id 
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
 	}
 	return s.getFeedback(ctx, id)
 }

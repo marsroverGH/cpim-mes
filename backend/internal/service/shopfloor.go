@@ -15,8 +15,9 @@ import (
 )
 
 type ShopFloorService struct {
-	db *sqlx.DB
-	r  *repository.ShopFloorRepo
+	db          *sqlx.DB
+	r           *repository.ShopFloorRepo
+	rescheduler *ScheduleExecutionService
 }
 
 // ShopFloorActor is resolved from the authenticated JWT by the HTTP layer.
@@ -97,7 +98,13 @@ func (s *ShopFloorService) Start(ctx context.Context, opID uuid.UUID, actor Shop
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
+	}
+	return nil
 }
 
 // Stop performs IN_PROGRESS -> PAUSED and records elapsed server-side minutes
@@ -145,7 +152,13 @@ func (s *ShopFloorService) Stop(ctx context.Context, opID uuid.UUID, actor ShopF
 	if err := insertOperationLogTx(ctx, tx, op.ID, "STOP", now, actor, 0, notes); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
+	}
+	return nil
 }
 
 // Complete records a cumulative good-quantity actual for one routing operation.
@@ -288,7 +301,13 @@ func (s *ShopFloorService) Complete(
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
+	}
+	return nil
 }
 
 // ReportScrap records reject/scrap quantity as immutable Shop Floor evidence.
@@ -319,7 +338,13 @@ func (s *ShopFloorService) ReportScrap(ctx context.Context, opID uuid.UUID, qty 
 	if err := insertOperationLogTx(ctx, tx, op.ID, "SCRAP", time.Now(), actor, qty, notes); err != nil {
 		return err
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if s.rescheduler != nil {
+		s.rescheduler.notifyPending(ctx)
+	}
+	return nil
 }
 
 func (s *ShopFloorService) Logs(ctx context.Context, opID uuid.UUID) ([]domain.OperationLog, error) {

@@ -31,6 +31,7 @@ type Services struct {
 	InventoryPolicy       *InventoryPolicyService
 	Maintenance           *MaintenanceService
 	ProductionPerformance *ProductionPerformanceService
+	ScheduleExecution     *ScheduleExecutionService
 	MRP                   *MRPService
 
 	WorkCenters *WorkCenterService
@@ -85,6 +86,10 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	backorders := &BackorderService{db: db, atp: atp, ctp: ctp, allocation: productAllocation}
 	pegging := &PeggingService{db: db}
 	supplierScheduling := &SupplierSchedulingService{db: db}
+	scheduleExecution := &ScheduleExecutionService{db: db, crp: crp}
+	shopFloor := &ShopFloorService{db: db, r: r.ShopFloor, rescheduler: scheduleExecution}
+	maintenance.rescheduler = scheduleExecution
+	productionPerformance.rescheduler = scheduleExecution
 	svc := &Services{
 		Items:                 itemsSvc,
 		BOM:                   &BOMService{db: db, r: r.BOM},
@@ -102,6 +107,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		InventoryPolicy:       inventoryPolicy,
 		Maintenance:           maintenance,
 		ProductionPerformance: productionPerformance,
+		ScheduleExecution:     scheduleExecution,
 		MRP:                   mrp,
 		WorkCenters:           &WorkCenterService{r: r.WorkCenters},
 		Routings:              &RoutingService{r: r.Routings},
@@ -120,7 +126,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Quality:               &QualityService{db: db, repos: r},
 		SupplierQuality:       &SupplierQualityService{db: db, ledger: ledger},
 		Actions:               actions,
-		ShopFloor:             &ShopFloorService{db: db, r: r.ShopFloor},
+		ShopFloor:             shopFloor,
 		KPI:                   kpiSvc,
 		SOP:                   &SOPService{db: db, repos: r},
 		RCCP:                  &RCCPService{repos: r},
