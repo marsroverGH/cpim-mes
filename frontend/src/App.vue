@@ -77,6 +77,7 @@ const links = [
   { to: '/mrp-actions',     title: 'MRP アクション',  icon: 'mdi-bell-alert' },
   { to: '/crp',             title: 'CRP (能力計画)',  icon: 'mdi-chart-timeline-variant' },
   { to: '/detailed-scheduling', title: 'Detailed Scheduling', icon: 'mdi-calendar-multiselect' },
+  { to: '/dispatch-rescheduling', title: 'Dispatch / Rescheduling', icon: 'mdi-update' },
   { to: '/cost-rollup',     title: '原価積み上げ',    icon: 'mdi-currency-jpy' },
   { to: '/abc-analysis',    title: 'ABC分析',         icon: 'mdi-chart-bar-stacked' },
   { to: '/cycle-count',     title: 'サイクルカウント',icon: 'mdi-counter' },

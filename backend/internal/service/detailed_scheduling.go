@@ -17,8 +17,12 @@ import (
 const detailedScheduleMode = "DETAILED_HEURISTIC"
 
 type DetailedScheduleRequest struct {
-	HorizonDays int
-	StartDate   time.Time
+	HorizonDays      int
+	StartDate        time.Time
+	NotBefore        time.Time
+	SimulateMRP      bool
+	CandidateOnly    bool
+	ActivationReason string
 }
 
 type detailedAlternative struct {
@@ -192,9 +196,14 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 		return nil, err
 	}
 
-	tasks, err := s.buildDetailedTasks(ctx, start, req.HorizonDays, itemByID, false)
+	tasks, err := s.buildDetailedTasks(ctx, start, req.HorizonDays, itemByID, req.SimulateMRP)
 	if err != nil {
 		return nil, err
+	}
+	if !req.NotBefore.IsZero() {
+		for i := range tasks {
+			tasks[i].earliest = maxTime(tasks[i].earliest, req.NotBefore)
+		}
 	}
 	sort.SliceStable(tasks, func(i, j int) bool {
 		if tasks[i].priority != tasks[j].priority {
@@ -351,7 +360,7 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 
 	res.Loads = buildDetailedLoadRows(res.Segments, wcByID, states)
 	res.Summary.PeakWorkers = peakDetailedWorkers(res.Segments)
-	if err := s.persistDetailedSchedule(ctx, res); err != nil {
+	if err := s.persistDetailedSchedule(ctx, res, req.CandidateOnly, req.ActivationReason, actor); err != nil {
 		return nil, err
 	}
 	res.Run.Status = "COMPLETE"
@@ -1112,7 +1121,7 @@ func peakDetailedWorkers(segs []domain.DetailedScheduleSegment) int {
 	return peak
 }
 
-func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.DetailedScheduleResult) error {
+func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.DetailedScheduleResult, candidateOnly bool, activationReason string, actor CRPActor) error {
 	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{})
 	if err != nil {
 		return err
@@ -1172,6 +1181,16 @@ func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.De
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE detailed_schedule_runs SET status='COMPLETE' WHERE id=$1`, res.Run.ID); err != nil {
 		return err
+	}
+	if !candidateOnly {
+		reason := strings.TrimSpace(activationReason)
+		if reason == "" {
+			reason = "MANUAL_DETAILED_SCHEDULE"
+		}
+		execActor := ScheduleExecutionActor{UserID: actor.UserID, Username: actor.Username, System: actor.UserID == uuid.Nil}
+		if _, err := activateExecutionScheduleTx(ctx, tx, res.Run.ID, nil, nil, reason, execActor); err != nil {
+			return err
+		}
 	}
 	return tx.Commit()
 }

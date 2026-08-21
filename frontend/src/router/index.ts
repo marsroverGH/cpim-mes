@@ -28,6 +28,7 @@ const router = createRouter({
     { path: '/mrp-actions',     component: () => import('@/views/ActionMessages.vue') },
     { path: '/crp',             component: () => import('@/views/Crp.vue') },
     { path: '/detailed-scheduling', component: () => import('@/views/DetailedScheduling.vue') },
+    { path: '/dispatch-rescheduling', component: () => import('@/views/DispatchRescheduling.vue') },
     { path: '/cost-rollup',     component: () => import('@/views/CostRollup.vue') },
     { path: '/abc-analysis',    component: () => import('@/views/AbcAnalysis.vue') },
     { path: '/cycle-count',     component: () => import('@/views/CycleCount.vue') },

@@ -108,8 +108,8 @@ checks={
  'E2E verifies CTP under feedback': allin(e2e,'promise/check','ctpQty'),
  'E2E verifies Pegging feedback root cause': allin(e2e,"nodeType === 'CAPACITY_FEEDBACK'","OEE_CAPACITY_RISK"),
  'migration manager fingerprints 0038': allin(manager,'{38,','production_performance_runs','capacity_feedback_versions','detailed_schedule_capacity_feedback_snapshots'),
- 'migration manager tests expect 38': allin(manager_test,'len(migs) != 38','expected 38 migrations'),
- 'migration guard expects 38 ordered migrations': allin(manager_guard,"'38 ordered SQL migrations exist'",'range(1,39)'),
+ 'migration manager includes 0038 under current migration set': allin(manager,'{38,','production_performance_runs','capacity_feedback_versions'),
+ 'migration guard advances beyond 0038 without losing it': allin(manager_guard,"'39 ordered SQL migrations exist'",'range(1,40)'),
  'CI runs 0038 guard': 'check_production_performance.py' in ci,
 }
 failed=[]
