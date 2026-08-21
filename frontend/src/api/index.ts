@@ -775,6 +775,39 @@ export const MaintenanceApi = {
   revise: (id:string, x:{status?:MaintenanceStatus; startAt?:string; endAt?:string; unavailableMachines?:number; unavailableWorkers?:number; reason?:string; sourceRef?:string}) => http.post<MaintenanceEventDetail>(`/maintenance-events/${id}/revisions`, x).then(r => r.data)
 }
 
+// ------- OEE / Production Performance / Actual Capacity Feedback -------
+export interface ProductionPerformanceRun {
+  id:string; windowStart:string; windowEnd:string; minCompletedOps:number; status:'RUNNING'|'COMPLETE'|'FAILED'; resultHash?:string; generatedBy:string; generatedAt?:string; createdAt:string
+}
+export interface ProductionPerformanceResult {
+  id:string; runId:string; workCenterId:string; workCenterCode:string; sampleCount:number
+  plannedProductionMinutes:number; runTimeMinutes:number; downtimeMinutes:number
+  activeSessionMinutes:number; plannedSetupMinutes:number; idealRunMinutes:number; pauseMinutes:number
+  plannedDowntimeMinutes:number; unplannedDowntimeMinutes:number; setupLossMinutes:number; speedLossMinutes:number
+  goodQuantity:number; rejectQuantity:number; availability:number; performance:number; quality:number; oee:number
+  breakdownCount:number; mtbfMinutes:number; mttrMinutes:number; recommendedEfficiency:number; recommendedUtilization:number; confidence:'LOW'|'MEDIUM'|'HIGH'; createdAt:string
+}
+export interface CapacityFeedbackVersion {
+  id:string; workCenterId:string; workCenterCode?:string; workCenterName?:string; versionNo:number; sourceRunId:string; sourceResultId:string
+  status:'DRAFT'|'ACTIVE'|'ARCHIVED'; effectiveEfficiency:number; effectiveUtilization:number
+  sourceOee:number; sourceAvailability:number; sourcePerformance:number; sourceQuality:number; sampleCount:number; confidence:'LOW'|'MEDIUM'|'HIGH'
+  effectiveFrom:string; notes:string; createdBy:string; createdAt:string; activatedBy?:string; activatedAt?:string; archivedBy?:string; archivedAt?:string
+}
+export interface ProductionPerformanceRunResult { run:ProductionPerformanceRun; results:ProductionPerformanceResult[]; feedback:CapacityFeedbackVersion[] }
+export interface DetailedScheduleCapacityFeedbackSnapshot {
+  runId:string; feedbackVersionId:string; workCenterId:string; versionNo:number; sourceRunId:string; sourceResultId:string
+  effectiveEfficiency:number; effectiveUtilization:number; sourceOee:number; sourceAvailability:number; sourcePerformance:number; sourceQuality:number
+  sampleCount:number; confidence:'LOW'|'MEDIUM'|'HIGH'; effectiveFrom:string
+}
+export const ProductionPerformanceApi = {
+  run: (x:{windowStart:string;windowEnd:string;minCompletedOps?:number}) => http.post<ProductionPerformanceRunResult>('/production-performance/runs',x).then(r=>r.data),
+  runs: () => http.get<ProductionPerformanceRun[]>('/production-performance/runs').then(r=>r.data),
+  getRun: (id:string) => http.get<ProductionPerformanceRunResult>(`/production-performance/runs/${id}`).then(r=>r.data),
+  feedback: () => http.get<CapacityFeedbackVersion[]>('/capacity-feedback').then(r=>r.data),
+  activate: (id:string,x:{effectiveFrom?:string;notes?:string}={}) => http.post<CapacityFeedbackVersion>(`/capacity-feedback/${id}/activate`,x).then(r=>r.data),
+  archive: (id:string,notes='') => http.post<CapacityFeedbackVersion>(`/capacity-feedback/${id}/archive`,{notes}).then(r=>r.data)
+}
+
 // ------- Work Centers -------
 export interface WorkCenter {
   id?: string
@@ -952,6 +985,8 @@ export interface DetailedScheduleResult {
   dependencies: { batchId:string; predecessorBatchId:string; dependencyType:'ROUTING'|'SAME_OPERATION' }[]
   segments: DetailedScheduleSegment[]
   loads: CapacityLoadRow[]
+  maintenance: DetailedScheduleMaintenanceSnapshot[]
+  capacityFeedback: DetailedScheduleCapacityFeedbackSnapshot[]
 }
 export const DetailedSchedulingApi = {
   run: (req: { horizonDays?: number; startDate?: string }) => http.post<DetailedScheduleResult>('/detailed-scheduling/run', req).then(r => r.data),
@@ -1484,6 +1519,8 @@ export const ShopFloorApi = {
     http.post(`/wo-operations/${opId}/stop`, { notes }),
   complete:  (opId: string, completedQty: number, notes = '') =>
     http.post(`/wo-operations/${opId}/complete`, { completedQty, notes }),
+  scrap:     (opId: string, quantity: number, notes = '') =>
+    http.post(`/wo-operations/${opId}/scrap`, { quantity, notes }),
   logs:      (opId: string) =>
     http.get<OperationLog[]>(`/wo-operations/${opId}/logs`).then(r => r.data)
 }

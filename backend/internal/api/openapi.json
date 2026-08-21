@@ -90,6 +90,10 @@
     {
       "name": "Maintenance",
       "description": "Preventive maintenance, breakdown and capacity downtime"
+    },
+    {
+      "name": "ProductionPerformance",
+      "description": "OEE, production performance and planner-approved actual-capacity feedback"
     }
   ],
   "components": {
@@ -1135,6 +1139,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/DetailedScheduleMaintenanceSnapshot"
+            }
+          },
+          "capacityFeedback": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DetailedScheduleCapacityFeedbackSnapshot"
             }
           }
         }
@@ -2831,6 +2841,297 @@
           },
           "sourceRef": {
             "type": "string"
+          }
+        }
+      },
+      "ProductionPerformanceRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "windowStart": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "windowEnd": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "minCompletedOps": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "COMPLETE",
+              "FAILED"
+            ]
+          },
+          "resultHash": {
+            "type": "string",
+            "nullable": true
+          },
+          "generatedBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "errorText": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductionPerformanceResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "sampleCount": {
+            "type": "integer"
+          },
+          "activeSessionMinutes": {
+            "type": "number"
+          },
+          "plannedSetupMinutes": {
+            "type": "number"
+          },
+          "idealRunMinutes": {
+            "type": "number"
+          },
+          "pauseMinutes": {
+            "type": "number"
+          },
+          "plannedDowntimeMinutes": {
+            "type": "number"
+          },
+          "unplannedDowntimeMinutes": {
+            "type": "number"
+          },
+          "setupLossMinutes": {
+            "type": "number"
+          },
+          "speedLossMinutes": {
+            "type": "number"
+          },
+          "goodQuantity": {
+            "type": "number"
+          },
+          "rejectQuantity": {
+            "type": "number"
+          },
+          "availability": {
+            "type": "number"
+          },
+          "performance": {
+            "type": "number"
+          },
+          "quality": {
+            "type": "number"
+          },
+          "oee": {
+            "type": "number"
+          },
+          "breakdownCount": {
+            "type": "integer"
+          },
+          "mtbfMinutes": {
+            "type": "number"
+          },
+          "mttrMinutes": {
+            "type": "number"
+          },
+          "recommendedEfficiency": {
+            "type": "number"
+          },
+          "recommendedUtilization": {
+            "type": "number"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "plannedProductionMinutes": {
+            "type": "number"
+          },
+          "runTimeMinutes": {
+            "type": "number"
+          },
+          "downtimeMinutes": {
+            "type": "number"
+          }
+        }
+      },
+      "CapacityFeedbackVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterCode": {
+            "type": "string"
+          },
+          "workCenterName": {
+            "type": "string"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "sourceRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceResultId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "ARCHIVED"
+            ]
+          },
+          "effectiveEfficiency": {
+            "type": "number"
+          },
+          "effectiveUtilization": {
+            "type": "number"
+          },
+          "sourceOee": {
+            "type": "number"
+          },
+          "sourceAvailability": {
+            "type": "number"
+          },
+          "sourcePerformance": {
+            "type": "number"
+          },
+          "sourceQuality": {
+            "type": "number"
+          },
+          "sampleCount": {
+            "type": "integer"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DetailedScheduleCapacityFeedbackSnapshot": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "feedbackVersionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "workCenterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNo": {
+            "type": "integer"
+          },
+          "sourceRunId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceResultId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "effectiveEfficiency": {
+            "type": "number"
+          },
+          "effectiveUtilization": {
+            "type": "number"
+          },
+          "sourceOee": {
+            "type": "number"
+          },
+          "sourceAvailability": {
+            "type": "number"
+          },
+          "sourcePerformance": {
+            "type": "number"
+          },
+          "sourceQuality": {
+            "type": "number"
+          },
+          "sampleCount": {
+            "type": "integer"
+          },
+          "confidence": {
+            "type": "string"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "ProductionPerformanceRunResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/ProductionPerformanceRun"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductionPerformanceResult"
+            }
+          },
+          "feedback": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CapacityFeedbackVersion"
+            }
           }
         }
       }
@@ -6028,6 +6329,300 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/production-performance/runs": {
+      "get": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "List immutable production performance runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProductionPerformanceRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "Calculate OEE and generate DRAFT capacity feedback",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "windowStart": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "windowEnd": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "minCompletedOps": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Performance run result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionPerformanceRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/production-performance/runs/{id}": {
+      "get": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "Get one performance run and its immutable results",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Performance run result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionPerformanceRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capacity-feedback": {
+      "get": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "List actual-capacity feedback versions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feedback versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CapacityFeedbackVersion"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capacity-feedback/{id}/activate": {
+      "post": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "Activate capacity feedback version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapacityFeedbackVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/capacity-feedback/{id}/archive": {
+      "post": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "Archive capacity feedback version",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Feedback version",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapacityFeedbackVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wo-operations/{opId}/scrap": {
+      "post": {
+        "tags": [
+          "ProductionPerformance"
+        ],
+        "summary": "Record immutable Shop Floor scrap/reject evidence",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "quantity"
+                ],
+                "properties": {
+                  "quantity": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Scrap evidence recorded"
           }
         }
       }

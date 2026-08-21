@@ -15,22 +15,23 @@ import (
 )
 
 type Services struct {
-	Items              *ItemService
-	BOM                *BOMService
-	Demand             *DemandService
-	MPS                *MPSService
-	Inventory          *InventoryService
-	WorkOrders         *WorkOrderService
-	Purchases          *PurchaseService
-	SalesOrders        *SalesOrderService
-	OrderPromising     *OrderPromisingService
-	ProductAllocation  *ProductAllocationService
-	Backorders         *BackorderService
-	Pegging            *PeggingService
-	SupplierScheduling *SupplierSchedulingService
-	InventoryPolicy    *InventoryPolicyService
-	Maintenance        *MaintenanceService
-	MRP                *MRPService
+	Items                 *ItemService
+	BOM                   *BOMService
+	Demand                *DemandService
+	MPS                   *MPSService
+	Inventory             *InventoryService
+	WorkOrders            *WorkOrderService
+	Purchases             *PurchaseService
+	SalesOrders           *SalesOrderService
+	OrderPromising        *OrderPromisingService
+	ProductAllocation     *ProductAllocationService
+	Backorders            *BackorderService
+	Pegging               *PeggingService
+	SupplierScheduling    *SupplierSchedulingService
+	InventoryPolicy       *InventoryPolicyService
+	Maintenance           *MaintenanceService
+	ProductionPerformance *ProductionPerformanceService
+	MRP                   *MRPService
 
 	WorkCenters *WorkCenterService
 	Routings    *RoutingService
@@ -76,6 +77,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	salesOrders := &SalesOrderService{db: db, ledger: ledger}
 	atp := &ATPService{db: db, repos: r, inventoryPolicy: inventoryPolicy}
 	maintenance := &MaintenanceService{db: db}
+	productionPerformance := &ProductionPerformanceService{db: db}
 	crp := &CRPService{db: db, repos: r, mrp: mrp, maintenance: maintenance}
 	ctp := &CTPEngine{db: db, repos: r, crp: crp, inventoryPolicy: inventoryPolicy}
 	orderPromising := &OrderPromisingService{db: db, sales: salesOrders, atp: atp, ctp: ctp}
@@ -84,45 +86,46 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	pegging := &PeggingService{db: db}
 	supplierScheduling := &SupplierSchedulingService{db: db}
 	svc := &Services{
-		Items:              itemsSvc,
-		BOM:                &BOMService{db: db, r: r.BOM},
-		Demand:             &DemandService{r: r.Demand},
-		MPS:                &MPSService{r: r.MPS},
-		Inventory:          &InventoryService{r: r.Inventory, ledger: ledger},
-		WorkOrders:         &WorkOrderService{r: r.WorkOrders},
-		Purchases:          &PurchaseService{db: db, r: r.Purchases},
-		SalesOrders:        salesOrders,
-		OrderPromising:     orderPromising,
-		ProductAllocation:  productAllocation,
-		Backorders:         backorders,
-		Pegging:            pegging,
-		SupplierScheduling: supplierScheduling,
-		InventoryPolicy:    inventoryPolicy,
-		Maintenance:        maintenance,
-		MRP:                mrp,
-		WorkCenters:        &WorkCenterService{r: r.WorkCenters},
-		Routings:           &RoutingService{r: r.Routings},
-		CRP:                crp,
-		CostRollup:         &CostRollupService{repos: r},
-		Auth:               NewAuthService(r.Users, cfg.JWTSecret),
-		ABC:                abc,
-		CSV:                NewCSVService(r),
-		Lots:               &LotService{r: r.Lots, ledger: ledger},
-		Audit:              &AuditService{r: r.Audit},
-		Forecast:           &ForecastService{db: db, repos: r},
-		CycleCount:         &CycleCountService{repos: r, abc: abc, ledger: ledger},
-		Workflow:           NewWorkflowService(db, r, ledger),
-		Calendar:           &CalendarService{r: r.Calendars},
-		ATP:                atp,
-		Quality:            &QualityService{db: db, repos: r},
-		SupplierQuality:    &SupplierQualityService{db: db, ledger: ledger},
-		Actions:            actions,
-		ShopFloor:          &ShopFloorService{db: db, r: r.ShopFloor},
-		KPI:                kpiSvc,
-		SOP:                &SOPService{db: db, repos: r},
-		RCCP:               &RCCPService{repos: r},
-		ECO:                NewECOService(db, r),
-		Agent:              NewAgentService(r, mrp, abc, kpiSvc),
+		Items:                 itemsSvc,
+		BOM:                   &BOMService{db: db, r: r.BOM},
+		Demand:                &DemandService{r: r.Demand},
+		MPS:                   &MPSService{r: r.MPS},
+		Inventory:             &InventoryService{r: r.Inventory, ledger: ledger},
+		WorkOrders:            &WorkOrderService{r: r.WorkOrders},
+		Purchases:             &PurchaseService{db: db, r: r.Purchases},
+		SalesOrders:           salesOrders,
+		OrderPromising:        orderPromising,
+		ProductAllocation:     productAllocation,
+		Backorders:            backorders,
+		Pegging:               pegging,
+		SupplierScheduling:    supplierScheduling,
+		InventoryPolicy:       inventoryPolicy,
+		Maintenance:           maintenance,
+		ProductionPerformance: productionPerformance,
+		MRP:                   mrp,
+		WorkCenters:           &WorkCenterService{r: r.WorkCenters},
+		Routings:              &RoutingService{r: r.Routings},
+		CRP:                   crp,
+		CostRollup:            &CostRollupService{repos: r},
+		Auth:                  NewAuthService(r.Users, cfg.JWTSecret),
+		ABC:                   abc,
+		CSV:                   NewCSVService(r),
+		Lots:                  &LotService{r: r.Lots, ledger: ledger},
+		Audit:                 &AuditService{r: r.Audit},
+		Forecast:              &ForecastService{db: db, repos: r},
+		CycleCount:            &CycleCountService{repos: r, abc: abc, ledger: ledger},
+		Workflow:              NewWorkflowService(db, r, ledger),
+		Calendar:              &CalendarService{r: r.Calendars},
+		ATP:                   atp,
+		Quality:               &QualityService{db: db, repos: r},
+		SupplierQuality:       &SupplierQualityService{db: db, ledger: ledger},
+		Actions:               actions,
+		ShopFloor:             &ShopFloorService{db: db, r: r.ShopFloor},
+		KPI:                   kpiSvc,
+		SOP:                   &SOPService{db: db, repos: r},
+		RCCP:                  &RCCPService{repos: r},
+		ECO:                   NewECOService(db, r),
+		Agent:                 NewAgentService(r, mrp, abc, kpiSvc),
 	}
 	return svc
 }

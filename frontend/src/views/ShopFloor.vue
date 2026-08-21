@@ -41,8 +41,10 @@
           <template v-else-if="item.status === 'IN_PROGRESS'">
             <v-btn size="small" color="warning" variant="tonal" prepend-icon="mdi-pause"
                    class="mr-1" @click="stop(item)">中断</v-btn>
-            <v-btn size="small" color="success" variant="tonal" prepend-icon="mdi-check"
+            <v-btn size="small" color="success" variant="tonal" prepend-icon="mdi-check" class="mr-1"
                    @click="openComplete(item)">良品実績</v-btn>
+            <v-btn size="small" color="error" variant="tonal" prepend-icon="mdi-delete-alert"
+                   @click="openScrap(item)">Scrap</v-btn>
           </template>
           <span v-else-if="item.status === 'PENDING'" class="text-caption text-medium-emphasis">
             前工程 / Transfer待ち
@@ -84,6 +86,17 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <v-dialog v-model="scrapDialog" max-width="480">
+    <v-card title="Scrap / Reject 実績">
+      <v-card-text v-if="active">
+        <p>{{ active.orderNo }} / {{ active.itemCode }} / 工程#{{ active.seqNo }}</p>
+        <v-text-field v-model.number="scrapForm.quantity" type="number" min="0.000001" label="Scrap数量" />
+        <v-textarea v-model="scrapForm.notes" label="理由・備考" rows="2" />
+      </v-card-text>
+      <v-card-actions><v-spacer/><v-btn @click="scrapDialog=false">キャンセル</v-btn><v-btn color="error" :loading="busy" :disabled="scrapForm.quantity<=0" @click="doScrap">記録</v-btn></v-card-actions>
+    </v-card>
+  </v-dialog>
   </div>
 </template>
 
@@ -94,8 +107,10 @@ import { ShopFloorApi, type WOOperationDetail } from '@/api'
 const ops = ref<WOOperationDetail[]>([])
 const busy = ref(false)
 const completeDialog = ref(false)
+const scrapDialog = ref(false)
 const active = ref<WOOperationDetail | null>(null)
 const completeForm = ref({ completedQty: 0, notes: '' })
+const scrapForm = ref({ quantity: 0, notes: '' })
 
 const headers = [
   { title: 'WO',     key: 'orderNo' },
@@ -135,6 +150,21 @@ function openComplete(o: WOOperationDetail) {
     notes: ''
   }
   completeDialog.value = true
+}
+
+function openScrap(o: WOOperationDetail) {
+  active.value = o
+  scrapForm.value = { quantity: 0, notes: '' }
+  scrapDialog.value = true
+}
+async function doScrap() {
+  if (!active.value || scrapForm.value.quantity <= 0) return
+  busy.value = true
+  try {
+    await ShopFloorApi.scrap(active.value.id, scrapForm.value.quantity, scrapForm.value.notes)
+    scrapDialog.value = false
+    await load()
+  } finally { busy.value = false }
 }
 
 async function doComplete() {

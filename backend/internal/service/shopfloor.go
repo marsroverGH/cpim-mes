@@ -291,6 +291,37 @@ func (s *ShopFloorService) Complete(
 	return tx.Commit()
 }
 
+// ReportScrap records reject/scrap quantity as immutable Shop Floor evidence.
+// It does not reduce cumulative good quantity: the WO still represents required
+// good output, while scrap is additional loss used by OEE Quality.
+func (s *ShopFloorService) ReportScrap(ctx context.Context, opID uuid.UUID, qty float64, actor ShopFloorActor, notes string) error {
+	if err := actor.validate(); err != nil {
+		return err
+	}
+	if qty <= 0 {
+		return domain.NewBadRequest("scrap quantity must be > 0", nil)
+	}
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	wo, op, err := lockWOAndOperationTx(ctx, tx, opID)
+	if err != nil {
+		return err
+	}
+	if err := validateShopFloorWOStatus(wo.Status); err != nil {
+		return err
+	}
+	if op.Status != OperationStatusInProgress && op.Status != OperationStatusPaused {
+		return domain.NewConflict("scrap can only be reported for IN_PROGRESS or PAUSED operation")
+	}
+	if err := insertOperationLogTx(ctx, tx, op.ID, "SCRAP", time.Now(), actor, qty, notes); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 func (s *ShopFloorService) Logs(ctx context.Context, opID uuid.UUID) ([]domain.OperationLog, error) {
 	return s.r.Logs(ctx, opID)
 }

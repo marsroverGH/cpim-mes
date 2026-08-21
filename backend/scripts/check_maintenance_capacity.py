@@ -50,7 +50,7 @@ checks={
  'pegging exception vocabulary contains unplanned downtime': "'UNPLANNED_DOWNTIME_CAPACITY'" in mig,
  'Domain maintenance event models exist': allin(models,'type MaintenanceEvent struct','type MaintenanceEventRevision struct','type CurrentMaintenanceEvent struct'),
  'Domain detailed maintenance snapshot exists': 'type DetailedScheduleMaintenanceSnapshot struct' in models,
- 'Detailed Schedule result exposes maintenance evidence': allin(models,'type DetailedScheduleResult struct','Maintenance  []DetailedScheduleMaintenanceSnapshot'),
+ 'Detailed Schedule result exposes maintenance evidence': allin(models,'type DetailedScheduleResult struct','Maintenance      []DetailedScheduleMaintenanceSnapshot'),
  'Maintenance service exists': 'type MaintenanceService struct' in svc,
  'Maintenance service validates planner/admin': allin(svc,'validateMaintenanceActor','RolePlanner','RoleAdmin'),
  'new breakdown/unplanned defaults ACTIVE': allin(svc,'eventType == "BREAKDOWN"','eventType == "UNPLANNED_DOWNTIME"','v = "ACTIVE"'),
@@ -79,7 +79,7 @@ checks={
  'Pegging creates maintenance node': allin(peg,'"MAINTENANCE_EVENT"','"MAINT:"'),
  'Pegging links work center to maintenance': '"CAPACITY_REDUCED_BY"' in peg,
  'Pegging emits maintenance root-cause exception': allin(peg,'MaintenanceExceptionType','g.exception(order, line, typ') and allin(svc,'BREAKDOWN_CAPACITY','UNPLANNED_DOWNTIME_CAPACITY'),
- 'Maintenance service is wired into CRP and API services': allin(services,'Maintenance        *MaintenanceService','maintenance := &MaintenanceService','maintenance: maintenance'),
+ 'Maintenance service is wired into CRP and API services': allin(services,'Maintenance           *MaintenanceService','maintenance := &MaintenanceService','maintenance: maintenance'),
  'Maintenance APIs exist': allin(api,'listMaintenanceEvents','createMaintenanceEvent','reviseMaintenanceEvent','getMaintenanceEvent'),
  'Maintenance mutation routes are protected': allin(router,'requirePermission(PermMaintenanceManage)).Post("/maintenance-events"','requirePermission(PermMaintenanceManage)).Post("/maintenance-events/{id}/revisions"'),
  'Planner maintenance permission exists': allin(rbac,'PermMaintenanceManage','domain.RolePlanner'),
@@ -95,8 +95,8 @@ checks={
  'E2E verifies CTP sees maintenance': allin(e2e,'promise/check','maintenance'),
  'E2E verifies Pegging maintenance root cause': allin(e2e,"nodeType === 'MAINTENANCE_EVENT'","BREAKDOWN_CAPACITY"),
  'migration manager fingerprints 0037': allin(manager,'{37,','maintenance_events','detailed_schedule_maintenance_snapshots'),
- 'migration manager tests expect 37': allin(manager_test,'len(migs) != 37','expected 37 migrations'),
- 'migration guard expects 37 ordered migrations': allin(manager_guard,"'37 ordered SQL migrations exist'",'len(files) == 37'),
+ 'migration manager includes 0037 under current migration set': allin(manager_test,'len(migs) != 38','expected 38 migrations'),
+ 'migration guard advances beyond 0037 without losing it': allin(manager_guard,"'38 ordered SQL migrations exist'",'len(files) == 38'),
  'CI runs 0037 guard': 'check_maintenance_capacity.py' in ci,
 }
 failed=[]

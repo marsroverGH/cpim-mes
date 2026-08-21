@@ -175,6 +175,10 @@ func (s *CRPService) Run(ctx context.Context, req CRPRequest) ([]domain.Capacity
 	if err != nil {
 		return nil, err
 	}
+	wcs, _, err = ApplyCapacityFeedbackToWorkCenters(ctx, s.db, wcs, req.StartDate)
+	if err != nil {
+		return nil, err
+	}
 	wcByID := make(map[uuid.UUID]domain.WorkCenter, len(wcs))
 	for _, w := range wcs {
 		wcByID[w.ID] = w

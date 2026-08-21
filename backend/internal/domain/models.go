@@ -785,6 +785,110 @@ type DetailedScheduleMaintenanceSnapshot struct {
 }
 
 // ====================================================================
+// OEE / Production Performance / Actual Capacity Feedback
+// ====================================================================
+
+type ProductionPerformanceRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	WindowStart       time.Time  `db:"window_start"         json:"windowStart"`
+	WindowEnd         time.Time  `db:"window_end"           json:"windowEnd"`
+	MinCompletedOps   int        `db:"min_completed_ops"    json:"minCompletedOps"`
+	Status            string     `db:"status"               json:"status"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	GeneratedByUserID uuid.UUID  `db:"generated_by_user_id" json:"generatedByUserId"`
+	GeneratedBy       string     `db:"generated_by"         json:"generatedBy"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+}
+
+type ProductionPerformanceResult struct {
+	ID                       uuid.UUID `db:"id"                         json:"id"`
+	RunID                    uuid.UUID `db:"run_id"                     json:"runId"`
+	WorkCenterID             uuid.UUID `db:"work_center_id"             json:"workCenterId"`
+	WorkCenterCode           string    `db:"work_center_code"           json:"workCenterCode"`
+	SampleCount              int       `db:"sample_count"               json:"sampleCount"`
+	PlannedProductionMinutes float64   `db:"planned_production_minutes"  json:"plannedProductionMinutes"`
+	RunTimeMinutes           float64   `db:"run_time_minutes"            json:"runTimeMinutes"`
+	DowntimeMinutes          float64   `db:"downtime_minutes"            json:"downtimeMinutes"`
+	ActiveSessionMinutes     float64   `db:"active_session_minutes"     json:"activeSessionMinutes"`
+	PlannedSetupMinutes      float64   `db:"planned_setup_minutes"      json:"plannedSetupMinutes"`
+	IdealRunMinutes          float64   `db:"ideal_run_minutes"          json:"idealRunMinutes"`
+	PauseMinutes             float64   `db:"pause_minutes"              json:"pauseMinutes"`
+	PlannedDowntimeMinutes   float64   `db:"planned_downtime_minutes"   json:"plannedDowntimeMinutes"`
+	UnplannedDowntimeMinutes float64   `db:"unplanned_downtime_minutes" json:"unplannedDowntimeMinutes"`
+	SetupLossMinutes         float64   `db:"setup_loss_minutes"         json:"setupLossMinutes"`
+	SpeedLossMinutes         float64   `db:"speed_loss_minutes"         json:"speedLossMinutes"`
+	GoodQuantity             float64   `db:"good_quantity"              json:"goodQuantity"`
+	RejectQuantity           float64   `db:"reject_quantity"            json:"rejectQuantity"`
+	Availability             float64   `db:"availability"               json:"availability"`
+	Performance              float64   `db:"performance"                json:"performance"`
+	Quality                  float64   `db:"quality"                    json:"quality"`
+	OEE                      float64   `db:"oee"                        json:"oee"`
+	BreakdownCount           int       `db:"breakdown_count"            json:"breakdownCount"`
+	MTBFMinutes              float64   `db:"mtbf_minutes"               json:"mtbfMinutes"`
+	MTTRMinutes              float64   `db:"mttr_minutes"               json:"mttrMinutes"`
+	RecommendedEfficiency    float64   `db:"recommended_efficiency"     json:"recommendedEfficiency"`
+	RecommendedUtilization   float64   `db:"recommended_utilization"    json:"recommendedUtilization"`
+	Confidence               string    `db:"confidence"                 json:"confidence"`
+	CreatedAt                time.Time `db:"created_at"                 json:"createdAt"`
+}
+
+type ProductionPerformanceRunResult struct {
+	Run      ProductionPerformanceRun      `json:"run"`
+	Results  []ProductionPerformanceResult `json:"results"`
+	Feedback []CapacityFeedbackVersion     `json:"feedback"`
+}
+
+type CapacityFeedbackVersion struct {
+	ID                   uuid.UUID  `db:"id"                     json:"id"`
+	WorkCenterID         uuid.UUID  `db:"work_center_id"         json:"workCenterId"`
+	WorkCenterCode       string     `db:"work_center_code"       json:"workCenterCode,omitempty"`
+	WorkCenterName       string     `db:"work_center_name"       json:"workCenterName,omitempty"`
+	VersionNo            int        `db:"version_no"             json:"versionNo"`
+	SourceRunID          uuid.UUID  `db:"source_run_id"          json:"sourceRunId"`
+	SourceResultID       uuid.UUID  `db:"source_result_id"       json:"sourceResultId"`
+	Status               string     `db:"status"                 json:"status"`
+	EffectiveEfficiency  float64    `db:"effective_efficiency"   json:"effectiveEfficiency"`
+	EffectiveUtilization float64    `db:"effective_utilization"  json:"effectiveUtilization"`
+	SourceOEE            float64    `db:"source_oee"             json:"sourceOee"`
+	SourceAvailability   float64    `db:"source_availability"    json:"sourceAvailability"`
+	SourcePerformance    float64    `db:"source_performance"     json:"sourcePerformance"`
+	SourceQuality        float64    `db:"source_quality"         json:"sourceQuality"`
+	SampleCount          int        `db:"sample_count"           json:"sampleCount"`
+	Confidence           string     `db:"confidence"             json:"confidence"`
+	EffectiveFrom        time.Time  `db:"effective_from"         json:"effectiveFrom"`
+	Notes                string     `db:"notes"                  json:"notes"`
+	CreatedByUserID      uuid.UUID  `db:"created_by_user_id"     json:"createdByUserId"`
+	CreatedBy            string     `db:"created_by"             json:"createdBy"`
+	CreatedAt            time.Time  `db:"created_at"             json:"createdAt"`
+	ActivatedByUserID    *uuid.UUID `db:"activated_by_user_id"   json:"activatedByUserId,omitempty"`
+	ActivatedBy          *string    `db:"activated_by"           json:"activatedBy,omitempty"`
+	ActivatedAt          *time.Time `db:"activated_at"           json:"activatedAt,omitempty"`
+	ArchivedByUserID     *uuid.UUID `db:"archived_by_user_id"    json:"archivedByUserId,omitempty"`
+	ArchivedBy           *string    `db:"archived_by"            json:"archivedBy,omitempty"`
+	ArchivedAt           *time.Time `db:"archived_at"            json:"archivedAt,omitempty"`
+}
+
+type DetailedScheduleCapacityFeedbackSnapshot struct {
+	RunID                uuid.UUID `db:"run_id"                 json:"runId"`
+	FeedbackVersionID    uuid.UUID `db:"feedback_version_id"    json:"feedbackVersionId"`
+	WorkCenterID         uuid.UUID `db:"work_center_id"         json:"workCenterId"`
+	VersionNo            int       `db:"version_no"             json:"versionNo"`
+	SourceRunID          uuid.UUID `db:"source_run_id"          json:"sourceRunId"`
+	SourceResultID       uuid.UUID `db:"source_result_id"       json:"sourceResultId"`
+	EffectiveEfficiency  float64   `db:"effective_efficiency"   json:"effectiveEfficiency"`
+	EffectiveUtilization float64   `db:"effective_utilization"  json:"effectiveUtilization"`
+	SourceOEE            float64   `db:"source_oee"             json:"sourceOee"`
+	SourceAvailability   float64   `db:"source_availability"    json:"sourceAvailability"`
+	SourcePerformance    float64   `db:"source_performance"     json:"sourcePerformance"`
+	SourceQuality        float64   `db:"source_quality"         json:"sourceQuality"`
+	SampleCount          int       `db:"sample_count"           json:"sampleCount"`
+	Confidence           string    `db:"confidence"             json:"confidence"`
+	EffectiveFrom        time.Time `db:"effective_from"         json:"effectiveFrom"`
+}
+
+// ====================================================================
 // CRP / Routing
 // ====================================================================
 
@@ -1053,14 +1157,15 @@ type DetailedScheduleSummary struct {
 }
 
 type DetailedScheduleResult struct {
-	Run          DetailedScheduleRun                   `json:"run"`
-	Summary      DetailedScheduleSummary               `json:"summary"`
-	Orders       []DetailedScheduleOrder               `json:"orders"`
-	Batches      []DetailedScheduleBatch               `json:"batches"`
-	Dependencies []DetailedScheduleDependency          `json:"dependencies"`
-	Segments     []DetailedScheduleSegment             `json:"segments"`
-	Loads        []CapacityLoadRow                     `json:"loads"`
-	Maintenance  []DetailedScheduleMaintenanceSnapshot `json:"maintenance"`
+	Run              DetailedScheduleRun                        `json:"run"`
+	Summary          DetailedScheduleSummary                    `json:"summary"`
+	Orders           []DetailedScheduleOrder                    `json:"orders"`
+	Batches          []DetailedScheduleBatch                    `json:"batches"`
+	Dependencies     []DetailedScheduleDependency               `json:"dependencies"`
+	Segments         []DetailedScheduleSegment                  `json:"segments"`
+	Loads            []CapacityLoadRow                          `json:"loads"`
+	Maintenance      []DetailedScheduleMaintenanceSnapshot      `json:"maintenance"`
+	CapacityFeedback []DetailedScheduleCapacityFeedbackSnapshot `json:"capacityFeedback"`
 }
 
 // ====================================================================

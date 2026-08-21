@@ -142,6 +142,10 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	if err != nil {
 		return nil, err
 	}
+	wcs, feedbackSnapshots, err := ApplyCapacityFeedbackToWorkCenters(ctx, s.db, wcs, start)
+	if err != nil {
+		return nil, err
+	}
 	wcByID := map[uuid.UUID]domain.WorkCenter{}
 	for _, wc := range wcs {
 		if wc.MachineCount <= 0 {
@@ -206,7 +210,11 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	if actor.UserID != uuid.Nil {
 		run.GeneratedByUserID = &actor.UserID
 	}
-	res := &domain.DetailedScheduleResult{Run: run, Orders: []domain.DetailedScheduleOrder{}, Batches: []domain.DetailedScheduleBatch{}, Dependencies: []domain.DetailedScheduleDependency{}, Segments: []domain.DetailedScheduleSegment{}, Loads: []domain.CapacityLoadRow{}, Maintenance: []domain.DetailedScheduleMaintenanceSnapshot{}}
+	res := &domain.DetailedScheduleResult{Run: run, Orders: []domain.DetailedScheduleOrder{}, Batches: []domain.DetailedScheduleBatch{}, Dependencies: []domain.DetailedScheduleDependency{}, Segments: []domain.DetailedScheduleSegment{}, Loads: []domain.CapacityLoadRow{}, Maintenance: []domain.DetailedScheduleMaintenanceSnapshot{}, CapacityFeedback: []domain.DetailedScheduleCapacityFeedbackSnapshot{}}
+	for _, f := range feedbackSnapshots {
+		f.RunID = run.ID
+		res.CapacityFeedback = append(res.CapacityFeedback, f)
+	}
 	for _, ev := range maintenanceEvents {
 		res.Maintenance = append(res.Maintenance, domain.DetailedScheduleMaintenanceSnapshot{RunID: run.ID, MaintenanceEventID: ev.ID, RevisionID: ev.RevisionID, RevisionNo: ev.RevisionNo, WorkCenterID: ev.WorkCenterID, EventType: ev.EventType, Status: ev.Status, StartAt: ev.StartAt, EndAt: ev.EndAt, UnavailableMachines: ev.UnavailableMachines, UnavailableWorkers: ev.UnavailableWorkers, Reason: ev.Reason, SourceRef: ev.SourceRef})
 	}
@@ -385,6 +393,10 @@ func (s *CRPService) SimulateCTPOrder(ctx context.Context, itemID uuid.UUID, qty
 	}
 
 	wcs, err := s.repos.WorkCenters.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	wcs, _, err = ApplyCapacityFeedbackToWorkCenters(ctx, s.db, wcs, start)
 	if err != nil {
 		return nil, err
 	}
@@ -1152,6 +1164,12 @@ func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.De
 			return err
 		}
 	}
+	for i := range res.CapacityFeedback {
+		f := &res.CapacityFeedback[i]
+		if _, err = tx.NamedExecContext(ctx, `INSERT INTO detailed_schedule_capacity_feedback_snapshots(run_id,feedback_version_id,work_center_id,version_no,source_run_id,source_result_id,effective_efficiency,effective_utilization,source_oee,source_availability,source_performance,source_quality,sample_count,confidence,effective_from) VALUES (:run_id,:feedback_version_id,:work_center_id,:version_no,:source_run_id,:source_result_id,:effective_efficiency,:effective_utilization,:source_oee,:source_availability,:source_performance,:source_quality,:sample_count,:confidence,:effective_from)`, f); err != nil {
+			return err
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE detailed_schedule_runs SET status='COMPLETE' WHERE id=$1`, res.Run.ID); err != nil {
 		return err
 	}
@@ -1216,6 +1234,9 @@ func (s *CRPService) GetDetailedRun(ctx context.Context, id uuid.UUID) (*domain.
 		res.Loads = append(res.Loads, domain.CapacityLoadRow{WorkCenterID: x.WorkCenterID, WorkCenterCode: x.WorkCenterCode, WorkCenterName: x.WorkCenterName, Date: x.Date, RequiredMinutes: x.RequiredMinutes, AvailableMinutes: x.AvailableMinutes, LoadPct: x.LoadPct, IsHoliday: x.IsHoliday})
 	}
 	if err := s.db.SelectContext(ctx, &res.Maintenance, `SELECT * FROM detailed_schedule_maintenance_snapshots WHERE run_id=$1 ORDER BY start_at,work_center_id,maintenance_event_id`, id); err != nil {
+		return nil, err
+	}
+	if err := s.db.SelectContext(ctx, &res.CapacityFeedback, `SELECT * FROM detailed_schedule_capacity_feedback_snapshots WHERE run_id=$1 ORDER BY work_center_id,version_no`, id); err != nil {
 		return nil, err
 	}
 	for _, o := range res.Orders {

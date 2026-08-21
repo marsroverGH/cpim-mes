@@ -243,6 +243,10 @@ func (s *CRPService) FiniteSchedule(ctx context.Context, req CRPFiniteRequest, a
 	if err != nil {
 		return nil, err
 	}
+	wcs, _, err = ApplyCapacityFeedbackToWorkCenters(ctx, s.db, wcs, startDay)
+	if err != nil {
+		return nil, err
+	}
 	wcByID := make(map[uuid.UUID]domain.WorkCenter, len(wcs))
 	for _, wc := range wcs {
 		wcByID[wc.ID] = wc

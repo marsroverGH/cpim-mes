@@ -147,6 +147,33 @@ func (h *server) completeOperation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(204)
 }
 
+// POST /api/wo-operations/{opId}/scrap body: {"quantity":...,"notes":"..."}
+func (h *server) scrapOperation(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "opId")
+	if err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	actor, err := authenticatedShopFloorActor(r)
+	if err != nil {
+		writeError(w, 401, err)
+		return
+	}
+	var body struct {
+		Quantity float64 `json:"quantity"`
+		Notes    string  `json:"notes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	if err := h.s.ShopFloor.ReportScrap(r.Context(), id, body.Quantity, actor, body.Notes); err != nil {
+		writeError(w, 500, err)
+		return
+	}
+	w.WriteHeader(204)
+}
+
 // GET /api/wo-operations/{opId}/logs
 func (h *server) operationLogs(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "opId")

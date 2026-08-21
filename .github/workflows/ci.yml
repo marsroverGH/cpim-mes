@@ -116,6 +116,7 @@ jobs:
           python3 backend/scripts/check_supplier_scheduling_reliability.py
           python3 backend/scripts/check_inventory_policy.py
           python3 backend/scripts/check_maintenance_capacity.py
+          python3 backend/scripts/check_production_performance.py
           python3 backend/scripts/check_migration_manager.py
           python3 scripts/check_ci_dependency_policy.py
 

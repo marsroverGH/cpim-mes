@@ -10,6 +10,7 @@ const router = createRouter({
     { path: '/bom',             component: () => import('@/views/Bom.vue') },
     { path: '/work-centers',    component: () => import('@/views/WorkCenters.vue') },
     { path: '/maintenance',     component: () => import('@/views/Maintenance.vue') },
+    { path: '/production-performance', component: () => import('@/views/ProductionPerformance.vue') },
     { path: '/calendars',       component: () => import('@/views/Calendars.vue') },
     { path: '/routings',        component: () => import('@/views/Routings.vue') },
     { path: '/demand',          component: () => import('@/views/Demand.vue') },

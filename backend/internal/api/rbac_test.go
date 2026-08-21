@@ -81,7 +81,7 @@ func TestAdminHasEveryDeclaredPermission(t *testing.T) {
 func TestViewerHasNoMutationPermission(t *testing.T) {
 	mutationPerms := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

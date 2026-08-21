@@ -15,47 +15,49 @@ import (
 type Permission string
 
 const (
-	PermItemMasterWrite        Permission = "item.master.write"
-	PermBOMWrite               Permission = "bom.write"
-	PermDemandWrite            Permission = "planning.demand.write"
-	PermMPSWrite               Permission = "planning.mps.write"
-	PermInventoryAdjust        Permission = "inventory.adjust"
-	PermWOPlan                 Permission = "wo.plan"
-	PermWOExecute              Permission = "wo.execute"
-	PermPOPlan                 Permission = "po.plan"
-	PermPOReceive              Permission = "po.receive"
-	PermSupplierScheduleManage Permission = "supplier.schedule.manage"
-	PermSupplierReliabilityRun Permission = "supplier.reliability.run"
-	PermInventoryPolicyManage  Permission = "inventory.policy.manage"
-	PermInventoryPolicyRun     Permission = "inventory.policy.run"
-	PermMaintenanceManage      Permission = "maintenance.manage"
-	PermSalesOrderManage       Permission = "sales-order.manage"
-	PermSalesOrderShip         Permission = "sales-order.ship"
-	PermSalesOrderPromise      Permission = "sales-order.promise"
-	PermBackorderRun           Permission = "sales-order.backorder"
-	PermProductAllocation      Permission = "sales-order.product-allocation"
-	PermPeggingRun             Permission = "planning.pegging.run"
-	PermExceptionManage        Permission = "planning.exception.manage"
-	PermMRPRun                 Permission = "planning.mrp.run"
-	PermCapacityMaster         Permission = "capacity.master.write"
-	PermRoutingMaster          Permission = "routing.master.write"
-	PermCRPRun                 Permission = "planning.crp.run"
-	PermForecastRun            Permission = "planning.forecast.run"
-	PermCycleCountPlan         Permission = "inventory.cyclecount.plan"
-	PermCycleCountRecord       Permission = "inventory.cyclecount.record"
-	PermCalendarWrite          Permission = "calendar.write"
-	PermQualityRecord          Permission = "quality.record"
-	PermSupplierQualityManage  Permission = "quality.supplier.manage"
-	PermNCRCreate              Permission = "quality.ncr.create"
-	PermNCRDisposition         Permission = "quality.ncr.disposition"
-	PermShopFloorExecute       Permission = "shopfloor.execute"
-	PermItemGroupWrite         Permission = "item-group.write"
-	PermSOPWrite               Permission = "planning.sop.write"
-	PermRCCPWrite              Permission = "planning.rccp.write"
-	PermECODraft               Permission = "eco.draft"
-	PermECOApproveApply        Permission = "eco.approve-apply"
-	PermAuditRead              Permission = "audit.read"
-	PermAgentUse               Permission = "agent.use"
+	PermItemMasterWrite          Permission = "item.master.write"
+	PermBOMWrite                 Permission = "bom.write"
+	PermDemandWrite              Permission = "planning.demand.write"
+	PermMPSWrite                 Permission = "planning.mps.write"
+	PermInventoryAdjust          Permission = "inventory.adjust"
+	PermWOPlan                   Permission = "wo.plan"
+	PermWOExecute                Permission = "wo.execute"
+	PermPOPlan                   Permission = "po.plan"
+	PermPOReceive                Permission = "po.receive"
+	PermSupplierScheduleManage   Permission = "supplier.schedule.manage"
+	PermSupplierReliabilityRun   Permission = "supplier.reliability.run"
+	PermInventoryPolicyManage    Permission = "inventory.policy.manage"
+	PermInventoryPolicyRun       Permission = "inventory.policy.run"
+	PermMaintenanceManage        Permission = "maintenance.manage"
+	PermProductionPerformanceRun Permission = "production.performance.run"
+	PermCapacityFeedbackManage   Permission = "capacity.feedback.manage"
+	PermSalesOrderManage         Permission = "sales-order.manage"
+	PermSalesOrderShip           Permission = "sales-order.ship"
+	PermSalesOrderPromise        Permission = "sales-order.promise"
+	PermBackorderRun             Permission = "sales-order.backorder"
+	PermProductAllocation        Permission = "sales-order.product-allocation"
+	PermPeggingRun               Permission = "planning.pegging.run"
+	PermExceptionManage          Permission = "planning.exception.manage"
+	PermMRPRun                   Permission = "planning.mrp.run"
+	PermCapacityMaster           Permission = "capacity.master.write"
+	PermRoutingMaster            Permission = "routing.master.write"
+	PermCRPRun                   Permission = "planning.crp.run"
+	PermForecastRun              Permission = "planning.forecast.run"
+	PermCycleCountPlan           Permission = "inventory.cyclecount.plan"
+	PermCycleCountRecord         Permission = "inventory.cyclecount.record"
+	PermCalendarWrite            Permission = "calendar.write"
+	PermQualityRecord            Permission = "quality.record"
+	PermSupplierQualityManage    Permission = "quality.supplier.manage"
+	PermNCRCreate                Permission = "quality.ncr.create"
+	PermNCRDisposition           Permission = "quality.ncr.disposition"
+	PermShopFloorExecute         Permission = "shopfloor.execute"
+	PermItemGroupWrite           Permission = "item-group.write"
+	PermSOPWrite                 Permission = "planning.sop.write"
+	PermRCCPWrite                Permission = "planning.rccp.write"
+	PermECODraft                 Permission = "eco.draft"
+	PermECOApproveApply          Permission = "eco.approve-apply"
+	PermAuditRead                Permission = "audit.read"
+	PermAgentUse                 Permission = "agent.use"
 )
 
 // rolePermissions is intentionally explicit. Admin is handled as an all-access
@@ -75,40 +77,42 @@ var rolePermissions = map[domain.Role]map[Permission]struct{}{
 		PermAgentUse:         {},
 	},
 	domain.RolePlanner: {
-		PermBOMWrite:               {},
-		PermDemandWrite:            {},
-		PermMPSWrite:               {},
-		PermWOPlan:                 {},
-		PermWOExecute:              {},
-		PermPOPlan:                 {},
-		PermPOReceive:              {},
-		PermSupplierScheduleManage: {},
-		PermSupplierReliabilityRun: {},
-		PermInventoryPolicyManage:  {},
-		PermInventoryPolicyRun:     {},
-		PermMaintenanceManage:      {},
-		PermSalesOrderManage:       {},
-		PermSalesOrderShip:         {},
-		PermSalesOrderPromise:      {},
-		PermBackorderRun:           {},
-		PermProductAllocation:      {},
-		PermPeggingRun:             {},
-		PermExceptionManage:        {},
-		PermMRPRun:                 {},
-		PermCRPRun:                 {},
-		PermForecastRun:            {},
-		PermCycleCountPlan:         {},
-		PermCycleCountRecord:       {},
-		PermQualityRecord:          {},
-		PermSupplierQualityManage:  {},
-		PermNCRCreate:              {},
-		PermNCRDisposition:         {},
-		PermShopFloorExecute:       {},
-		PermSOPWrite:               {},
-		PermRCCPWrite:              {},
-		PermECODraft:               {},
-		PermAuditRead:              {},
-		PermAgentUse:               {},
+		PermBOMWrite:                 {},
+		PermDemandWrite:              {},
+		PermMPSWrite:                 {},
+		PermWOPlan:                   {},
+		PermWOExecute:                {},
+		PermPOPlan:                   {},
+		PermPOReceive:                {},
+		PermSupplierScheduleManage:   {},
+		PermSupplierReliabilityRun:   {},
+		PermInventoryPolicyManage:    {},
+		PermInventoryPolicyRun:       {},
+		PermMaintenanceManage:        {},
+		PermProductionPerformanceRun: {},
+		PermCapacityFeedbackManage:   {},
+		PermSalesOrderManage:         {},
+		PermSalesOrderShip:           {},
+		PermSalesOrderPromise:        {},
+		PermBackorderRun:             {},
+		PermProductAllocation:        {},
+		PermPeggingRun:               {},
+		PermExceptionManage:          {},
+		PermMRPRun:                   {},
+		PermCRPRun:                   {},
+		PermForecastRun:              {},
+		PermCycleCountPlan:           {},
+		PermCycleCountRecord:         {},
+		PermQualityRecord:            {},
+		PermSupplierQualityManage:    {},
+		PermNCRCreate:                {},
+		PermNCRDisposition:           {},
+		PermShopFloorExecute:         {},
+		PermSOPWrite:                 {},
+		PermRCCPWrite:                {},
+		PermECODraft:                 {},
+		PermAuditRead:                {},
+		PermAgentUse:                 {},
 	},
 }
 
@@ -127,7 +131,7 @@ func roleHasPermission(role domain.Role, permission Permission) bool {
 func permissionsForRole(role domain.Role) []Permission {
 	all := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

@@ -173,6 +173,23 @@ type maintenanceEvidence struct {
 	SourceRef           string    `db:"source_ref"`
 }
 
+type capacityFeedbackEvidence struct {
+	FeedbackVersionID    uuid.UUID `db:"feedback_version_id"`
+	WorkCenterID         uuid.UUID `db:"work_center_id"`
+	VersionNo            int       `db:"version_no"`
+	SourceRunID          uuid.UUID `db:"source_run_id"`
+	SourceResultID       uuid.UUID `db:"source_result_id"`
+	EffectiveEfficiency  float64   `db:"effective_efficiency"`
+	EffectiveUtilization float64   `db:"effective_utilization"`
+	SourceOEE            float64   `db:"source_oee"`
+	SourceAvailability   float64   `db:"source_availability"`
+	SourcePerformance    float64   `db:"source_performance"`
+	SourceQuality        float64   `db:"source_quality"`
+	SampleCount          int       `db:"sample_count"`
+	Confidence           string    `db:"confidence"`
+	EffectiveFrom        time.Time `db:"effective_from"`
+}
+
 type workCenterEvidence struct {
 	ID              uuid.UUID  `db:"id"`
 	Code            string     `db:"code"`
@@ -971,11 +988,18 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		if err != nil {
 			return err
 		}
+		feedbackRoot, feedbackKey, err := s.addCapacityFeedbackEvidence(ctx, tx, g, order, line, *ev, wc, wn, needDate, append(path, "DS:"+ev.ID.String(), "WC:"+ev.ID.String()+":"+wc.ID.String()))
+		if err != nil {
+			return err
+		}
 		if maintenanceRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
 			root = maintenanceRoot
 			_ = maintenanceKey
+		} else if feedbackRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
+			root = feedbackRoot
+			_ = feedbackKey
 		}
-		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil {
+		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil && feedbackRoot == uuid.Nil {
 			root = wn
 		}
 	}
@@ -1032,11 +1056,18 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		if err != nil {
 			return err
 		}
+		feedbackRoot, feedbackKey, err := s.addCapacityFeedbackEvidence(ctx, tx, g, order, line, ev, wc, wn, needDate, append(path, "DS:"+ev.ID.String(), "WC:"+ev.ID.String()+":"+wc.ID.String()))
+		if err != nil {
+			return err
+		}
 		if maintenanceRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
 			root = maintenanceRoot
 			_ = maintenanceKey
+		} else if feedbackRoot != uuid.Nil && (ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))) {
+			root = feedbackRoot
+			_ = feedbackKey
 		}
-		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil {
+		if wc.BatchStatus == "UNSCHEDULED" && maintenanceRoot == uuid.Nil && feedbackRoot == uuid.Nil {
 			root = wn
 		}
 	}
@@ -1051,6 +1082,45 @@ SELECT DISTINCT wc.id,wc.code,wc.name,b.schedule_status AS batch_status,b.machin
 		g.exception(order, line, "CAPACITY_LATE", severityFor("CAPACITY_LATE", d), root, fmt.Sprintf("Capacity schedule for WO %s finishes %d day(s) late", wo.OrderNo, d), &line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, d, p2, map[string]any{"workOrderNo": wo.OrderNo, "tardyMinutes": ev.TardyMinutes})
 	}
 	return nil
+}
+
+func (s *PeggingService) addCapacityFeedbackEvidence(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, order peggingOrder, line *peggingLine, ev detailedEvidence, wc workCenterEvidence, wcNode uuid.UUID, needDate time.Time, path []string) (uuid.UUID, string, error) {
+	var f capacityFeedbackEvidence
+	err := tx.GetContext(ctx, &f, `
+SELECT feedback_version_id,work_center_id,version_no,source_run_id,source_result_id,effective_efficiency,effective_utilization,
+       source_oee,source_availability,source_performance,source_quality,sample_count,confidence,effective_from
+  FROM detailed_schedule_capacity_feedback_snapshots
+ WHERE run_id=$1 AND work_center_id=$2`, ev.RunID, wc.ID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, "", nil
+	}
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	fid := f.FeedbackVersionID
+	key := "CAPFEEDBACK:" + f.FeedbackVersionID.String()
+	fn := g.node(key, "CAPACITY_FEEDBACK", "Actual capacity feedback / "+wc.Code, &fid, fmt.Sprintf("%s/v%d", wc.Code, f.VersionNo), nil, "", nil, peggingTimePtr(ev.GeneratedAt), "ACTIVE", map[string]any{
+		"versionNo": f.VersionNo, "sourceRunId": f.SourceRunID, "sourceResultId": f.SourceResultID,
+		"oee": f.SourceOEE, "availability": f.SourceAvailability, "performance": f.SourcePerformance, "quality": f.SourceQuality,
+		"effectiveEfficiency": f.EffectiveEfficiency, "effectiveUtilization": f.EffectiveUtilization,
+		"sampleCount": f.SampleCount, "confidence": f.Confidence, "effectiveFrom": f.EffectiveFrom.Format("2006-01-02"),
+	})
+	g.edge(wcNode, fn, "CALIBRATED_BY", nil, map[string]any{"workCenterCode": wc.Code})
+	impacted := ev.ScheduleStatus == "UNSCHEDULED" || ev.ScheduleStatus == "PARTIAL" || (ev.ScheduledEnd != nil && ev.ScheduledEnd.After(needDate))
+	if impacted && f.SourceOEE < 0.85 {
+		severity := "WARNING"
+		if f.SourceOEE < 0.60 {
+			severity = "CRITICAL"
+		}
+		g.exception(order, line, "OEE_CAPACITY_RISK", severity, fn,
+			fmt.Sprintf("%s uses empirical capacity feedback from OEE %.1f%% (availability %.1f%% / performance %.1f%%)", wc.Code, f.SourceOEE*100, f.SourceAvailability*100, f.SourcePerformance*100),
+			&line.RequestedDate, line.PromisedDate, ev.ScheduledEnd, 0, append(append([]string{}, path...), key), map[string]any{
+				"workCenterCode": wc.Code, "feedbackVersionId": f.FeedbackVersionID, "sourceOee": f.SourceOEE,
+				"effectiveEfficiency": f.EffectiveEfficiency, "effectiveUtilization": f.EffectiveUtilization, "sampleCount": f.SampleCount,
+			})
+		return fn, key, nil
+	}
+	return uuid.Nil, key, nil
 }
 
 func (s *PeggingService) addMaintenanceCapacityEvidence(ctx context.Context, tx *sqlx.Tx, g *graphBuilder, order peggingOrder, line *peggingLine, ev detailedEvidence, wc workCenterEvidence, wcNode uuid.UUID, needDate time.Time, path []string) (uuid.UUID, string, error) {

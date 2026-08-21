@@ -340,3 +340,6 @@ Versioned Service-Level policies calculate statistical Safety Stock, Reorder Poi
 
 ### 0037 Maintenance + Capacity Downtime
 Preventive Maintenance, Breakdown, Planned Downtime and Unplanned Downtime are modeled as append-only Work Center capacity events. Detailed Scheduling subtracts machine/worker capacity at exact time boundaries, CTP reuses the same allocator, and every persisted schedule freezes the maintenance revisions it used. Full Pegging traces those snapshots to maintenance-specific root-cause exceptions. See `docs/MAINTENANCE_CAPACITY_DOWNTIME.md`.
+
+### 0038 OEE + Production Performance + Actual Capacity Feedback
+Shop Floor START/STOP/COMPLETE/SCRAP evidence, operation standards and 0037 Maintenance history are converted into immutable Work Center performance snapshots: Availability, Performance, Quality, OEE, setup/speed losses, MTBF and MTTR. Planner-approved capacity feedback versions calibrate CRP, Detailed Scheduling and CTP without overwriting Work Center master data; Detailed Scheduling freezes the feedback version it used and Full Pegging can surface `OEE_CAPACITY_RISK` root causes. See `docs/OEE_PRODUCTION_PERFORMANCE_CAPACITY_FEEDBACK.md`.

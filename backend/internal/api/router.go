@@ -254,7 +254,16 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.With(requirePermission(PermShopFloorExecute)).Post("/wo-operations/{opId}/start", srv.startOperation)
 			secured.With(requirePermission(PermShopFloorExecute)).Post("/wo-operations/{opId}/stop", srv.stopOperation)
 			secured.With(requirePermission(PermShopFloorExecute)).Post("/wo-operations/{opId}/complete", srv.completeOperation)
+			secured.With(requirePermission(PermShopFloorExecute)).Post("/wo-operations/{opId}/scrap", srv.scrapOperation)
 			secured.Get("/wo-operations/{opId}/logs", srv.operationLogs)
+
+			// OEE / Production Performance / Actual Capacity Feedback
+			secured.With(requirePermission(PermProductionPerformanceRun)).Post("/production-performance/runs", srv.runProductionPerformance)
+			secured.Get("/production-performance/runs", srv.listProductionPerformanceRuns)
+			secured.Get("/production-performance/runs/{id}", srv.getProductionPerformanceRun)
+			secured.Get("/capacity-feedback", srv.listCapacityFeedback)
+			secured.With(requirePermission(PermCapacityFeedbackManage)).Post("/capacity-feedback/{id}/activate", srv.activateCapacityFeedback)
+			secured.With(requirePermission(PermCapacityFeedbackManage)).Post("/capacity-feedback/{id}/archive", srv.archiveCapacityFeedback)
 
 			// KPI Dashboard
 			secured.Get("/kpi/dashboard", srv.kpiDashboard)
