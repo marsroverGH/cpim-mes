@@ -24,6 +24,10 @@ func TestRBACCriticalPermissions(t *testing.T) {
 		{"operator can receive PO", domain.RoleOperator, PermPOReceive, true},
 		{"operator cannot create PO", domain.RoleOperator, PermPOPlan, false},
 		{"planner can create PO", domain.RolePlanner, PermPOPlan, true},
+		{"operator cannot manage supplier schedule", domain.RoleOperator, PermSupplierScheduleManage, false},
+		{"planner can manage supplier schedule", domain.RolePlanner, PermSupplierScheduleManage, true},
+		{"operator cannot run supplier reliability", domain.RoleOperator, PermSupplierReliabilityRun, false},
+		{"planner can run supplier reliability", domain.RolePlanner, PermSupplierReliabilityRun, true},
 		{"operator cannot manage sales orders", domain.RoleOperator, PermSalesOrderManage, false},
 		{"operator can ship sales orders", domain.RoleOperator, PermSalesOrderShip, true},
 		{"planner can manage sales orders", domain.RolePlanner, PermSalesOrderManage, true},
@@ -71,7 +75,7 @@ func TestAdminHasEveryDeclaredPermission(t *testing.T) {
 func TestViewerHasNoMutationPermission(t *testing.T) {
 	mutationPerms := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

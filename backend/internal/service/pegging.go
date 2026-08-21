@@ -83,18 +83,32 @@ type peggingWorkOrder struct {
 }
 
 type peggingPO struct {
-	ID                    uuid.UUID `db:"id"`
-	PONo                  string    `db:"po_no"`
-	ItemID                uuid.UUID `db:"item_id"`
-	ItemCode              string    `db:"item_code"`
-	ItemName              string    `db:"item_name"`
-	Supplier              string    `db:"supplier"`
-	SupplierQualityStatus string    `db:"supplier_quality_status"`
-	Quantity              float64   `db:"quantity"`
-	ReceivedQty           float64   `db:"received_qty"`
-	RemainingQty          float64   `db:"remaining_qty"`
-	DueDate               time.Time `db:"due_date"`
-	Status                string    `db:"status"`
+	ID                      uuid.UUID  `db:"id"`
+	PONo                    string     `db:"po_no"`
+	ItemID                  uuid.UUID  `db:"item_id"`
+	ItemCode                string     `db:"item_code"`
+	ItemName                string     `db:"item_name"`
+	Supplier                string     `db:"supplier"`
+	SupplierQualityStatus   string     `db:"supplier_quality_status"`
+	Quantity                float64    `db:"quantity"`
+	ReceivedQty             float64    `db:"received_qty"`
+	RemainingQty            float64    `db:"remaining_qty"`
+	DueDate                 time.Time  `db:"due_date"`
+	Status                  string     `db:"status"`
+	ScheduleStatus          string     `db:"schedule_status"`
+	ConfirmationEventID     *uuid.UUID `db:"confirmation_event_id"`
+	ConfirmedQuantity       *float64   `db:"confirmed_quantity"`
+	ConfirmedDeliveryDate   *time.Time `db:"confirmed_delivery_date"`
+	ASNEventID              *uuid.UUID `db:"asn_event_id"`
+	ASNNo                   string     `db:"asn_no"`
+	ASNQuantity             *float64   `db:"asn_quantity"`
+	ASNExpectedArrivalDate  *time.Time `db:"asn_expected_arrival_date"`
+	ExpectedDeliveryDate    time.Time  `db:"expected_delivery_date"`
+	ScheduleSource          string     `db:"schedule_source"`
+	ReliabilitySampleCount  int        `db:"reliability_sample_count"`
+	ReliabilityOnTimeRate   float64    `db:"reliability_on_time_rate"`
+	ReliabilityP90Days      float64    `db:"reliability_p90_days"`
+	RecommendedLeadTimeDays int        `db:"recommended_lead_time_days"`
 }
 
 type stockSnapshot struct {
@@ -266,7 +280,9 @@ func severityFor(typ string, impactDays int) string {
 			return "CRITICAL"
 		}
 		return "WARNING"
-	case "LATE_PROMISE", "LATE_PURCHASE_ORDER", "LATE_WORK_ORDER", "CAPACITY_LATE", "UNCONVERTED_CTP":
+	case "SUPPLIER_RELIABILITY_RISK":
+		return "WARNING"
+	case "LATE_PROMISE", "LATE_PURCHASE_ORDER", "LATE_WORK_ORDER", "CAPACITY_LATE", "UNCONVERTED_CTP", "SUPPLIER_CONFIRMATION_LATE":
 		if impactDays >= 7 {
 			return "CRITICAL"
 		}
@@ -753,14 +769,17 @@ func (s *PeggingService) traceRequirement(ctx context.Context, tx *sqlx.Tx, g *g
 		var pos []peggingPO
 		if err := tx.SelectContext(ctx, &pos, `
 SELECT p.id,p.po_no,p.item_id,i.code AS item_code,i.name AS item_name,p.supplier,
-       COALESCE(q.status,'APPROVED') AS supplier_quality_status,p.quantity::double precision AS quantity,
-       p.received_qty::double precision AS received_qty,GREATEST(p.quantity-p.received_qty,0)::double precision AS remaining_qty,
-       p.due_date,p.status
-  FROM purchase_orders p JOIN items i ON i.id=p.item_id
-  LEFT JOIN supplier_quality_profiles q ON q.supplier_name=p.supplier
- WHERE p.item_id=$1 AND p.status IN ('OPEN','PARTIALLY_RECEIVED') AND p.quantity-p.received_qty>0
-   AND p.due_date <= $2
- ORDER BY p.due_date,p.id`, r.ChildID, pools.horizonEnd); err != nil {
+       p.supplier_quality_status,p.quantity::double precision AS quantity,
+       p.received_qty::double precision AS received_qty,p.remaining_qty::double precision AS remaining_qty,
+       p.due_date,p.status,p.schedule_status,p.confirmation_event_id,
+       p.confirmed_quantity::double precision AS confirmed_quantity,p.confirmed_delivery_date,
+       p.asn_event_id,p.asn_no,p.asn_quantity::double precision AS asn_quantity,
+       p.asn_expected_arrival_date,p.expected_delivery_date,p.schedule_source,
+       p.reliability_sample_count,p.reliability_on_time_rate,p.reliability_p90_days,p.recommended_lead_time_days
+  FROM v_purchase_order_planning_schedule p JOIN items i ON i.id=p.item_id
+ WHERE p.item_id=$1 AND p.status IN ('OPEN','PARTIALLY_RECEIVED') AND p.remaining_qty>0
+   AND p.expected_delivery_date <= $2
+ ORDER BY p.expected_delivery_date,p.id`, r.ChildID, pools.horizonEnd); err != nil {
 			return err
 		}
 		for _, po := range pos {
@@ -776,7 +795,38 @@ SELECT p.id,p.po_no,p.item_id,i.code AS item_code,i.name AS item_name,p.supplier
 				continue
 			}
 			poID := po.ID
-			pn := g.node("PO:"+po.ID.String(), "PURCHASE_ORDER", po.PONo+" / "+po.Supplier, &poID, po.PONo, &itemID, r.Code, floatPtr(po.RemainingQty), &po.DueDate, po.Status, map[string]any{"supplier": po.Supplier, "supplierQualityStatus": po.SupplierQualityStatus, "receivedQty": po.ReceivedQty})
+			pn := g.node("PO:"+po.ID.String(), "PURCHASE_ORDER", po.PONo+" / "+po.Supplier, &poID, po.PONo, &itemID, r.Code, floatPtr(po.RemainingQty), &po.DueDate, po.Status, map[string]any{
+				"supplier": po.Supplier, "supplierQualityStatus": po.SupplierQualityStatus, "receivedQty": po.ReceivedQty,
+				"scheduleStatus": po.ScheduleStatus, "scheduleSource": po.ScheduleSource,
+				"expectedDeliveryDate": po.ExpectedDeliveryDate.Format("2006-01-02"), "recommendedLeadTimeDays": po.RecommendedLeadTimeDays,
+			})
+			poPath := append(append([]string{}, p2...), "PO:"+po.ID.String())
+			if po.ConfirmationEventID != nil && po.ConfirmedDeliveryDate != nil {
+				confID := *po.ConfirmationEventID
+				confKey := "SCONF:" + confID.String()
+				conf := g.node(confKey, "SUPPLIER_CONFIRMATION", "Supplier confirmation / "+po.PONo, &confID, po.Supplier, &itemID, r.Code, po.ConfirmedQuantity, po.ConfirmedDeliveryDate, "CONFIRMED", map[string]any{"supplier": po.Supplier})
+				g.edge(pn, conf, "CONFIRMED_BY", po.ConfirmedQuantity, nil)
+				if po.ConfirmedDeliveryDate.After(needDate) {
+					d := daysLate(*po.ConfirmedDeliveryDate, needDate)
+					g.exception(order, line, "SUPPLIER_CONFIRMATION_LATE", severityFor("SUPPLIER_CONFIRMATION_LATE", d), conf, fmt.Sprintf("Supplier %s confirmed PO %s %d day(s) after required date", po.Supplier, po.PONo, d), &line.RequestedDate, line.PromisedDate, po.ConfirmedDeliveryDate, d, append(poPath, confKey), map[string]any{"poNo": po.PONo, "supplier": po.Supplier})
+				}
+			}
+			if po.ASNEventID != nil && po.ASNExpectedArrivalDate != nil {
+				asnID := *po.ASNEventID
+				asnKey := "ASN:" + asnID.String()
+				asn := g.node(asnKey, "SUPPLIER_ASN", "ASN "+po.ASNNo+" / "+po.PONo, &asnID, po.ASNNo, &itemID, r.Code, po.ASNQuantity, po.ASNExpectedArrivalDate, "IN_TRANSIT", map[string]any{"supplier": po.Supplier, "poNo": po.PONo})
+				g.edge(pn, asn, "SHIPPED_BY", po.ASNQuantity, nil)
+			}
+			if po.ScheduleSource == "RELIABILITY" && po.ReliabilitySampleCount > 0 {
+				relKey := "LEADTIME:" + strings.ToUpper(strings.TrimSpace(po.Supplier)) + ":" + itemID.String()
+				rel := g.node(relKey, "LEAD_TIME_PROFILE", "Lead-time reliability / "+po.Supplier, nil, po.Supplier, &itemID, r.Code, nil, &po.ExpectedDeliveryDate, "ACTIVE", map[string]any{
+					"sampleCount": po.ReliabilitySampleCount, "onTimeRate": po.ReliabilityOnTimeRate, "p90LeadDays": po.ReliabilityP90Days, "recommendedLeadTimeDays": po.RecommendedLeadTimeDays,
+				})
+				g.edge(pn, rel, "PLANNED_USING", nil, nil)
+				if po.ReliabilitySampleCount >= defaultReliabilityMinSamples && po.ReliabilityOnTimeRate < 0.80 {
+					g.exception(order, line, "SUPPLIER_RELIABILITY_RISK", "WARNING", rel, fmt.Sprintf("Supplier %s on-time rate is %.1f%%; PO %s uses reliability-adjusted date", po.Supplier, po.ReliabilityOnTimeRate*100, po.PONo), &line.RequestedDate, line.PromisedDate, &po.ExpectedDeliveryDate, daysLate(po.ExpectedDeliveryDate, po.DueDate), append(poPath, relKey), map[string]any{"poNo": po.PONo, "supplier": po.Supplier, "sampleCount": po.ReliabilitySampleCount, "onTimeRate": po.ReliabilityOnTimeRate, "p90LeadDays": po.ReliabilityP90Days})
+				}
+			}
 			if po.SupplierQualityStatus == "BLOCKED" {
 				supKey := "SUPPLIER:" + po.Supplier
 				supNode := g.node(supKey, "SUPPLIER", po.Supplier, nil, po.Supplier, nil, "", nil, nil, "BLOCKED", map[string]any{"supplier": po.Supplier})
@@ -788,9 +838,9 @@ SELECT p.id,p.po_no,p.item_id,i.code AS item_code,i.name AS item_name,p.supplier
 			pools.po[po.ID] -= consume
 			remaining -= consume
 			g.edge(reqNode, pn, "PURCHASED_BY", floatPtr(consume), nil)
-			if po.DueDate.After(needDate) {
-				d := daysLate(po.DueDate, needDate)
-				g.exception(order, line, "LATE_PURCHASE_ORDER", severityFor("LATE_PURCHASE_ORDER", d), pn, fmt.Sprintf("PO %s arrives %d day(s) after required date", po.PONo, d), &line.RequestedDate, line.PromisedDate, &po.DueDate, d, append(p2, "PO:"+po.ID.String()), map[string]any{"poNo": po.PONo, "supplier": po.Supplier})
+			if po.ExpectedDeliveryDate.After(needDate) {
+				d := daysLate(po.ExpectedDeliveryDate, needDate)
+				g.exception(order, line, "LATE_PURCHASE_ORDER", severityFor("LATE_PURCHASE_ORDER", d), pn, fmt.Sprintf("PO %s expected arrival is %d day(s) after required date (%s)", po.PONo, d, po.ScheduleSource), &line.RequestedDate, line.PromisedDate, &po.ExpectedDeliveryDate, d, poPath, map[string]any{"poNo": po.PONo, "supplier": po.Supplier, "scheduleSource": po.ScheduleSource, "originalDueDate": po.DueDate.Format("2006-01-02")})
 			}
 		}
 	}

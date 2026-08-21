@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -453,11 +454,8 @@ type PurchaseRepo struct{ db *sqlx.DB }
 func (r *PurchaseRepo) List(ctx context.Context) ([]domain.PurchaseOrder, error) {
 	var rows []domain.PurchaseOrder
 	err := r.db.SelectContext(ctx, &rows, `
-		SELECT po.*, GREATEST(po.quantity - po.received_qty, 0) AS remaining_qty,
-               COALESCE(sqp.status,'APPROVED') AS supplier_quality_status
-          FROM purchase_orders po
-          LEFT JOIN supplier_quality_profiles sqp ON sqp.supplier_name=btrim(po.supplier)
-		 ORDER BY po.due_date, po.po_no`)
+		SELECT * FROM v_purchase_order_planning_schedule
+		 ORDER BY expected_delivery_date, po_no`)
 	return rows, err
 }
 
@@ -481,11 +479,7 @@ func (r *PurchaseRepo) Create(ctx context.Context, p *domain.PurchaseOrder) erro
 func (r *PurchaseRepo) Get(ctx context.Context, id uuid.UUID) (*domain.PurchaseOrder, error) {
 	var p domain.PurchaseOrder
 	err := r.db.GetContext(ctx, &p, `
-		SELECT po.*, GREATEST(po.quantity - po.received_qty, 0) AS remaining_qty,
-               COALESCE(sqp.status,'APPROVED') AS supplier_quality_status
-          FROM purchase_orders po
-          LEFT JOIN supplier_quality_profiles sqp ON sqp.supplier_name=btrim(po.supplier)
-		 WHERE po.id=$1`, id)
+		SELECT * FROM v_purchase_order_planning_schedule WHERE id=$1`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -523,4 +517,40 @@ func (r *PurchaseRepo) SetReceivedLot(ctx context.Context, poID, lotID uuid.UUID
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE purchase_orders SET received_lot_id=$1 WHERE id=$2`, lotID, poID)
 	return err
+}
+
+// EffectiveLeadTimeDays returns a conservative procurement lead time for an
+// item from the latest 0035 reliability snapshot. Only sufficiently sampled,
+// non-blocked suppliers participate; the item master lead time is the floor and
+// fallback. MAX is intentional because CTP/MRP have no supplier-selection
+// decision yet and must not promise using an optimistic supplier cherry-pick.
+func (r *PurchaseRepo) EffectiveLeadTimeDays(ctx context.Context, itemID uuid.UUID, nominal int) (int, error) {
+	if nominal < 0 {
+		nominal = 0
+	}
+	var observed sql.NullInt64
+	err := r.db.GetContext(ctx, &observed, `
+WITH eligible AS (
+  SELECT v.*,
+         ROW_NUMBER() OVER (
+           PARTITION BY v.supplier_name
+           ORDER BY CASE WHEN v.item_id=$1 THEN 0 ELSE 1 END, v.sample_count DESC
+         ) AS rn
+    FROM v_current_supplier_lead_time v
+   WHERE (v.item_id=$1 OR v.item_id IS NULL)
+     AND v.sample_count>=v.min_samples
+), supplier_choice AS (
+  SELECT e.*
+    FROM eligible e
+    LEFT JOIN supplier_quality_profiles q ON q.supplier_name=e.supplier_name
+   WHERE e.rn=1 AND COALESCE(q.status,'APPROVED')<>'BLOCKED'
+)
+SELECT MAX(recommended_lead_days)::bigint FROM supplier_choice`, itemID)
+	if err != nil {
+		return nominal, err
+	}
+	if observed.Valid && int(observed.Int64) > nominal {
+		return int(observed.Int64), nil
+	}
+	return nominal, nil
 }

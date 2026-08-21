@@ -169,10 +169,11 @@ SELECT l.id AS id,l.item_id,
 		if remaining <= 0 {
 			continue
 		}
-		if p.DueDate.Before(now) || p.DueDate.After(end) {
+		planningDate := PurchasePlanningDate(p)
+		if planningDate.Before(now) || planningDate.After(end) {
 			continue
 		}
-		bs := bucketStart(p.DueDate)
+		bs := bucketStart(planningDate)
 		buckets[bucketIdx[bs]].ScheduledIn += remaining
 	}
 
@@ -253,7 +254,7 @@ SELECT COALESCE(SUM(CASE WHEN txn_type='RESERVE' THEN ABS(quantity) WHEN txn_typ
 		return 0, err
 	}
 	for _, p := range pos {
-		if p.ItemID != itemID || p.SupplierQualityStatus == "BLOCKED" || TruncateDay(p.DueDate).After(through) {
+		if p.ItemID != itemID || p.SupplierQualityStatus == "BLOCKED" || PurchasePlanningDate(p).After(through) {
 			continue
 		}
 		available += PurchaseScheduledRemaining(p.Status, p.Quantity, p.ReceivedQty)

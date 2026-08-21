@@ -561,6 +561,69 @@ export interface PurchaseOrder {
   supplierQualityStatus?: 'APPROVED' | 'CONDITIONAL' | 'BLOCKED'
   receivedLotId?: string
   receivedAt?: string
+  scheduleStatus?: 'UNCONFIRMED' | 'CONFIRMED' | 'ASN'
+  confirmationEventId?: string
+  confirmedQuantity?: number
+  confirmedDeliveryDate?: string
+  asnEventId?: string
+  asnNo?: string
+  asnQuantity?: number
+  asnExpectedArrivalDate?: string
+  expectedDeliveryDate?: string
+  scheduleSource?: 'PO_DUE_DATE' | 'RELIABILITY' | 'SUPPLIER_CONFIRMATION' | 'ASN'
+  reliabilitySampleCount?: number
+  reliabilityOnTimeRate?: number
+  reliabilityP90Days?: number
+  recommendedLeadTimeDays?: number
+}
+export interface SupplierScheduleEvent {
+  id: string
+  purchaseOrderId: string
+  revisionNo: number
+  eventType: 'CONFIRM' | 'REVISE' | 'ASN' | 'CANCEL'
+  quantity?: number
+  confirmedDeliveryDate?: string
+  asnNo: string
+  expectedArrivalDate?: string
+  supplierReference: string
+  notes: string
+  actorUserId: string
+  actorUsername: string
+  occurredAt: string
+}
+export interface SupplierLeadTimeRun {
+  id: string
+  windowStart: string
+  windowEnd: string
+  minSamples: number
+  status: 'RUNNING' | 'COMPLETE' | 'FAILED'
+  resultHash?: string
+  generatedByUserId: string
+  generatedBy: string
+  completedAt?: string
+  errorText: string
+  createdAt: string
+}
+export interface SupplierLeadTimeResult {
+  id: string
+  runId: string
+  supplierName: string
+  itemId?: string
+  itemCode?: string
+  sampleCount: number
+  averageLeadDays: number
+  stddevLeadDays: number
+  p50LeadDays: number
+  p90LeadDays: number
+  onTimeRate: number
+  averageLatenessDays: number
+  recommendedLeadDays: number
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH'
+  createdAt: string
+}
+export interface SupplierLeadTimeRunResult {
+  run: SupplierLeadTimeRun
+  results: SupplierLeadTimeResult[]
 }
 export interface PurchaseReceipt {
   receiptId: string
@@ -579,7 +642,20 @@ export interface PurchaseReceipt {
 export const PurchaseOrdersApi = {
   list: () => http.get<PurchaseOrder[]>('/purchase-orders').then(r => r.data),
   create: (p: PurchaseOrder) => http.post<PurchaseOrder>('/purchase-orders', p).then(r => r.data),
-  receipts: (id: string) => http.get<PurchaseReceipt[]>(`/purchase-orders/${id}/receipts`).then(r => r.data)
+  receipts: (id: string) => http.get<PurchaseReceipt[]>(`/purchase-orders/${id}/receipts`).then(r => r.data),
+  supplierSchedule: (id: string) => http.get<SupplierScheduleEvent[]>(`/purchase-orders/${id}/supplier-schedule`).then(r => r.data),
+  addSupplierScheduleEvent: (id: string, event: {
+    eventId?: string; eventType: SupplierScheduleEvent['eventType']; quantity?: number; confirmedDeliveryDate?: string;
+    asnNo?: string; expectedArrivalDate?: string; supplierReference?: string; notes?: string
+  }) => http.post<SupplierScheduleEvent>(`/purchase-orders/${id}/supplier-schedule/events`, { ...event, eventId: event.eventId || crypto.randomUUID() }).then(r => r.data)
+}
+
+export const SupplierSchedulingApi = {
+  reliability: () => http.get<SupplierLeadTimeResult[]>('/supplier-scheduling/reliability').then(r => r.data),
+  refreshReliability: (windowDays = 365, minSamples = 3) =>
+    http.post<SupplierLeadTimeRunResult>('/supplier-scheduling/reliability/refresh', { windowDays, minSamples }).then(r => r.data),
+  runs: () => http.get<SupplierLeadTimeRun[]>('/supplier-scheduling/reliability-runs').then(r => r.data),
+  run: (id: string) => http.get<SupplierLeadTimeRunResult>(`/supplier-scheduling/reliability-runs/${id}`).then(r => r.data)
 }
 
 // ------- MRP -------
@@ -594,6 +670,8 @@ export interface MrpResult {
   plannedOrderReceipt: number
   plannedOrderRelease: number
   plannedOrderReleaseDate?: string
+  planningLeadTimeDays?: number
+  leadTimeSource?: 'ITEM_MASTER' | 'SUPPLIER_RELIABILITY'
   lotMethod: string
   eoq?: number
   pegging?: string[]

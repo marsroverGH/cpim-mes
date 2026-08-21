@@ -36,6 +36,7 @@ const router = createRouter({
     { path: '/work-orders',     component: () => import('@/views/WorkOrders.vue') },
     { path: '/shop-floor',      component: () => import('@/views/ShopFloor.vue') },
     { path: '/purchase-orders', component: () => import('@/views/PurchaseOrders.vue') },
+    { path: '/supplier-scheduling', component: () => import('@/views/SupplierScheduling.vue') },
     { path: '/supplier-quality', component: () => import('@/views/SupplierQuality.vue') }
   ]
 })

@@ -102,19 +102,91 @@ type WorkOrder struct {
 
 // PurchaseOrder — 購買発注
 type PurchaseOrder struct {
-	ID                    uuid.UUID  `db:"id"                json:"id"`
-	PONo                  string     `db:"po_no"             json:"poNo"`
-	ItemID                uuid.UUID  `db:"item_id"           json:"itemId"`
-	Supplier              string     `db:"supplier"          json:"supplier"`
-	SupplierQualityStatus string     `db:"supplier_quality_status" json:"supplierQualityStatus"`
-	Quantity              float64    `db:"quantity"          json:"quantity"`
-	ReceivedQty           float64    `db:"received_qty"      json:"receivedQty"`
-	RemainingQty          float64    `db:"remaining_qty"     json:"remainingQty"`
-	OrderDate             time.Time  `db:"order_date"        json:"orderDate"`
-	DueDate               time.Time  `db:"due_date"          json:"dueDate"`
-	Status                string     `db:"status"            json:"status"`
-	ReceivedLotID         *uuid.UUID `db:"received_lot_id"   json:"receivedLotId,omitempty"`
-	ReceivedAt            *time.Time `db:"received_at"       json:"receivedAt,omitempty"`
+	ID                      uuid.UUID  `db:"id"                json:"id"`
+	PONo                    string     `db:"po_no"             json:"poNo"`
+	ItemID                  uuid.UUID  `db:"item_id"           json:"itemId"`
+	Supplier                string     `db:"supplier"          json:"supplier"`
+	SupplierQualityStatus   string     `db:"supplier_quality_status" json:"supplierQualityStatus"`
+	Quantity                float64    `db:"quantity"          json:"quantity"`
+	ReceivedQty             float64    `db:"received_qty"      json:"receivedQty"`
+	RemainingQty            float64    `db:"remaining_qty"     json:"remainingQty"`
+	OrderDate               time.Time  `db:"order_date"        json:"orderDate"`
+	DueDate                 time.Time  `db:"due_date"          json:"dueDate"`
+	Status                  string     `db:"status"            json:"status"`
+	ReceivedLotID           *uuid.UUID `db:"received_lot_id"   json:"receivedLotId,omitempty"`
+	ReceivedAt              *time.Time `db:"received_at"       json:"receivedAt,omitempty"`
+	ScheduleStatus          string     `db:"schedule_status"   json:"scheduleStatus"`
+	ConfirmationEventID     *uuid.UUID `db:"confirmation_event_id" json:"confirmationEventId,omitempty"`
+	ConfirmedQuantity       *float64   `db:"confirmed_quantity" json:"confirmedQuantity,omitempty"`
+	ConfirmedDeliveryDate   *time.Time `db:"confirmed_delivery_date" json:"confirmedDeliveryDate,omitempty"`
+	ASNEventID              *uuid.UUID `db:"asn_event_id"      json:"asnEventId,omitempty"`
+	ASNNo                   string     `db:"asn_no"            json:"asnNo"`
+	ASNQuantity             *float64   `db:"asn_quantity"      json:"asnQuantity,omitempty"`
+	ASNExpectedArrivalDate  *time.Time `db:"asn_expected_arrival_date" json:"asnExpectedArrivalDate,omitempty"`
+	ExpectedDeliveryDate    *time.Time `db:"expected_delivery_date" json:"expectedDeliveryDate,omitempty"`
+	ScheduleSource          string     `db:"schedule_source"   json:"scheduleSource"`
+	ReliabilitySampleCount  int        `db:"reliability_sample_count" json:"reliabilitySampleCount"`
+	ReliabilityOnTimeRate   float64    `db:"reliability_on_time_rate" json:"reliabilityOnTimeRate"`
+	ReliabilityP90Days      float64    `db:"reliability_p90_days" json:"reliabilityP90Days"`
+	RecommendedLeadTimeDays int        `db:"recommended_lead_time_days" json:"recommendedLeadTimeDays"`
+}
+
+// SupplierScheduleEvent is append-only supplier commitment / ASN evidence.
+type SupplierScheduleEvent struct {
+	ID                    uuid.UUID  `db:"id"                      json:"id"`
+	PurchaseOrderID       uuid.UUID  `db:"purchase_order_id"       json:"purchaseOrderId"`
+	RevisionNo            int        `db:"revision_no"             json:"revisionNo"`
+	EventType             string     `db:"event_type"              json:"eventType"`
+	Quantity              *float64   `db:"quantity"                json:"quantity,omitempty"`
+	ConfirmedDeliveryDate *time.Time `db:"confirmed_delivery_date" json:"confirmedDeliveryDate,omitempty"`
+	ASNNo                 string     `db:"asn_no"                  json:"asnNo"`
+	ExpectedArrivalDate   *time.Time `db:"expected_arrival_date"   json:"expectedArrivalDate,omitempty"`
+	SupplierReference     string     `db:"supplier_reference"      json:"supplierReference"`
+	Notes                 string     `db:"notes"                   json:"notes"`
+	ActorUserID           uuid.UUID  `db:"actor_user_id"           json:"actorUserId"`
+	ActorUsername         string     `db:"actor_username"          json:"actorUsername"`
+	OccurredAt            time.Time  `db:"occurred_at"             json:"occurredAt"`
+	CreatedAt             time.Time  `db:"created_at"              json:"createdAt"`
+}
+
+// SupplierLeadTimeRun is an immutable reliability calculation snapshot.
+type SupplierLeadTimeRun struct {
+	ID                uuid.UUID  `db:"id"                   json:"id"`
+	WindowStart       time.Time  `db:"window_start"         json:"windowStart"`
+	WindowEnd         time.Time  `db:"window_end"           json:"windowEnd"`
+	MinSamples        int        `db:"min_samples"          json:"minSamples"`
+	Status            string     `db:"status"               json:"status"`
+	ResultHash        *string    `db:"result_hash"          json:"resultHash,omitempty"`
+	GeneratedByUserID uuid.UUID  `db:"generated_by_user_id" json:"generatedByUserId"`
+	GeneratedBy       string     `db:"generated_by"         json:"generatedBy"`
+	CompletedAt       *time.Time `db:"completed_at"         json:"completedAt,omitempty"`
+	ErrorText         string     `db:"error_text"           json:"errorText"`
+	CreatedAt         time.Time  `db:"created_at"           json:"createdAt"`
+}
+
+// SupplierLeadTimeResult contains supplier/item historical lead-time metrics.
+type SupplierLeadTimeResult struct {
+	ID                  uuid.UUID  `db:"id"                    json:"id"`
+	RunID               uuid.UUID  `db:"run_id"                json:"runId"`
+	SupplierName        string     `db:"supplier_name"         json:"supplierName"`
+	ItemID              *uuid.UUID `db:"item_id"               json:"itemId,omitempty"`
+	ItemCode            string     `db:"item_code"             json:"itemCode,omitempty"`
+	SampleCount         int        `db:"sample_count"          json:"sampleCount"`
+	AverageLeadDays     float64    `db:"average_lead_days"     json:"averageLeadDays"`
+	StddevLeadDays      float64    `db:"stddev_lead_days"      json:"stddevLeadDays"`
+	P50LeadDays         float64    `db:"p50_lead_days"         json:"p50LeadDays"`
+	P90LeadDays         float64    `db:"p90_lead_days"         json:"p90LeadDays"`
+	OnTimeRate          float64    `db:"on_time_rate"          json:"onTimeRate"`
+	AverageLatenessDays float64    `db:"average_lateness_days" json:"averageLatenessDays"`
+	RecommendedLeadDays int        `db:"recommended_lead_days" json:"recommendedLeadDays"`
+	Confidence          string     `db:"confidence"            json:"confidence"`
+	CreatedAt           time.Time  `db:"created_at"            json:"createdAt"`
+}
+
+// SupplierLeadTimeRunResult returns a reliability run plus its immutable rows.
+type SupplierLeadTimeRunResult struct {
+	Run     SupplierLeadTimeRun      `json:"run"`
+	Results []SupplierLeadTimeResult `json:"results"`
 }
 
 // PurchaseReceipt is one immutable partial/full receipt event against a PO.
@@ -510,19 +582,21 @@ type ExceptionScanResult struct {
 
 // MRPResult — MRP計算結果 (1品目1期間)
 type MRPResult struct {
-	ItemID             uuid.UUID  `json:"itemId"`
-	ItemCode           string     `json:"itemCode"`
-	Period             time.Time  `json:"period"` // gross requirement / planned receipt date
-	GrossReq           float64    `json:"grossRequirement"`
-	ScheduledRcpt      float64    `json:"scheduledReceipts"`
-	OnHand             float64    `json:"projectedOnHand"` // period-end projected available balance
-	NetReq             float64    `json:"netRequirement"`
-	PlannedReceipt     float64    `json:"plannedOrderReceipt"`
-	PlannedOrder       float64    `json:"plannedOrderRelease"` // quantity; kept for API compatibility
-	PlannedReleaseDate *time.Time `json:"plannedOrderReleaseDate,omitempty"`
-	LotMethod          string     `json:"lotMethod"`         // LFL/FOQ/POQ/EOQ
-	EOQ                float64    `json:"eoq,omitempty"`     // calculated EOQ (informational)
-	Pegging            []string   `json:"pegging,omitempty"` // originating MPS item codes
+	ItemID               uuid.UUID  `json:"itemId"`
+	ItemCode             string     `json:"itemCode"`
+	Period               time.Time  `json:"period"` // gross requirement / planned receipt date
+	GrossReq             float64    `json:"grossRequirement"`
+	ScheduledRcpt        float64    `json:"scheduledReceipts"`
+	OnHand               float64    `json:"projectedOnHand"` // period-end projected available balance
+	NetReq               float64    `json:"netRequirement"`
+	PlannedReceipt       float64    `json:"plannedOrderReceipt"`
+	PlannedOrder         float64    `json:"plannedOrderRelease"` // quantity; kept for API compatibility
+	PlannedReleaseDate   *time.Time `json:"plannedOrderReleaseDate,omitempty"`
+	PlanningLeadTimeDays int        `json:"planningLeadTimeDays"`
+	LeadTimeSource       string     `json:"leadTimeSource"`
+	LotMethod            string     `json:"lotMethod"`         // LFL/FOQ/POQ/EOQ
+	EOQ                  float64    `json:"eoq,omitempty"`     // calculated EOQ (informational)
+	Pegging              []string   `json:"pegging,omitempty"` // originating MPS item codes
 }
 
 // ====================================================================

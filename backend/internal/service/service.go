@@ -15,19 +15,20 @@ import (
 )
 
 type Services struct {
-	Items             *ItemService
-	BOM               *BOMService
-	Demand            *DemandService
-	MPS               *MPSService
-	Inventory         *InventoryService
-	WorkOrders        *WorkOrderService
-	Purchases         *PurchaseService
-	SalesOrders       *SalesOrderService
-	OrderPromising    *OrderPromisingService
-	ProductAllocation *ProductAllocationService
-	Backorders        *BackorderService
-	Pegging           *PeggingService
-	MRP               *MRPService
+	Items              *ItemService
+	BOM                *BOMService
+	Demand             *DemandService
+	MPS                *MPSService
+	Inventory          *InventoryService
+	WorkOrders         *WorkOrderService
+	Purchases          *PurchaseService
+	SalesOrders        *SalesOrderService
+	OrderPromising     *OrderPromisingService
+	ProductAllocation  *ProductAllocationService
+	Backorders         *BackorderService
+	Pegging            *PeggingService
+	SupplierScheduling *SupplierSchedulingService
+	MRP                *MRPService
 
 	WorkCenters *WorkCenterService
 	Routings    *RoutingService
@@ -77,43 +78,45 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	productAllocation := &ProductAllocationService{db: db}
 	backorders := &BackorderService{db: db, atp: atp, ctp: ctp, allocation: productAllocation}
 	pegging := &PeggingService{db: db}
+	supplierScheduling := &SupplierSchedulingService{db: db}
 	svc := &Services{
-		Items:             itemsSvc,
-		BOM:               &BOMService{db: db, r: r.BOM},
-		Demand:            &DemandService{r: r.Demand},
-		MPS:               &MPSService{r: r.MPS},
-		Inventory:         &InventoryService{r: r.Inventory, ledger: ledger},
-		WorkOrders:        &WorkOrderService{r: r.WorkOrders},
-		Purchases:         &PurchaseService{db: db, r: r.Purchases},
-		SalesOrders:       salesOrders,
-		OrderPromising:    orderPromising,
-		ProductAllocation: productAllocation,
-		Backorders:        backorders,
-		Pegging:           pegging,
-		MRP:               mrp,
-		WorkCenters:       &WorkCenterService{r: r.WorkCenters},
-		Routings:          &RoutingService{r: r.Routings},
-		CRP:               crp,
-		CostRollup:        &CostRollupService{repos: r},
-		Auth:              NewAuthService(r.Users, cfg.JWTSecret),
-		ABC:               abc,
-		CSV:               NewCSVService(r),
-		Lots:              &LotService{r: r.Lots, ledger: ledger},
-		Audit:             &AuditService{r: r.Audit},
-		Forecast:          &ForecastService{db: db, repos: r},
-		CycleCount:        &CycleCountService{repos: r, abc: abc, ledger: ledger},
-		Workflow:          NewWorkflowService(db, r, ledger),
-		Calendar:          &CalendarService{r: r.Calendars},
-		ATP:               atp,
-		Quality:           &QualityService{db: db, repos: r},
-		SupplierQuality:   &SupplierQualityService{db: db, ledger: ledger},
-		Actions:           actions,
-		ShopFloor:         &ShopFloorService{db: db, r: r.ShopFloor},
-		KPI:               kpiSvc,
-		SOP:               &SOPService{db: db, repos: r},
-		RCCP:              &RCCPService{repos: r},
-		ECO:               NewECOService(db, r),
-		Agent:             NewAgentService(r, mrp, abc, kpiSvc),
+		Items:              itemsSvc,
+		BOM:                &BOMService{db: db, r: r.BOM},
+		Demand:             &DemandService{r: r.Demand},
+		MPS:                &MPSService{r: r.MPS},
+		Inventory:          &InventoryService{r: r.Inventory, ledger: ledger},
+		WorkOrders:         &WorkOrderService{r: r.WorkOrders},
+		Purchases:          &PurchaseService{db: db, r: r.Purchases},
+		SalesOrders:        salesOrders,
+		OrderPromising:     orderPromising,
+		ProductAllocation:  productAllocation,
+		Backorders:         backorders,
+		Pegging:            pegging,
+		SupplierScheduling: supplierScheduling,
+		MRP:                mrp,
+		WorkCenters:        &WorkCenterService{r: r.WorkCenters},
+		Routings:           &RoutingService{r: r.Routings},
+		CRP:                crp,
+		CostRollup:         &CostRollupService{repos: r},
+		Auth:               NewAuthService(r.Users, cfg.JWTSecret),
+		ABC:                abc,
+		CSV:                NewCSVService(r),
+		Lots:               &LotService{r: r.Lots, ledger: ledger},
+		Audit:              &AuditService{r: r.Audit},
+		Forecast:           &ForecastService{db: db, repos: r},
+		CycleCount:         &CycleCountService{repos: r, abc: abc, ledger: ledger},
+		Workflow:           NewWorkflowService(db, r, ledger),
+		Calendar:           &CalendarService{r: r.Calendars},
+		ATP:                atp,
+		Quality:            &QualityService{db: db, repos: r},
+		SupplierQuality:    &SupplierQualityService{db: db, ledger: ledger},
+		Actions:            actions,
+		ShopFloor:          &ShopFloorService{db: db, r: r.ShopFloor},
+		KPI:                kpiSvc,
+		SOP:                &SOPService{db: db, repos: r},
+		RCCP:               &RCCPService{repos: r},
+		ECO:                NewECOService(db, r),
+		Agent:              NewAgentService(r, mrp, abc, kpiSvc),
 	}
 	return svc
 }
@@ -395,7 +398,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		if remaining <= 0 {
 			continue
 		}
-		day := TruncateDay(po.DueDate)
+		day := PurchasePlanningDate(po)
 		if day.After(endDay) {
 			continue
 		}
@@ -504,6 +507,17 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 
 		for _, itemID := range ids {
 			it := itemByID[itemID]
+			planningLeadTimeDays := it.LeadTimeDays
+			leadTimeSource := "ITEM_MASTER"
+			if it.Type == domain.ItemTypeRawMaterial || it.Type == domain.ItemTypePurchasedPart {
+				planningLeadTimeDays, err = s.repos.Purchases.EffectiveLeadTimeDays(ctx, itemID, it.LeadTimeDays)
+				if err != nil {
+					return nil, err
+				}
+				if planningLeadTimeDays > it.LeadTimeDays {
+					leadTimeSource = "SUPPLIER_RELIABILITY"
+				}
+			}
 			method := LotSizeMethod(it.LotSizeMethod)
 			if method == "" {
 				method = LotMethodLFL
@@ -563,7 +577,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 				)
 				stock[itemID] = projected
 
-				releaseDay := plannedOrderReleaseDate(day, it.LeadTimeDays, plannedReceipt)
+				releaseDay := plannedOrderReleaseDate(day, planningLeadTimeDays, plannedReceipt)
 				var releaseDate *time.Time
 				if !releaseDay.IsZero() {
 					rd := releaseDay
@@ -577,19 +591,21 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 				sort.Strings(pegs)
 
 				results = append(results, domain.MRPResult{
-					ItemID:             itemID,
-					ItemCode:           it.Code,
-					Period:             day,
-					GrossReq:           grossQty,
-					ScheduledRcpt:      scheduledQty,
-					OnHand:             projected,
-					NetReq:             net,
-					PlannedReceipt:     plannedReceipt,
-					PlannedOrder:       plannedReceipt,
-					PlannedReleaseDate: releaseDate,
-					LotMethod:          string(method),
-					EOQ:                eoq,
-					Pegging:            pegs,
+					ItemID:               itemID,
+					ItemCode:             it.Code,
+					Period:               day,
+					GrossReq:             grossQty,
+					ScheduledRcpt:        scheduledQty,
+					OnHand:               projected,
+					NetReq:               net,
+					PlannedReceipt:       plannedReceipt,
+					PlannedOrder:         plannedReceipt,
+					PlannedReleaseDate:   releaseDate,
+					PlanningLeadTimeDays: planningLeadTimeDays,
+					LeadTimeSource:       leadTimeSource,
+					LotMethod:            string(method),
+					EOQ:                  eoq,
+					Pegging:              pegs,
 				})
 
 				// -----------------------------------------------------------------

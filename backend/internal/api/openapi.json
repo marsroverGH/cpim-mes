@@ -78,6 +78,10 @@
     {
       "name": "Pegging",
       "description": "Full supply/demand pegging and planning exception management"
+    },
+    {
+      "name": "Supplier Scheduling",
+      "description": "Supplier confirmations, ASN scheduling and lead-time reliability"
     }
   ],
   "components": {
@@ -299,6 +303,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "planningLeadTimeDays": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leadTimeSource": {
+            "type": "string",
+            "enum": [
+              "ITEM_MASTER",
+              "SUPPLIER_RELIABILITY"
+            ]
           }
         }
       },
@@ -2010,6 +2025,173 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PlanningException"
+            }
+          }
+        }
+      },
+      "SupplierScheduleEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purchaseOrderId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionNo": {
+            "type": "integer"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "CONFIRM",
+              "REVISE",
+              "ASN",
+              "CANCEL"
+            ]
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "confirmedDeliveryDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "asnNo": {
+            "type": "string"
+          },
+          "expectedArrivalDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "supplierReference": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "actorUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actorUsername": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SupplierLeadTimeRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "windowStart": {
+            "type": "string",
+            "format": "date"
+          },
+          "windowEnd": {
+            "type": "string",
+            "format": "date"
+          },
+          "minSamples": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "COMPLETE",
+              "FAILED"
+            ]
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "generatedBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SupplierLeadTimeResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "supplierName": {
+            "type": "string"
+          },
+          "itemId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemCode": {
+            "type": "string"
+          },
+          "sampleCount": {
+            "type": "integer"
+          },
+          "averageLeadDays": {
+            "type": "number"
+          },
+          "stddevLeadDays": {
+            "type": "number"
+          },
+          "p50LeadDays": {
+            "type": "number"
+          },
+          "p90LeadDays": {
+            "type": "number"
+          },
+          "onTimeRate": {
+            "type": "number"
+          },
+          "averageLatenessDays": {
+            "type": "number"
+          },
+          "recommendedLeadDays": {
+            "type": "integer"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          }
+        }
+      },
+      "SupplierLeadTimeRunResult": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/SupplierLeadTimeRun"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupplierLeadTimeResult"
             }
           }
         }
@@ -4462,6 +4644,269 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PlanningExceptionAction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/purchase-orders/{id}/supplier-schedule": {
+      "get": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "List immutable supplier schedule events for a PO",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Supplier schedule history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierScheduleEvent"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/purchase-orders/{id}/supplier-schedule/events": {
+      "post": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "Append supplier confirmation, revision, ASN or cancellation",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "eventId",
+                  "eventType"
+                ],
+                "properties": {
+                  "eventType": {
+                    "type": "string",
+                    "enum": [
+                      "CONFIRM",
+                      "REVISE",
+                      "ASN",
+                      "CANCEL"
+                    ]
+                  },
+                  "quantity": {
+                    "type": "number"
+                  },
+                  "confirmedDeliveryDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "asnNo": {
+                    "type": "string"
+                  },
+                  "expectedArrivalDate": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "supplierReference": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "eventId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Idempotency key for append-only supplier schedule event"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Appended event",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierScheduleEvent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/supplier-scheduling/reliability": {
+      "get": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "Get current supplier lead-time reliability profiles",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current reliability profiles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierLeadTimeResult"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/supplier-scheduling/reliability/refresh": {
+      "post": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "Create an immutable supplier lead-time reliability snapshot",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "windowDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3650
+                  },
+                  "minSamples": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Reliability run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierLeadTimeRunResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/supplier-scheduling/reliability-runs": {
+      "get": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "List supplier reliability runs",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reliability runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SupplierLeadTimeRun"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/supplier-scheduling/reliability-runs/{id}": {
+      "get": {
+        "tags": [
+          "Supplier Scheduling"
+        ],
+        "summary": "Get supplier reliability run and results",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reliability run detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierLeadTimeRunResult"
                 }
               }
             }

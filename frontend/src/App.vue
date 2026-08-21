@@ -84,6 +84,7 @@ const links = [
   { to: '/shop-floor',      title: 'Shop Floor',     icon: 'mdi-account-hard-hat' },
   { to: '/gantt',           title: 'ガントチャート',  icon: 'mdi-chart-gantt' },
   { to: '/purchase-orders', title: '購買発注',        icon: 'mdi-cart' },
+  { to: '/supplier-scheduling', title: 'Supplier Scheduling', icon: 'mdi-truck-fast' },
   { to: '/supplier-quality', title: 'Supplier Quality / NCR', icon: 'mdi-shield-check' },
   { to: '/audit-log',       title: '監査ログ',        icon: 'mdi-history' },
   { to: '/eco',             title: 'ECO (BOM変更)',   icon: 'mdi-file-document-edit' },

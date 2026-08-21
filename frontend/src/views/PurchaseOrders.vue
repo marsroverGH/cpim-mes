@@ -14,6 +14,10 @@
       <template #item.itemCode="{ item }">{{ codeMap[item.itemId] || item.itemId }}</template>
       <template #item.orderDate="{ item }">{{ fmt(item.orderDate) }}</template>
       <template #item.dueDate="{ item }">{{ fmt(item.dueDate) }}</template>
+      <template #item.expectedDeliveryDate="{ item }">{{ fmt(item.expectedDeliveryDate || item.dueDate) }}</template>
+      <template #item.scheduleStatus="{ item }">
+        <v-chip size="small" :color="scheduleColor(item.scheduleStatus)">{{ item.scheduleStatus || 'UNCONFIRMED' }}</v-chip>
+      </template>
       <template #item.receivedQty="{ item }">{{ n(item.receivedQty) }}</template>
       <template #item.remainingQty="{ item }">{{ n(remaining(item)) }}</template>
       <template #item.supplierQualityStatus="{ item }">
@@ -30,6 +34,9 @@
                  size="small" variant="tonal" color="primary" prepend-icon="mdi-truck-delivery"
                  :disabled="item.supplierQualityStatus === 'BLOCKED'"
                  @click="openReceive(item)">入荷</v-btn>
+          <v-btn v-if="item.status === 'OPEN' || item.status === 'PARTIALLY_RECEIVED'"
+                 size="small" variant="text" prepend-icon="mdi-calendar-check"
+                 @click="openSchedule(item)">Schedule</v-btn>
           <v-btn v-if="n(item.receivedQty) > 0"
                  size="small" variant="text" prepend-icon="mdi-history"
                  @click="openHistory(item)">履歴</v-btn>
@@ -108,6 +115,55 @@
     </v-card>
   </v-dialog>
 
+  <!-- Supplier schedule / confirmation -->
+  <v-dialog v-model="scheduleDialog" max-width="980">
+    <v-card :title="`Supplier Schedule${schedulePO ? ' — ' + schedulePO.poNo : ''}`">
+      <v-card-text v-if="schedulePO">
+        <v-alert type="info" variant="tonal" density="compact" class="mb-3">
+          Planning date precedence: ASN → Supplier Confirmation → Lead-Time Reliability → PO Due Date。0035ではSchedule数量は現在のPO残数量全体を表します。
+        </v-alert>
+        <div class="d-flex flex-wrap ga-2 mb-4">
+          <v-chip>PO Due: {{ fmt(schedulePO.dueDate) }}</v-chip>
+          <v-chip color="primary">Expected: {{ fmt(schedulePO.expectedDeliveryDate || schedulePO.dueDate) }}</v-chip>
+          <v-chip :color="scheduleColor(schedulePO.scheduleStatus)">{{ schedulePO.scheduleSource || 'PO_DUE_DATE' }}</v-chip>
+          <v-chip v-if="schedulePO.reliabilitySampleCount">Reliability n={{ schedulePO.reliabilitySampleCount }} / P90 {{ n(schedulePO.reliabilityP90Days) }}d</v-chip>
+        </div>
+        <v-row>
+          <v-col cols="12" md="3">
+            <v-select v-model="scheduleForm.eventType" :items="['CONFIRM','REVISE','ASN','CANCEL']" label="Event" />
+          </v-col>
+          <v-col cols="12" md="3" v-if="scheduleForm.eventType !== 'CANCEL'">
+            <v-text-field v-model.number="scheduleForm.quantity" type="number" min="0.000001" label="Quantity" />
+          </v-col>
+          <v-col cols="12" md="3" v-if="scheduleForm.eventType === 'CONFIRM' || scheduleForm.eventType === 'REVISE'">
+            <v-text-field v-model="scheduleForm.confirmedDeliveryDate" type="date" label="Confirmed delivery" />
+          </v-col>
+          <v-col cols="12" md="3" v-if="scheduleForm.eventType === 'ASN'">
+            <v-text-field v-model="scheduleForm.asnNo" label="ASN No." />
+          </v-col>
+          <v-col cols="12" md="3" v-if="scheduleForm.eventType === 'ASN'">
+            <v-text-field v-model="scheduleForm.expectedArrivalDate" type="date" label="Expected arrival" />
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-text-field v-model="scheduleForm.supplierReference" label="Supplier reference" />
+          </v-col>
+          <v-col cols="12" md="8">
+            <v-text-field v-model="scheduleForm.notes" label="Notes" />
+          </v-col>
+        </v-row>
+        <div class="d-flex justify-end mb-4">
+          <v-btn color="primary" :loading="busy" @click="saveScheduleEvent">Append event</v-btn>
+        </div>
+        <v-data-table :items="scheduleHistory" :headers="scheduleHeaders" density="compact">
+          <template #item.occurredAt="{ item }">{{ fmtDateTime(item.occurredAt) }}</template>
+          <template #item.confirmedDeliveryDate="{ item }">{{ fmt(item.confirmedDeliveryDate) }}</template>
+          <template #item.expectedArrivalDate="{ item }">{{ fmt(item.expectedArrivalDate) }}</template>
+        </v-data-table>
+      </v-card-text>
+      <v-card-actions><v-spacer /><v-btn @click="scheduleDialog=false">閉じる</v-btn></v-card-actions>
+    </v-card>
+  </v-dialog>
+
   <!-- Result dialog -->
   <v-dialog v-model="resultDialog" max-width="680">
     <v-card title="処理結果">
@@ -126,7 +182,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ItemsApi, PurchaseOrdersApi, WorkflowApi,
-         type Item, type PurchaseOrder, type PurchaseReceipt } from '@/api'
+         type Item, type PurchaseOrder, type PurchaseReceipt, type SupplierScheduleEvent } from '@/api'
 
 const items = ref<Item[]>([])
 const pos = ref<PurchaseOrder[]>([])
@@ -148,6 +204,13 @@ const resultText = ref('')
 const historyDialog = ref(false)
 const historyPO = ref<PurchaseOrder | null>(null)
 const receiptHistory = ref<PurchaseReceipt[]>([])
+const scheduleDialog = ref(false)
+const schedulePO = ref<PurchaseOrder | null>(null)
+const scheduleHistory = ref<SupplierScheduleEvent[]>([])
+const scheduleForm = ref({
+  eventType: 'CONFIRM' as SupplierScheduleEvent['eventType'], quantity: 0,
+  confirmedDeliveryDate: '', asnNo: '', expectedArrivalDate: '', supplierReference: '', notes: ''
+})
 
 const codeMap = computed(() => {
   const m: Record<string, string> = {}
@@ -167,9 +230,21 @@ const headers = [
   { title: '入荷済',     key: 'receivedQty', align: 'end' as const },
   { title: '残数量',     key: 'remainingQty', align: 'end' as const },
   { title: '発注日',     key: 'orderDate' },
-  { title: '納期',       key: 'dueDate' },
+  { title: 'PO納期',     key: 'dueDate' },
+  { title: '予定入荷',   key: 'expectedDeliveryDate' },
+  { title: 'Schedule',   key: 'scheduleStatus' },
   { title: 'ステータス', key: 'status' },
   { title: '',           key: 'actions', sortable: false, align: 'end' as const }
+]
+const scheduleHeaders = [
+  { title: 'Rev', key: 'revisionNo' },
+  { title: 'Event', key: 'eventType' },
+  { title: '数量', key: 'quantity' },
+  { title: 'Confirmed', key: 'confirmedDeliveryDate' },
+  { title: 'ASN', key: 'asnNo' },
+  { title: 'Expected arrival', key: 'expectedArrivalDate' },
+  { title: 'Actor', key: 'actorUsername' },
+  { title: '時刻', key: 'occurredAt' }
 ]
 const historyHeaders = [
   { title: '入荷日時', key: 'receivedAt' },
@@ -246,6 +321,51 @@ async function doReceive() {
   } finally {
     busy.value = false
   }
+}
+
+
+async function openSchedule(p: PurchaseOrder) {
+  if (!p.id) return
+  schedulePO.value = p
+  scheduleHistory.value = await PurchaseOrdersApi.supplierSchedule(p.id)
+  scheduleForm.value = {
+    eventType: p.scheduleStatus === 'UNCONFIRMED' ? 'CONFIRM' : 'REVISE',
+    quantity: remaining(p),
+    confirmedDeliveryDate: p.confirmedDeliveryDate?.slice(0, 10) || p.dueDate?.slice(0, 10) || '',
+    asnNo: '', expectedArrivalDate: p.asnExpectedArrivalDate?.slice(0, 10) || '', supplierReference: '', notes: ''
+  }
+  scheduleDialog.value = true
+}
+
+async function saveScheduleEvent() {
+  if (!schedulePO.value?.id) return
+  busy.value = true
+  try {
+    const f = scheduleForm.value
+    await PurchaseOrdersApi.addSupplierScheduleEvent(schedulePO.value.id, {
+      eventType: f.eventType,
+      quantity: f.eventType === 'CANCEL' ? undefined : Number(f.quantity),
+      confirmedDeliveryDate: ['CONFIRM','REVISE'].includes(f.eventType) ? f.confirmedDeliveryDate : undefined,
+      asnNo: f.eventType === 'ASN' ? f.asnNo : undefined,
+      expectedArrivalDate: f.eventType === 'ASN' ? f.expectedArrivalDate : undefined,
+      supplierReference: f.supplierReference,
+      notes: f.notes
+    })
+    scheduleHistory.value = await PurchaseOrdersApi.supplierSchedule(schedulePO.value.id)
+    await load()
+    schedulePO.value = pos.value.find(x => x.id === schedulePO.value?.id) || schedulePO.value
+  } catch (e: any) {
+    resultText.value = '❌ Supplier Schedule更新失敗:\n' + (e?.response?.data?.message || e?.response?.data?.error || e?.message || String(e))
+    resultDialog.value = true
+  } finally {
+    busy.value = false
+  }
+}
+
+function scheduleColor(s?: PurchaseOrder['scheduleStatus']) {
+  if (s === 'ASN') return 'success'
+  if (s === 'CONFIRMED') return 'primary'
+  return 'warning'
 }
 
 async function openHistory(p: PurchaseOrder) {

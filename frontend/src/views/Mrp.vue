@@ -60,6 +60,8 @@ const headers = [
   { title: '方式',         key: 'lotMethod' },
   { title: '計画入荷',     key: 'plannedOrderReceipt',    align: 'end' as const },
   { title: '計画発行日',   key: 'plannedOrderReleaseDate' },
+  { title: 'LT(日)',        key: 'planningLeadTimeDays', align: 'end' as const },
+  { title: 'LT根拠',        key: 'leadTimeSource' },
   { title: '計画発行数量', key: 'plannedOrderRelease',    align: 'end' as const },
   { title: '起源 (Pegging)', key: 'pegging',         sortable: false }
 ]

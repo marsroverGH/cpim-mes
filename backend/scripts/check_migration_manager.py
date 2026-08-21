@@ -10,7 +10,7 @@ embed = (root/'backend/migrations/embed.go').read_text()
 files = sorted((root/'backend/migrations').glob('[0-9][0-9][0-9][0-9]_*.sql'))
 
 checks = {
-    '34 ordered SQL migrations exist': len(files) == 34 and [p.name[:4] for p in files] == [f'{i:04d}' for i in range(1,35)],
+    '35 ordered SQL migrations exist': len(files) == 35 and [p.name[:4] for p in files] == [f'{i:04d}' for i in range(1,36)],
     'migrations embedded in backend binary': '//go:embed *.sql' in embed,
     'startup runs migrator before repository construction': main.find('.Migrate(') >= 0 and main.find('.Migrate(') < main.find('repository.NewRepositories'),
     'startup failure is fatal': 'database migration failed; backend will not start' in main,

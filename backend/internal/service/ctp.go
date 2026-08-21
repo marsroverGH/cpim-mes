@@ -141,7 +141,7 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 		if remaining <= 1e-9 {
 			continue
 		}
-		d := TruncateDay(p.DueDate)
+		d := PurchasePlanningDate(p)
 		if d.Before(start) {
 			d = start
 		}
@@ -182,7 +182,14 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 			break
 		}
 	}
-	hypoReady := start.AddDate(0, 0, it.LeadTimeDays)
+	leadTimeDays := it.LeadTimeDays
+	if it.Type == domain.ItemTypeRawMaterial || it.Type == domain.ItemTypePurchasedPart {
+		leadTimeDays, err = e.repos.Purchases.EffectiveLeadTimeDays(ctx, it.ID, it.LeadTimeDays)
+		if err != nil {
+			return time.Time{}, false, nil, err
+		}
+	}
+	hypoReady := start.AddDate(0, 0, leadTimeDays)
 	// planned is the MRP lot-sized replenishment. It is intentionally not persisted.
 	_ = planned
 	candidate := hypoReady
@@ -193,5 +200,5 @@ FROM inventory_txns WHERE item_id=$1`, it.ID); err != nil {
 	if shortage < 0 {
 		shortage = 0
 	}
-	return candidate, true, map[string]any{"itemCode": it.Code, "required": required, "free": free, "shortage": shortage, "leadTimeDays": it.LeadTimeDays, "readyDate": candidate.Format("2006-01-02")}, nil
+	return candidate, true, map[string]any{"itemCode": it.Code, "required": required, "free": free, "shortage": shortage, "leadTimeDays": leadTimeDays, "nominalLeadTimeDays": it.LeadTimeDays, "readyDate": candidate.Format("2006-01-02")}, nil
 }

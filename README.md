@@ -330,3 +330,7 @@ Backorder Processing re-evaluates committed Sales Orders after supply/capacity c
 ## Full Pegging / Exception Management (0034)
 
 Sales Orders can now be traced through Promise/BOP decisions, usable inventory, Work Orders, frozen/live BOM requirements, Purchase Orders, supplier and quality constraints, and Detailed Scheduling / Work Center capacity evidence. Pegging snapshots and detected root causes are immutable; Planner/Admin exception actions are append-only. See `docs/FULL_PEGGING_EXCEPTION_MANAGEMENT.md`.
+
+## v0.35.0 — Supplier Scheduling + Lead-Time Reliability (migration 0035)
+
+Supplier commitments and ASN are now append-only scheduling evidence. Historical completed PO receipts generate supplier/item lead-time reliability (P50/P90, variability, on-time rate and conservative recommended lead time). MRP, CTP and Full Pegging share one canonical Purchase Order planning date with provenance: ASN → supplier confirmation → reliability adjustment → original PO due date. See `docs/SUPPLIER_SCHEDULING_LEAD_TIME_RELIABILITY.md`.

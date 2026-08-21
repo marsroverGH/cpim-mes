@@ -88,6 +88,12 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/purchase-orders", srv.listPurchases)
 			secured.Get("/purchase-orders/{id}/receipts", srv.listPurchaseReceipts)
 			secured.With(requirePermission(PermPOPlan)).Post("/purchase-orders", srv.createPurchase)
+			secured.Get("/purchase-orders/{id}/supplier-schedule", srv.listSupplierScheduleEvents)
+			secured.With(requirePermission(PermSupplierScheduleManage)).Post("/purchase-orders/{id}/supplier-schedule/events", srv.recordSupplierScheduleEvent)
+			secured.Get("/supplier-scheduling/reliability", srv.listSupplierReliability)
+			secured.Get("/supplier-scheduling/reliability-runs", srv.listSupplierReliabilityRuns)
+			secured.Get("/supplier-scheduling/reliability-runs/{id}", srv.getSupplierReliabilityRun)
+			secured.With(requirePermission(PermSupplierReliabilityRun)).Post("/supplier-scheduling/reliability/refresh", srv.refreshSupplierReliability)
 
 			// Customers / Sales Orders
 			secured.Get("/customers", srv.listCustomers)
