@@ -3696,6 +3696,630 @@
             }
           }
         }
+      },
+      "RecoveryScenario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SIMULATED",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "baselineAsOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdByUsername": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryScenarioCreateInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryScenarioUpdateInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryScenarioAction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequenceNo": {
+            "type": "integer"
+          },
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "EXPEDITE_PO",
+              "ALTERNATE_WORK_CENTER",
+              "ADD_OVERTIME_CAPACITY",
+              "RESCHEDULE_WO",
+              "RELEASE_WO"
+            ]
+          },
+          "targetType": {
+            "type": "string",
+            "enum": [
+              "PURCHASE_ORDER",
+              "WORK_ORDER",
+              "WORK_ORDER_OPERATION",
+              "WORK_CENTER"
+            ]
+          },
+          "targetRef": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "note": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryScenarioActionInput": {
+        "type": "object",
+        "required": [
+          "actionType",
+          "targetType",
+          "targetRef"
+        ],
+        "properties": {
+          "sequenceNo": {
+            "type": "integer"
+          },
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "EXPEDITE_PO",
+              "ALTERNATE_WORK_CENTER",
+              "ADD_OVERTIME_CAPACITY",
+              "RESCHEDULE_WO",
+              "RELEASE_WO"
+            ]
+          },
+          "targetType": {
+            "type": "string"
+          },
+          "targetRef": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoverySimulationRequest": {
+        "type": "object",
+        "properties": {
+          "horizonDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 730,
+            "default": 90
+          }
+        }
+      },
+      "RecoveryScenarioRun": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "RUNNING",
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          },
+          "baselineAsOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "baselineHash": {
+            "type": "string"
+          },
+          "requestHash": {
+            "type": "string"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "createdByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdByUsername": {
+            "type": "string"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failureReason": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryScenarioSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baselineOpenCases": {
+            "type": "integer"
+          },
+          "simulatedOpenCases": {
+            "type": "integer"
+          },
+          "baselineP1Cases": {
+            "type": "integer"
+          },
+          "simulatedP1Cases": {
+            "type": "integer"
+          },
+          "baselineP2Cases": {
+            "type": "integer"
+          },
+          "simulatedP2Cases": {
+            "type": "integer"
+          },
+          "baselineRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "simulatedRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "baselineImpactDays": {
+            "type": "integer"
+          },
+          "simulatedImpactDays": {
+            "type": "integer"
+          },
+          "recoveredRevenue": {
+            "type": "number",
+            "format": "double"
+          },
+          "p1Reduction": {
+            "type": "integer"
+          },
+          "openCaseReduction": {
+            "type": "integer"
+          },
+          "impactDaysRecovered": {
+            "type": "integer"
+          },
+          "estimatedActionCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "netValue": {
+            "type": "number",
+            "format": "double"
+          },
+          "recoveryScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryScenarioCaseResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baselinePriorityBand": {
+            "type": "string"
+          },
+          "baselinePriorityScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "baselineRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "baselineImpactDays": {
+            "type": "integer"
+          },
+          "simulatedResolved": {
+            "type": "boolean"
+          },
+          "simulatedPriorityBand": {
+            "type": "string"
+          },
+          "simulatedPriorityScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "simulatedRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "simulatedImpactDays": {
+            "type": "integer"
+          },
+          "recoveryDays": {
+            "type": "integer"
+          },
+          "revenueRecovered": {
+            "type": "number",
+            "format": "double"
+          },
+          "matchedActionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "explanation": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryScenarioActionResult": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "actionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "affectedCases": {
+            "type": "integer"
+          },
+          "impactDaysRecovered": {
+            "type": "integer"
+          },
+          "revenueRecovered": {
+            "type": "number",
+            "format": "double"
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoverySimulationExecution": {
+        "type": "object",
+        "properties": {
+          "run": {
+            "$ref": "#/components/schemas/RecoveryScenarioRun"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/RecoveryScenarioSummary"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecoveryScenarioCaseResult"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecoveryScenarioActionResult"
+            }
+          },
+          "reused": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecoveryScenarioComparison": {
+        "type": "object",
+        "properties": {
+          "scenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "scenarioBaselineAsOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "baselineAsOf": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "horizonDays": {
+            "type": "integer"
+          },
+          "baselineHash": {
+            "type": "string"
+          },
+          "requestHash": {
+            "type": "string"
+          },
+          "resultHash": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "baselineOpenCases": {
+            "type": "integer"
+          },
+          "simulatedOpenCases": {
+            "type": "integer"
+          },
+          "baselineP1Cases": {
+            "type": "integer"
+          },
+          "simulatedP1Cases": {
+            "type": "integer"
+          },
+          "baselineP2Cases": {
+            "type": "integer"
+          },
+          "simulatedP2Cases": {
+            "type": "integer"
+          },
+          "baselineRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "simulatedRevenueAtRisk": {
+            "type": "number",
+            "format": "double"
+          },
+          "baselineImpactDays": {
+            "type": "integer"
+          },
+          "simulatedImpactDays": {
+            "type": "integer"
+          },
+          "recoveredRevenue": {
+            "type": "number",
+            "format": "double"
+          },
+          "p1Reduction": {
+            "type": "integer"
+          },
+          "openCaseReduction": {
+            "type": "integer"
+          },
+          "impactDaysRecovered": {
+            "type": "integer"
+          },
+          "estimatedActionCost": {
+            "type": "number",
+            "format": "double"
+          },
+          "netValue": {
+            "type": "number",
+            "format": "double"
+          },
+          "recoveryScore": {
+            "type": "number",
+            "format": "double"
+          },
+          "isPublished": {
+            "type": "boolean"
+          },
+          "publicationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comparisonRank": {
+            "type": "integer"
+          }
+        }
+      },
+      "RecoveryScenarioPublishInput": {
+        "type": "object",
+        "required": [
+          "runId"
+        ],
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "comment": {
+            "type": "string"
+          }
+        }
+      },
+      "RecoveryScenarioPublication": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scenarioId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publicationHash": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "publishedByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "publishedByUsername": {
+            "type": "string"
+          },
+          "publishedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     }
   },
@@ -7910,6 +8534,499 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ControlTowerCaseAction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios": {
+      "get": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "List recovery scenarios",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery scenarios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecoveryScenario"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Create recovery scenario",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryScenarioCreateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recovery scenario created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenario"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}": {
+      "get": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Get recovery scenario",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery scenario",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenario"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Update DRAFT recovery scenario",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryScenarioUpdateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recovery scenario updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenario"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/archive": {
+      "post": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Archive recovery scenario",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery scenario archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenario"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/actions": {
+      "get": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "List scenario actions",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery scenario actions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecoveryScenarioAction"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Add DRAFT recovery action",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryScenarioActionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recovery scenario action created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenarioAction"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/actions/{actionId}": {
+      "put": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Update DRAFT recovery action",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryScenarioActionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recovery scenario action updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenarioAction"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Delete DRAFT recovery action",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "actionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Recovery scenario action deleted"
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/simulate": {
+      "post": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Run side-effect-free recovery What-if simulation",
+        "description": "Evaluates hypothetical recovery actions without directly mutating Purchase Orders, Work Orders, Work Centers, Sales Orders or inventory operational state.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoverySimulationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recovery simulation completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoverySimulationExecution"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenario-comparison": {
+      "get": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Compare successful recovery simulations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "baselineHash",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked recovery scenarios",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RecoveryScenarioComparison"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/publish": {
+      "post": {
+        "tags": [
+          "Recovery Planning"
+        ],
+        "summary": "Publish approved recovery plan evidence",
+        "description": "Publishes approval evidence for a successful recovery scenario. Publication does not execute or directly mutate the hypothetical operational actions.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryScenarioPublishInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recovery scenario published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryScenarioPublication"
                 }
               }
             }

@@ -150,6 +150,18 @@ func NewRouter(s *service.Services) http.Handler {
 			secured.Get("/control-tower/cases/{id}/recommendations", srv.controlTowerRecommendations)
 			secured.Get("/control-tower/cases/{id}/actions", srv.controlTowerCaseActions)
 			secured.With(requirePermission(PermControlTowerManage)).Post("/control-tower/cases/{id}/actions", srv.actOnControlTowerCase)
+			secured.Get("/recovery-scenarios", srv.listRecoveryScenarios)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Post("/recovery-scenarios", srv.createRecoveryScenario)
+			secured.Get("/recovery-scenarios/{id}", srv.getRecoveryScenario)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Put("/recovery-scenarios/{id}", srv.updateRecoveryScenario)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Post("/recovery-scenarios/{id}/archive", srv.archiveRecoveryScenario)
+			secured.Get("/recovery-scenarios/{id}/actions", srv.listRecoveryScenarioActions)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Post("/recovery-scenarios/{id}/actions", srv.addRecoveryScenarioAction)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Put("/recovery-scenarios/{id}/actions/{actionId}", srv.updateRecoveryScenarioAction)
+			secured.With(requirePermission(PermRecoveryScenarioManage)).Delete("/recovery-scenarios/{id}/actions/{actionId}", srv.deleteRecoveryScenarioAction)
+			secured.With(requirePermission(PermRecoverySimulationRun)).Post("/recovery-scenarios/{id}/simulate", srv.simulateRecoveryScenario)
+			secured.Get("/recovery-scenario-comparison", srv.compareRecoveryScenarios)
+			secured.With(requirePermission(PermRecoveryPublish)).Post("/recovery-scenarios/{id}/publish", srv.publishRecoveryScenario)
 
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 

@@ -109,7 +109,7 @@ checks={
  'E2E verifies Pegging feedback root cause': allin(e2e,"nodeType === 'CAPACITY_FEEDBACK'","OEE_CAPACITY_RISK"),
  'migration manager fingerprints 0038': allin(manager,'{38,','production_performance_runs','capacity_feedback_versions','detailed_schedule_capacity_feedback_snapshots'),
  'migration manager includes 0038 under current migration set': allin(manager,'{38,','production_performance_runs','capacity_feedback_versions'),
- 'migration guard advances beyond 0038 without losing it': allin(manager_guard,"'40 ordered SQL migrations exist'",'range(1,41)'),
+ 'migration guard advances beyond 0038 without losing it': allin(manager_guard,"'41 ordered SQL migrations exist'",'range(1,42)'),
  'CI runs 0038 guard': 'check_production_performance.py' in ci,
 }
 failed=[]

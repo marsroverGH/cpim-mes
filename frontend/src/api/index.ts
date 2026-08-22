@@ -2011,3 +2011,336 @@ export const ControlTowerApi = {
       body
     ).then(r => r.data)
 }
+
+// ------- 0041 Scenario-Based Recovery Planning / What-if Simulation -------
+
+export type RecoveryScenarioStatus =
+  | 'DRAFT'
+  | 'SIMULATED'
+  | 'PUBLISHED'
+  | 'ARCHIVED'
+
+export type RecoveryActionType =
+  | 'EXPEDITE_PO'
+  | 'ALTERNATE_WORK_CENTER'
+  | 'ADD_OVERTIME_CAPACITY'
+  | 'RESCHEDULE_WO'
+  | 'RELEASE_WO'
+
+export type RecoveryTargetType =
+  | 'PURCHASE_ORDER'
+  | 'WORK_ORDER'
+  | 'WORK_ORDER_OPERATION'
+  | 'WORK_CENTER'
+
+export interface RecoveryScenario {
+  id: string
+  scenarioNo: string
+  name: string
+  description: string
+  status: RecoveryScenarioStatus
+  baselineAsOf: string
+  createdByUserId?: string
+  createdByUsername: string
+  createdAt: string
+  updatedAt: string
+  publishedAt?: string | null
+}
+
+export interface RecoveryScenarioAction {
+  id: string
+  scenarioId: string
+  sequenceNo: number
+  actionType: RecoveryActionType
+  targetType: RecoveryTargetType
+  targetRef: string
+  parameters: Record<string, unknown>
+  estimatedCost: number
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RecoveryScenarioRun {
+  id: string
+  scenarioId: string
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  baselineAsOf: string
+  horizonDays: number
+  baselineHash: string
+  requestHash: string
+  resultHash?: string | null
+  createdByUserId?: string
+  createdByUsername: string
+  startedAt: string
+  completedAt?: string | null
+  failureReason?: string
+}
+
+export interface RecoveryScenarioSummary {
+  id: string
+  runId: string
+
+  baselineOpenCases: number
+  simulatedOpenCases: number
+
+  baselineP1Cases: number
+  simulatedP1Cases: number
+
+  baselineP2Cases: number
+  simulatedP2Cases: number
+
+  baselineRevenueAtRisk: number
+  simulatedRevenueAtRisk: number
+
+  baselineImpactDays: number
+  simulatedImpactDays: number
+
+  recoveredRevenue: number
+  p1Reduction: number
+  openCaseReduction: number
+  impactDaysRecovered: number
+
+  estimatedActionCost: number
+  netValue: number
+  recoveryScore: number
+
+  resultHash: string
+  createdAt: string
+}
+
+export interface RecoveryScenarioCaseResult {
+  id: string
+  runId: string
+  caseId: string
+
+  baselinePriorityBand: string
+  baselinePriorityScore: number
+  baselineRevenueAtRisk: number
+  baselineImpactDays: number
+
+  simulatedResolved: boolean
+  simulatedPriorityBand: string
+  simulatedPriorityScore: number
+  simulatedRevenueAtRisk: number
+  simulatedImpactDays: number
+
+  recoveryDays: number
+  revenueRecovered: number
+
+  matchedActionIds: string[]
+  explanation: Record<string, unknown>
+
+  resultHash: string
+  createdAt: string
+}
+
+export interface RecoveryScenarioActionResult {
+  id: string
+  runId: string
+  actionId: string
+
+  affectedCases: number
+  impactDaysRecovered: number
+  revenueRecovered: number
+  estimatedCost: number
+
+  evidence: Record<string, unknown>
+
+  resultHash: string
+  createdAt: string
+}
+
+export interface RecoverySimulationExecution {
+  run: RecoveryScenarioRun
+  summary: RecoveryScenarioSummary
+  cases: RecoveryScenarioCaseResult[]
+  actions: RecoveryScenarioActionResult[]
+  reused: boolean
+}
+
+export interface RecoveryScenarioComparison {
+  scenarioId: string
+  scenarioNo: string
+  name: string
+  description: string
+
+  // Keep both names temporarily so the UI tolerates either
+  // projection name during 0041 integration.
+  status?: RecoveryScenarioStatus
+  scenarioStatus?: RecoveryScenarioStatus
+
+  scenarioBaselineAsOf: string
+
+  runId: string
+  baselineAsOf: string
+  horizonDays: number
+
+  baselineHash: string
+  requestHash: string
+  resultHash: string
+  completedAt: string
+
+  baselineOpenCases: number
+  simulatedOpenCases: number
+
+  baselineP1Cases: number
+  simulatedP1Cases: number
+
+  baselineP2Cases: number
+  simulatedP2Cases: number
+
+  baselineRevenueAtRisk: number
+  simulatedRevenueAtRisk: number
+
+  baselineImpactDays: number
+  simulatedImpactDays: number
+
+  recoveredRevenue: number
+  p1Reduction: number
+  openCaseReduction: number
+  impactDaysRecovered: number
+
+  estimatedActionCost: number
+  netValue: number
+  recoveryScore: number
+
+  isPublished: boolean
+  publicationId?: string | null
+  comparisonRank: number
+}
+
+export interface RecoveryScenarioPublication {
+  id: string
+  scenarioId: string
+  runId: string
+  publicationHash: string
+  comment: string
+  publishedByUserId?: string
+  publishedByUsername: string
+  publishedAt: string
+}
+
+export const RecoveryPlanningApi = {
+  scenarios: (status?: RecoveryScenarioStatus | '') =>
+    http.get<RecoveryScenario[]>(
+      '/recovery-scenarios',
+      {
+        params: status ? { status } : {}
+      }
+    ).then(r => r.data),
+
+  createScenario: (
+    body: {
+      name: string
+      description?: string
+    }
+  ) =>
+    http.post<RecoveryScenario>(
+      '/recovery-scenarios',
+      body
+    ).then(r => r.data),
+
+  scenario: (id: string) =>
+    http.get<RecoveryScenario>(
+      `/recovery-scenarios/${id}`
+    ).then(r => r.data),
+
+  updateScenario: (
+    id: string,
+    body: {
+      name: string
+      description?: string
+    }
+  ) =>
+    http.put<RecoveryScenario>(
+      `/recovery-scenarios/${id}`,
+      body
+    ).then(r => r.data),
+
+  archiveScenario: (id: string) =>
+    http.post<RecoveryScenario>(
+      `/recovery-scenarios/${id}/archive`,
+      {}
+    ).then(r => r.data),
+
+  actions: (id: string) =>
+    http.get<RecoveryScenarioAction[]>(
+      `/recovery-scenarios/${id}/actions`
+    ).then(r => r.data),
+
+  addAction: (
+    scenarioId: string,
+    body: {
+      sequenceNo?: number
+      actionType: RecoveryActionType
+      targetType: RecoveryTargetType
+      targetRef: string
+      parameters: Record<string, unknown>
+      estimatedCost: number
+      note?: string
+    }
+  ) =>
+    http.post<RecoveryScenarioAction>(
+      `/recovery-scenarios/${scenarioId}/actions`,
+      body
+    ).then(r => r.data),
+
+  updateAction: (
+    scenarioId: string,
+    actionId: string,
+    body: {
+      sequenceNo?: number
+      actionType: RecoveryActionType
+      targetType: RecoveryTargetType
+      targetRef: string
+      parameters: Record<string, unknown>
+      estimatedCost: number
+      note?: string
+    }
+  ) =>
+    http.put<RecoveryScenarioAction>(
+      `/recovery-scenarios/${scenarioId}/actions/${actionId}`,
+      body
+    ).then(r => r.data),
+
+  deleteAction: (
+    scenarioId: string,
+    actionId: string
+  ) =>
+    http.delete(
+      `/recovery-scenarios/${scenarioId}/actions/${actionId}`
+    ).then(() => undefined),
+
+  simulate: (
+    scenarioId: string,
+    horizonDays = 90
+  ) =>
+    http.post<RecoverySimulationExecution>(
+      `/recovery-scenarios/${scenarioId}/simulate`,
+      { horizonDays }
+    ).then(r => r.data),
+
+  comparison: (baselineHash?: string) =>
+    http.get<RecoveryScenarioComparison[]>(
+      '/recovery-scenario-comparison',
+      {
+        params: baselineHash
+          ? { baselineHash }
+          : {}
+      }
+    ).then(r => r.data),
+
+  publish: (
+    scenarioId: string,
+    runId: string,
+    comment = ''
+  ) =>
+    http.post<RecoveryScenarioPublication>(
+      `/recovery-scenarios/${scenarioId}/publish`,
+      {
+        runId,
+        comment
+      }
+    ).then(r => r.data)
+}
