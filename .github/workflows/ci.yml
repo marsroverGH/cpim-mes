@@ -119,6 +119,7 @@ jobs:
           python3 backend/scripts/check_production_performance.py
           python3 backend/scripts/check_realtime_dispatch_rescheduling.py
           python3 backend/scripts/check_production_control_tower.py
+          python3 backend/scripts/check_recovery_planning.py
           python3 backend/scripts/check_migration_manager.py
           python3 scripts/check_ci_dependency_policy.py
 

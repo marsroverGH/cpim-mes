@@ -371,3 +371,27 @@ Key capabilities:
 Operations and implementation details:
 
 - `docs/0040-production-control-tower.md`
+
+## 0041 Scenario-Based Recovery Planning / What-if Simulation
+
+Production Control Towerの制約・例外に対して、実運用データを直接変更せず
+複数のRecovery ScenarioをWhat-if評価できるRecovery Planningを追加。
+
+主な機能:
+
+- EXPEDITE_PO / ALTERNATE_WORK_CENTER
+- ADD_OVERTIME_CAPACITY / RESCHEDULE_WO / RELEASE_WO
+- canonical baseline/request/result hash
+- retry-safe successful-run uniqueness
+- same-baseline Scenario Comparison
+- P1 Reduction / Revenue Recovered / Impact Days Recovered
+- Estimated Action Cost / Net Value / Recovery Score
+- immutable Recovery Plan publication
+- Vue/Vuetify UI
+- RBAC / OpenAPI / Static Guard / E2E
+
+SimulationおよびPublishはPO、WO、Work Center、Sales Order、
+Inventory等の実運用状態を直接変更しない。
+
+詳細:
+docs/0041-scenario-based-recovery-planning.md

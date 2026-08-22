@@ -197,18 +197,18 @@ checks = {
             "v_current_control_tower_cases",
         ),
 
-    "migration manager tests expect 40":
+    "migration manager tests expect 41":
         allin(
             manager_test,
-            "len(migs) != 40",
-            "expected 40 migrations",
+            "len(migs) != 41",
+            "expected 41 migrations",
         ),
 
-    "migration guard expects 40 ordered migrations":
+    "migration guard expects 41 ordered migrations":
         allin(
             manager_guard,
-            "40 ordered SQL migrations exist",
-            "range(1,41)",
+            "41 ordered SQL migrations exist",
+            "range(1,42)",
         ),
 
     # Domain

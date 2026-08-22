@@ -2214,3 +2214,171 @@ type ControlTowerDashboard struct {
 	Summary ControlTowerDashboardSummary `json:"summary"`
 	Cases   []ControlTowerCurrentCase    `json:"cases"`
 }
+
+// RecoveryScenario is a side-effect-free What-if recovery plan.
+// Once simulated, its definition becomes immutable.
+type RecoveryScenario struct {
+	ID                uuid.UUID  `db:"id"                  json:"id"`
+	ScenarioNo        string     `db:"scenario_no"         json:"scenarioNo"`
+	Name              string     `db:"name"                json:"name"`
+	Description       string     `db:"description"         json:"description"`
+	Status            string     `db:"status"              json:"status"`
+	BaselineAsOf      time.Time  `db:"baseline_as_of"      json:"baselineAsOf"`
+	CreatedByUserID   *uuid.UUID `db:"created_by_user_id"  json:"createdByUserId,omitempty"`
+	CreatedByUsername string     `db:"created_by_username" json:"createdByUsername"`
+	CreatedAt         time.Time  `db:"created_at"          json:"createdAt"`
+	UpdatedAt         time.Time  `db:"updated_at"          json:"updatedAt"`
+	PublishedAt       *time.Time `db:"published_at"        json:"publishedAt,omitempty"`
+}
+
+// RecoveryScenarioAction is one hypothetical recovery intervention.
+type RecoveryScenarioAction struct {
+	ID            uuid.UUID       `db:"id"             json:"id"`
+	ScenarioID    uuid.UUID       `db:"scenario_id"    json:"scenarioId"`
+	SequenceNo    int             `db:"sequence_no"    json:"sequenceNo"`
+	ActionType    string          `db:"action_type"    json:"actionType"`
+	TargetType    string          `db:"target_type"    json:"targetType"`
+	TargetRef     string          `db:"target_ref"     json:"targetRef"`
+	Parameters    json.RawMessage `db:"parameters"     json:"parameters"`
+	EstimatedCost float64         `db:"estimated_cost" json:"estimatedCost"`
+	Note          string          `db:"note"           json:"note"`
+	CreatedAt     time.Time       `db:"created_at"     json:"createdAt"`
+	UpdatedAt     time.Time       `db:"updated_at"     json:"updatedAt"`
+}
+
+// RecoveryScenarioRun is immutable evidence for one What-if evaluation.
+type RecoveryScenarioRun struct {
+	ID                uuid.UUID  `db:"id"                  json:"id"`
+	ScenarioID        uuid.UUID  `db:"scenario_id"         json:"scenarioId"`
+	Status            string     `db:"status"              json:"status"`
+	BaselineAsOf      time.Time  `db:"baseline_as_of"      json:"baselineAsOf"`
+	HorizonDays       int        `db:"horizon_days"        json:"horizonDays"`
+	BaselineHash      string     `db:"baseline_hash"       json:"baselineHash"`
+	RequestHash       string     `db:"request_hash"        json:"requestHash"`
+	ResultHash        *string    `db:"result_hash"         json:"resultHash,omitempty"`
+	CreatedByUserID   *uuid.UUID `db:"created_by_user_id"  json:"createdByUserId,omitempty"`
+	CreatedByUsername string     `db:"created_by_username" json:"createdByUsername"`
+	StartedAt         time.Time  `db:"started_at"          json:"startedAt"`
+	CompletedAt       *time.Time `db:"completed_at"        json:"completedAt,omitempty"`
+	FailureReason     string     `db:"failure_reason"      json:"failureReason"`
+}
+
+// RecoveryScenarioCaseResult compares one Control Tower Case
+// before and after hypothetical recovery actions.
+type RecoveryScenarioCaseResult struct {
+	ID                     uuid.UUID       `db:"id"                        json:"id"`
+	RunID                  uuid.UUID       `db:"run_id"                    json:"runId"`
+	CaseID                 uuid.UUID       `db:"case_id"                   json:"caseId"`
+	BaselinePriorityBand   string          `db:"baseline_priority_band"    json:"baselinePriorityBand"`
+	BaselinePriorityScore  float64         `db:"baseline_priority_score"   json:"baselinePriorityScore"`
+	BaselineRevenueAtRisk  float64         `db:"baseline_revenue_at_risk"  json:"baselineRevenueAtRisk"`
+	BaselineImpactDays     int             `db:"baseline_impact_days"      json:"baselineImpactDays"`
+	SimulatedResolved      bool            `db:"simulated_resolved"        json:"simulatedResolved"`
+	SimulatedPriorityBand  string          `db:"simulated_priority_band"   json:"simulatedPriorityBand"`
+	SimulatedPriorityScore float64         `db:"simulated_priority_score"  json:"simulatedPriorityScore"`
+	SimulatedRevenueAtRisk float64         `db:"simulated_revenue_at_risk" json:"simulatedRevenueAtRisk"`
+	SimulatedImpactDays    int             `db:"simulated_impact_days"     json:"simulatedImpactDays"`
+	RecoveryDays           int             `db:"recovery_days"             json:"recoveryDays"`
+	RevenueRecovered       float64         `db:"revenue_recovered"         json:"revenueRecovered"`
+	MatchedActionIDs       json.RawMessage `db:"matched_action_ids"        json:"matchedActionIds"`
+	Explanation            json.RawMessage `db:"explanation"               json:"explanation"`
+	ResultHash             string          `db:"result_hash"               json:"resultHash"`
+	CreatedAt              time.Time       `db:"created_at"                json:"createdAt"`
+}
+
+// RecoveryScenarioActionResult explains the contribution
+// from one hypothetical action.
+type RecoveryScenarioActionResult struct {
+	ID                  uuid.UUID       `db:"id"                    json:"id"`
+	RunID               uuid.UUID       `db:"run_id"                json:"runId"`
+	ActionID            uuid.UUID       `db:"action_id"             json:"actionId"`
+	AffectedCases       int             `db:"affected_cases"        json:"affectedCases"`
+	ImpactDaysRecovered int             `db:"impact_days_recovered" json:"impactDaysRecovered"`
+	RevenueRecovered    float64         `db:"revenue_recovered"     json:"revenueRecovered"`
+	EstimatedCost       float64         `db:"estimated_cost"        json:"estimatedCost"`
+	Evidence            json.RawMessage `db:"evidence"              json:"evidence"`
+	ResultHash          string          `db:"result_hash"           json:"resultHash"`
+	CreatedAt           time.Time       `db:"created_at"            json:"createdAt"`
+}
+
+// RecoveryScenarioSummary contains scenario-level before/after KPIs.
+type RecoveryScenarioSummary struct {
+	ID                     uuid.UUID `db:"id"                         json:"id"`
+	RunID                  uuid.UUID `db:"run_id"                     json:"runId"`
+	BaselineOpenCases      int       `db:"baseline_open_cases"       json:"baselineOpenCases"`
+	SimulatedOpenCases     int       `db:"simulated_open_cases"      json:"simulatedOpenCases"`
+	BaselineP1Cases        int       `db:"baseline_p1_cases"         json:"baselineP1Cases"`
+	SimulatedP1Cases       int       `db:"simulated_p1_cases"        json:"simulatedP1Cases"`
+	BaselineP2Cases        int       `db:"baseline_p2_cases"         json:"baselineP2Cases"`
+	SimulatedP2Cases       int       `db:"simulated_p2_cases"        json:"simulatedP2Cases"`
+	BaselineRevenueAtRisk  float64   `db:"baseline_revenue_at_risk"  json:"baselineRevenueAtRisk"`
+	SimulatedRevenueAtRisk float64   `db:"simulated_revenue_at_risk" json:"simulatedRevenueAtRisk"`
+	BaselineImpactDays     int       `db:"baseline_impact_days"      json:"baselineImpactDays"`
+	SimulatedImpactDays    int       `db:"simulated_impact_days"     json:"simulatedImpactDays"`
+	RecoveredRevenue       float64   `db:"recovered_revenue"         json:"recoveredRevenue"`
+	P1Reduction            int       `db:"p1_reduction"              json:"p1Reduction"`
+	OpenCaseReduction      int       `db:"open_case_reduction"       json:"openCaseReduction"`
+	ImpactDaysRecovered    int       `db:"impact_days_recovered"     json:"impactDaysRecovered"`
+	EstimatedActionCost    float64   `db:"estimated_action_cost"     json:"estimatedActionCost"`
+	NetValue               float64   `db:"net_value"                 json:"netValue"`
+	RecoveryScore          float64   `db:"recovery_score"            json:"recoveryScore"`
+	ResultHash             string    `db:"result_hash"               json:"resultHash"`
+	CreatedAt              time.Time `db:"created_at"                 json:"createdAt"`
+}
+
+// RecoveryScenarioPublication is immutable evidence that a simulated
+// recovery plan was approved. It does not execute operational changes.
+type RecoveryScenarioPublication struct {
+	ID                  uuid.UUID  `db:"id"                    json:"id"`
+	ScenarioID          uuid.UUID  `db:"scenario_id"           json:"scenarioId"`
+	RunID               uuid.UUID  `db:"run_id"                json:"runId"`
+	PublicationHash     string     `db:"publication_hash"      json:"publicationHash"`
+	Comment             string     `db:"comment"               json:"comment"`
+	PublishedByUserID   *uuid.UUID `db:"published_by_user_id"  json:"publishedByUserId,omitempty"`
+	PublishedByUsername string     `db:"published_by_username" json:"publishedByUsername"`
+	PublishedAt         time.Time  `db:"published_at"          json:"publishedAt"`
+}
+
+// RecoveryScenarioComparison is the latest successful scenario
+// comparison read model.
+type RecoveryScenarioComparison struct {
+	ScenarioID             uuid.UUID  `db:"scenario_id"               json:"scenarioId"`
+	ScenarioNo             string     `db:"scenario_no"               json:"scenarioNo"`
+	Name                   string     `db:"name"                      json:"name"`
+	Description            string     `db:"description"               json:"description"`
+	ScenarioStatus         string     `db:"scenario_status"           json:"scenarioStatus"`
+	ScenarioBaselineAsOf   time.Time  `db:"scenario_baseline_as_of"   json:"scenarioBaselineAsOf"`
+	CreatedByUserID        *uuid.UUID `db:"created_by_user_id" json:"createdByUserId,omitempty"`
+	CreatedByUsername      string     `db:"created_by_username" json:"createdByUsername"`
+	ScenarioCreatedAt      time.Time  `db:"scenario_created_at" json:"scenarioCreatedAt"`
+	ScenarioUpdatedAt      time.Time  `db:"scenario_updated_at" json:"scenarioUpdatedAt"`
+	PublishedAt            *time.Time `db:"published_at" json:"publishedAt,omitempty"`
+	RunID                  uuid.UUID  `db:"run_id"                    json:"runId"`
+	BaselineAsOf           time.Time  `db:"baseline_as_of"            json:"baselineAsOf"`
+	HorizonDays            int        `db:"horizon_days"              json:"horizonDays"`
+	BaselineHash           string     `db:"baseline_hash"             json:"baselineHash"`
+	RequestHash            string     `db:"request_hash"              json:"requestHash"`
+	ResultHash             string     `db:"result_hash"               json:"resultHash"`
+	StartedAt              time.Time  `db:"started_at" json:"startedAt"`
+	CompletedAt            *time.Time `db:"completed_at"              json:"completedAt,omitempty"`
+	BaselineOpenCases      int        `db:"baseline_open_cases"       json:"baselineOpenCases"`
+	SimulatedOpenCases     int        `db:"simulated_open_cases"      json:"simulatedOpenCases"`
+	BaselineP1Cases        int        `db:"baseline_p1_cases"         json:"baselineP1Cases"`
+	SimulatedP1Cases       int        `db:"simulated_p1_cases"        json:"simulatedP1Cases"`
+	BaselineP2Cases        int        `db:"baseline_p2_cases"         json:"baselineP2Cases"`
+	SimulatedP2Cases       int        `db:"simulated_p2_cases"        json:"simulatedP2Cases"`
+	BaselineRevenueAtRisk  float64    `db:"baseline_revenue_at_risk"  json:"baselineRevenueAtRisk"`
+	SimulatedRevenueAtRisk float64    `db:"simulated_revenue_at_risk" json:"simulatedRevenueAtRisk"`
+	BaselineImpactDays     int        `db:"baseline_impact_days"      json:"baselineImpactDays"`
+	SimulatedImpactDays    int        `db:"simulated_impact_days"     json:"simulatedImpactDays"`
+	RecoveredRevenue       float64    `db:"recovered_revenue"         json:"recoveredRevenue"`
+	P1Reduction            int        `db:"p1_reduction"              json:"p1Reduction"`
+	OpenCaseReduction      int        `db:"open_case_reduction"       json:"openCaseReduction"`
+	ImpactDaysRecovered    int        `db:"impact_days_recovered"     json:"impactDaysRecovered"`
+	EstimatedActionCost    float64    `db:"estimated_action_cost"     json:"estimatedActionCost"`
+	NetValue               float64    `db:"net_value"                 json:"netValue"`
+	RecoveryScore          float64    `db:"recovery_score"            json:"recoveryScore"`
+	IsPublished            bool       `db:"is_published"              json:"isPublished"`
+	PublicationID          *uuid.UUID `db:"publication_id"            json:"publicationId,omitempty"`
+	ComparisonRank         int64      `db:"comparison_rank"           json:"comparisonRank"`
+}

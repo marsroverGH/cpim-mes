@@ -135,8 +135,8 @@ checks={
  'E2E cleans started operation before repeated full-suite run': allin(e2e,'test.afterEach','cleanupStartedOperationId','/complete','0039 E2E cleanup'),
  'E2E verifies Pegging reschedule evidence': allin(e2e,"nodeType === 'RESCHEDULE_RUN'","RESCHEDULED_BY"),
  'migration manager fingerprints 0039': allin(manager,'{39,','dispatch_policy_versions','dynamic_reschedule_runs','schedule_adherence_snapshots'),
- 'migration manager tests expect 40': allin(manager_test,'len(migs) != 40','expected 40 migrations'),
- 'migration guard expects 40 ordered migrations': allin(manager_guard,"'40 ordered SQL migrations exist'",'range(1,41)'),
+ 'migration manager tests expect 41': allin(manager_test,'len(migs) != 41','expected 41 migrations'),
+ 'migration guard expects 41 ordered migrations': allin(manager_guard,"'41 ordered SQL migrations exist'",'range(1,42)'),
  'CI runs 0039 guard': 'check_realtime_dispatch_rescheduling.py' in ci,
 }
 failed=[]
