@@ -46,7 +46,7 @@ jobs:
           set -euo pipefail
           gh workflow run release-candidate.yml --ref "$RC_BRANCH"
           for i in $(seq 1 60); do
-            RUN_ID="$(gh run list               --workflow release-candidate.yml               --branch "$RC_BRANCH"               --event workflow_dispatch               --limit 20               --json databaseId,headSha,createdAt               --jq '.[] | select(.headSha == env.RC_SHA) | .databaseId' | head -n1)"
+            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha,createdAt --jq ".[] | select(.headSha == \"$RC_SHA\") | .databaseId" | head -n1)"
             if [ -n "$RUN_ID" ]; then
               echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
               echo "Authoritative RC workflow run: $RUN_ID"
@@ -96,9 +96,9 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git fetch origin "$RC_BRANCH" --tags
           test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
-          git tag -a "$GA_TAG" "$RC_SHA" -m "CPIM-MES v0.41.1 Production Hardening
-
-Final Clean-room PASS: $RC_RUN_URL"
+          git tag -a "$GA_TAG" "$RC_SHA" \
+            -m "CPIM-MES v0.41.1 Production Hardening" \
+            -m "Final Clean-room PASS: $RC_RUN_URL"
           git push origin "refs/tags/$GA_TAG"
 
       - name: Verify GA tag identity
