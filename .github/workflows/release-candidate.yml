@@ -15,7 +15,7 @@ env:
   NODE_VERSION: '24.20.0'
   NPM_VERSION: '11.19.0'
   RELEASE_VERSION: 'v0.41.1'
-  RC_VERSION: 'v0.41.1-rc.7'
+  RC_VERSION: 'v0.41.1-rc.8'
 
 jobs:
   final-clean-room:
@@ -42,7 +42,7 @@ jobs:
       - name: Prepare immutable RC build metadata
         shell: bash
         run: |
-          test "$RC_VERSION" = "v0.41.1-rc.7"
+          test "$RC_VERSION" = "v0.41.1-rc.8"
           echo "VCS_REF=${GITHUB_SHA}" >> "$GITHUB_ENV"
           echo "BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
       - name: Run final clean-room Release Candidate gate
