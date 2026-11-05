@@ -1,4 +1,4 @@
-name: Dispatch verified v0.41.1-rc.4 and promote GA
+name: Finalize v0.41.1-rc.5 and promote GA
 
 on:
   push:
@@ -10,33 +10,73 @@ permissions:
   actions: write
 
 concurrency:
-  group: promote-v0.41.1-rc.4
+  group: promote-v0.41.1-rc.5
   cancel-in-progress: false
 
 jobs:
-  gate-and-tag:
+  finalize-gate-promote:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     env:
-      RC4_BRANCH: release/v0.41.1-rc.4
-      RC4_SHA: 65f27fa66ef1e8ee7cb98d0ec6c4477d325366dc
+      RC_BRANCH: release/v0.41.1-rc.5
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ env.RC_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Preflight exact RC4 identity
+      - name: Preflight GA tag absent
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "$RC4_BRANCH" --tags
-          test "$(git rev-parse "origin/$RC4_BRANCH")" = "$RC4_SHA"
           if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
             echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
             exit 1
           fi
+
+      - name: Regenerate full source checksums and verify RC5 static gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          root = Path(".")
+          excluded = {".git", "node_modules", "dist", "playwright-report", "test-results", "release-candidate-bundle", "security-release-bundle", ".secrets"}
+          files = []
+          for p in root.rglob("*"):
+              if not p.is_file() or p.name == "SHA256SUMS.txt":
+                  continue
+              if any(part in excluded for part in p.parts):
+                  continue
+              files.append(p)
+          lines = []
+          for p in sorted(files, key=lambda x: x.as_posix()):
+              h = hashlib.sha256(p.read_bytes()).hexdigest()
+              lines.append(f"{h}  ./{p.as_posix()}")
+          Path("SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(f"regenerated {len(lines)} checksum entries")
+          PY
+          python3 scripts/verify_source_checksums.py
+          python3 backend/scripts/check_final_release_candidate.py
+          python3 scripts/test_release_candidate_unit.py
+
+      - name: Commit checksum freeze
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "CPIM-MES Release Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add SHA256SUMS.txt
+          if ! git diff --cached --quiet; then
+            git commit -m "release: freeze v0.41.1-rc.5 source checksums"
+            git push origin "HEAD:refs/heads/$RC_BRANCH"
+          fi
+          RC_SHA="$(git rev-parse HEAD)"
+          echo "RC_SHA=$RC_SHA" >> "$GITHUB_ENV"
+          echo "RC5_SHA=$RC_SHA"
 
       - name: Dispatch authoritative Final Clean-room Gate
         env:
@@ -44,9 +84,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run release-candidate.yml --ref "$RC4_BRANCH"
+          gh workflow run release-candidate.yml --ref "$RC_BRANCH"
           for i in $(seq 1 60); do
-            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC4_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC4_SHA\") | .databaseId" | head -n1)"
+            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC_SHA\") | .databaseId" | head -n1)"
             if [ -n "$RUN_ID" ]; then
               echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
               echo "RC_RUN_ID=$RUN_ID"
@@ -54,7 +94,7 @@ jobs:
             fi
             sleep 5
           done
-          echo "ERROR: dispatched RC4 workflow run not found" >&2
+          echo "ERROR: dispatched RC5 workflow run not found" >&2
           exit 1
 
       - name: Wait for Final Clean-room PASS
@@ -63,14 +103,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 420); do
+          for i in $(seq 1 480); do
             STATE="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
             STATUS="$(jq -r '.status' <<<"$STATE")"
             CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
             HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
             URL="$(jq -r '.url' <<<"$STATE")"
-            test "$HEAD_SHA" = "$RC4_SHA"
-            echo "RC4 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            test "$HEAD_SHA" = "$RC_SHA"
+            echo "RC5 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
             if [ "$STATUS" = "completed" ]; then
               test "$CONCLUSION" = "success" || {
                 gh run view "$RC_RUN_ID" --log-failed || true
@@ -84,23 +124,26 @@ jobs:
           echo "ERROR: Final Clean-room gate timeout" >&2
           exit 1
 
-      - name: Create annotated GA tag after PASS only
+      - name: Promote exact verified RC5 commit to main and GA tag
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "CPIM-MES Release Automation"
-          git config user.email "actions@users.noreply.github.com"
-          git tag -a "$GA_TAG" "$RC4_SHA" \
+          git fetch origin main "$RC_BRANCH" --tags
+          test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
+          git merge-base --is-ancestor origin/main "$RC_SHA"
+          git push origin "$RC_SHA:refs/heads/main"
+          git tag -a "$GA_TAG" "$RC_SHA" \
             -m "CPIM-MES v0.41.1 Production Hardening" \
             -m "Final Clean-room PASS: $RC_RUN_URL"
           git push origin "refs/tags/$GA_TAG"
 
-      - name: Verify GA tag identity
+      - name: Verify GA identity
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin --tags
-          test "$(git rev-list -n1 "$GA_TAG")" = "$RC4_SHA"
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RC_SHA"
+          test "$(git rev-list -n1 "$GA_TAG")" = "$RC_SHA"
           echo "GA_TAG=$GA_TAG"
-          echo "GA_COMMIT=$RC4_SHA"
+          echo "GA_COMMIT=$RC_SHA"
           echo "FINAL_GATE=$RC_RUN_URL"
