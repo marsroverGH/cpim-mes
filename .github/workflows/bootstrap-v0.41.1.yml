@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.9 and promote GA
+name: Finalize v0.41.1-rc.10 and promote GA
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: promote-v0.41.1-rc.9
+  group: promote-v0.41.1-rc.10
   cancel-in-progress: false
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
-      RC_BRANCH: release/v0.41.1-rc.9
+      RC_BRANCH: release/v0.41.1-rc.10
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
@@ -41,7 +41,7 @@ jobs:
             exit 1
           fi
 
-      - name: Freeze RC9 metadata and verify backend
+      - name: Freeze RC10 metadata and verify backend
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +57,7 @@ jobs:
                   s = p.read_text(encoding="utf-8")
               except UnicodeDecodeError:
                   continue
-              ns = s.replace("v0.41.1-rc.8", "v0.41.1-rc.9")
+              ns = s.replace("v0.41.1-rc.8", "v0.41.1-rc.10")
               if ns != s:
                   p.write_text(ns, encoding="utf-8")
           PY
@@ -98,7 +98,7 @@ jobs:
           grep -q 'proxy_set_header X-Forwarded-Host $http_host;' frontend/nginx.conf
           grep -q '\$9::jsonb' backend/internal/repository/traceability.go
 
-      - name: Commit RC9 freeze
+      - name: Commit RC10 freeze
         shell: bash
         run: |
           set -euo pipefail
@@ -106,12 +106,12 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "release: freeze v0.41.1-rc.9 clean-room fixes"
+            git commit -m "release: freeze v0.41.1-rc.10 clean-room fixes"
             git push origin "HEAD:refs/heads/$RC_BRANCH"
           fi
           RC_SHA="$(git rev-parse HEAD)"
           echo "RC_SHA=$RC_SHA" >> "$GITHUB_ENV"
-          echo "RC9_SHA=$RC_SHA"
+          echo "RC10_SHA=$RC_SHA"
 
       - name: Dispatch authoritative Final Clean-room Gate
         env:
@@ -129,7 +129,7 @@ jobs:
             fi
             sleep 5
           done
-          echo "ERROR: dispatched RC9 workflow run not found" >&2
+          echo "ERROR: dispatched RC10 workflow run not found" >&2
           exit 1
 
       - name: Wait for Final Clean-room PASS
@@ -145,7 +145,7 @@ jobs:
             HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
             URL="$(jq -r '.url' <<<"$STATE")"
             test "$HEAD_SHA" = "$RC_SHA"
-            echo "RC9 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            echo "RC10 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
             if [ "$STATUS" = "completed" ]; then
               test "$CONCLUSION" = "success" || {
                 gh run view "$RC_RUN_ID" --log-failed || true
@@ -159,7 +159,7 @@ jobs:
           echo "ERROR: Final Clean-room gate timeout" >&2
           exit 1
 
-      - name: Promote exact verified RC9 commit to main and GA tag
+      - name: Promote exact verified RC10 commit to main and GA tag
         shell: bash
         run: |
           set -euo pipefail
