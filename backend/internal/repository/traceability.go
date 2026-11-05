@@ -120,7 +120,7 @@ func (r *AuditRepo) Insert(ctx context.Context, e *domain.AuditLogEntry) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO audit_log (username, user_role, action, resource, resource_id,
 		                       http_status, ip_address, occurred_at, payload)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, COALESCE($8::timestamptz, now()), $9::jsonb)`,
 		e.Username, e.UserRole, e.Action, e.Resource, e.ResourceID,
 		e.HTTPStatus, e.IPAddress,
 		nilTime(e.OccurredAt), payload,
