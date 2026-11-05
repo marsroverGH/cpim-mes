@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/cpim-mes/backend/internal/service"
 )
 
 func TestRouterCORSUsesConfiguredCredentialedAllowList(t *testing.T) {
-	h := NewRouter(nil, RouterConfig{AllowedOrigins: []string{"https://mes.example.com"}, CookieSecure: true, CookieSameSite: "Strict"})
+	h := NewRouter(&service.Services{}, RouterConfig{AllowedOrigins: []string{"https://mes.example.com"}, CookieSecure: true, CookieSameSite: "Strict"})
 
 	t.Run("allowed origin", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodOptions, "/api/auth/login", nil)
@@ -39,7 +41,7 @@ func TestRouterCORSUsesConfiguredCredentialedAllowList(t *testing.T) {
 }
 
 func TestRouterWithoutOriginsDoesNotEnableCORS(t *testing.T) {
-	h := NewRouter(nil, RouterConfig{CookieSecure: true, CookieSameSite: "Strict"})
+	h := NewRouter(&service.Services{}, RouterConfig{CookieSecure: true, CookieSameSite: "Strict"})
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	req.Header.Set("Origin", "https://mes.example.com")
 	rr := httptest.NewRecorder()

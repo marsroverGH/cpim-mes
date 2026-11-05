@@ -7,7 +7,7 @@ Step 13 is the final Production Hardening stage. It does **not** add business fu
 Candidate frozen by this source bundle:
 
 ```text
-Candidate: v0.41.1-rc.1
+Candidate: v0.41.1-rc.2
 Target GA: v0.41.1
 Migration: 0001-0041 / 41 files
 Migration 0042: absent
@@ -123,7 +123,7 @@ A successful live gate generates:
 
 ```text
 release-candidate-bundle/
-  cpim-mes-v0.41.1-rc.1-source.tar.gz
+  cpim-mes-v0.41.1-rc.2-source.tar.gz
   security-release-bundle.tar.gz
   FINAL-CLEAN-ROOM-RESULT.json
   RELEASE-CANDIDATE-METADATA.txt
@@ -215,7 +215,7 @@ Those are not waived. They are implemented as **fail-closed mandatory checks** i
 
 Accordingly:
 
-- this archive is frozen as the **v0.41.1-rc.1 source candidate**;
+- this archive is frozen as the **v0.41.1-rc.2 source candidate**;
 - GA promotion is allowed only after the exact candidate commit passes the live Release Candidate workflow and its generated `release-candidate-bundle` verifies independently;
 - any subsequent source/config/documentation modification creates a new candidate and requires the complete gate again.
 
