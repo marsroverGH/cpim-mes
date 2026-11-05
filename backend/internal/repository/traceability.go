@@ -113,14 +113,14 @@ func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]domain.AuditLogE
 }
 
 func (r *AuditRepo) Insert(ctx context.Context, e *domain.AuditLogEntry) error {
-	var payload any = e.Payload
-	if len(e.Payload) == 0 {
-		payload = nil
+	var payload any
+	if len(e.Payload) > 0 {
+		payload = string(e.Payload)
 	}
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO audit_log (username, user_role, action, resource, resource_id,
 		                       http_status, ip_address, occurred_at, payload)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
 		e.Username, e.UserRole, e.Action, e.Resource, e.ResourceID,
 		e.HTTPStatus, e.IPAddress,
 		nilTime(e.OccurredAt), payload,
