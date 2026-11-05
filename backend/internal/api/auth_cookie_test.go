@@ -91,3 +91,13 @@ func TestCSRFMiddlewareDoesNotApplyToBearerClients(t *testing.T) {
 		t.Fatalf("bearer status = %d", rr.Code)
 	}
 }
+
+func TestSameRequestOriginUsesTrustedForwardedHostWithPort(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "http://backend:8080/api/auth/login", nil)
+	req.Host = "localhost"
+	req.Header.Set("X-Forwarded-Proto", "http")
+	req.Header.Set("X-Forwarded-Host", "localhost:8080")
+	if !sameRequestOrigin(req, "http://localhost:8080") {
+		t.Fatal("forwarded external host and port should be treated as same-origin")
+	}
+}
