@@ -22,7 +22,7 @@ LABEL org.opencontainers.image.title="CPIM-MES Backend" \
       org.opencontainers.image.version="${RELEASE_VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_TIME}"
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates tzdata
 COPY --from=build /out/server /usr/local/bin/server
 EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/server"]
