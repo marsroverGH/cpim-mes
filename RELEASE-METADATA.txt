@@ -6,7 +6,7 @@ Baseline branch: main
 Baseline commit: 028f9e30d489148abdaf768030e21fa8e8562cb5
 Target release: v0.41.1 Production Hardening
 Implemented scope: Step 1 Runtime Upgrade + Step 2 Production Config / Fail Closed + Step 3 Demo Credentials Removal + Step 4 Production Frontend Container + Step 5 Cookie Auth / CORS / CSRF + Step 6 Login Rate Limit / Auth Audit + Step 7 User Administration + Step 8 0041 FAILED Run Persistence + Step 9 Version / Build Metadata + Step 10 Observability + Step 11 Backup / Restore / Disaster Recovery + Step 12 Security CI / Supply Chain + Step 13 Documentation / Final Clean-room Release Gate
-Bundle status: v0.41.1-rc.6 source candidate; GA promotion requires the authoritative live clean-room workflow to PASS for the exact candidate commit
+Bundle status: v0.41.1-rc.8 source candidate; GA promotion requires the authoritative live clean-room workflow to PASS for the exact candidate commit
 Migration range: 0001-0041
 Migration count: 41
 Migration 0042: intentionally not created
@@ -17,7 +17,7 @@ Runtime baseline:
 - npm 11.19.0
 - PostgreSQL 16.15
 - Alpine Linux 3.24
-- Nginx 1.30.4 stable (production frontend runtime)
+- Nginx 1.30.6 stable (production frontend runtime)
 
 
 Step 13 documentation / final clean-room hardening:

@@ -24,7 +24,7 @@ node:24.20.0-alpine3.24 AS build
   -> npm ci
   -> npm run build
 
-nginx:1.30.4-alpine3.24 AS runtime
+nginx:1.30.6-alpine3.24 AS runtime
   -> /app/dist only
   -> listen :8080
 ```
@@ -164,11 +164,11 @@ Go          1.26.10
 Node.js     24.20.0 LTS
 npm         11.19.0
 PostgreSQL  16.15
-Nginx       1.30.4 stable
+Nginx       1.30.6 stable
 Alpine      3.24
 ```
 
-Nginx 1.30.4 stable imageは2026-08-29時点のDocker Official Image stable tagとして確認した。
+Nginx 1.30.6 stable imageは2026-08-29時点のDocker Official Image stable tagとして確認した。
 
 ## 4. Validation
 

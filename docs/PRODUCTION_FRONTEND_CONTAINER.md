@@ -37,7 +37,7 @@ node:24.20.0-alpine3.24
   -> npm run build
   -> /app/dist
 
-nginx:1.30.4-alpine3.24
+nginx:1.30.6-alpine3.24
   -> copy dist only
   -> listen :8080
 ```

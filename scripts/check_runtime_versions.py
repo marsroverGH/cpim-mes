@@ -18,7 +18,7 @@ EXPECTED = {
     "npm_engine": "11.x",
     "alpine": "3.24",
     "postgres": "16.15",
-    "nginx": "1.30.4",
+    "nginx": "1.30.6",
 }
 
 errors: list[str] = []

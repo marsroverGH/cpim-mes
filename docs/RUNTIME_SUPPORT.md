@@ -11,7 +11,7 @@ It intentionally changes infrastructure/toolchain versions only; business semant
 | Node.js | 24.20.0 LTS | `.nvmrc`, frontend Dockerfile, GitHub Actions |
 | npm | 11.19.0 | `packageManager`, Dockerfile, CI, lock generation script |
 | PostgreSQL | 16.15 | `docker-compose.yml` |
-| Nginx | 1.30.4 stable | Production frontend runtime (`frontend/Dockerfile`) |
+| Nginx | 1.30.6 stable | Production frontend runtime (`frontend/Dockerfile`) |
 | Alpine Linux | 3.24 | Go build/runtime image, Node/Nginx image, PostgreSQL image |
 
 `backend/go.mod` declares `go 1.26.0` as the language/toolchain floor for the 1.26 release line, while CI and container builds are patch-pinned to Go 1.26.10.
