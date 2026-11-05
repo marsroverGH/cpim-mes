@@ -13,7 +13,7 @@ v0.41.1
 Initial candidate identifier:
 
 ```text
-v0.41.1-rc.8
+v0.41.1-rc.9
 ```
 
 Migration contract:
