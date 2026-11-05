@@ -1,4 +1,4 @@
-name: Prepare v0.41.1-rc.2 source branch
+name: Finalize v0.41.1-rc.2 and promote GA
 
 on:
   push:
@@ -7,38 +7,33 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
-  group: prepare-v0.41.1-rc.2
+  group: finalize-v0.41.1-rc.2
   cancel-in-progress: false
 
 jobs:
-  prepare-rc2:
+  finalize-rc2:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     env:
-      RC1_BRANCH: release/v0.41.1-rc.1
-      RC1_SHA: d7c7f07f4591bfdb06c8d1e3a068c59bad07403e
       RC2_BRANCH: release/v0.41.1-rc.2
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ env.RC1_BRANCH }}
+          ref: ${{ env.RC2_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Preflight immutable RC1 and absent RC2/tag
+      - name: Preflight RC2 and absent GA tag
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "$RC1_BRANCH" --tags
-          test "$(git rev-parse HEAD)" = "$RC1_SHA"
-          test "$(git rev-parse "origin/$RC1_BRANCH")" = "$RC1_SHA"
-          if git ls-remote --exit-code --heads origin "$RC2_BRANCH" >/dev/null 2>&1; then
-            echo "ERROR: $RC2_BRANCH already exists; refusing overwrite." >&2
-            exit 1
-          fi
+          git fetch origin "$RC2_BRANCH" --tags
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$RC2_BRANCH")"
+          grep -q "RC_VERSION: 'v0.41.1-rc.2'" .github/workflows/release-candidate.yml
           if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
             echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
             exit 1
@@ -81,7 +76,7 @@ jobs:
           PY
           gofmt -w backend/internal/api/router_config_test.go
 
-      - name: Recalculate governed source checksums
+      - name: Recalculate and verify governed source
         shell: bash
         run: |
           set -euo pipefail
@@ -94,29 +89,99 @@ jobs:
           for line in checksum.read_text().splitlines():
               if not line.strip():
                   continue
-              old_hash, path = line.split("  ", 1)
+              _, path = line.split("  ", 1)
               p = Path(path)
               if not p.is_file():
                   raise SystemExit(f"checksum path missing: {path}")
-              digest = hashlib.sha256(p.read_bytes()).hexdigest()
-              out.append(f"{digest}  {path}")
+              out.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {path}")
           checksum.write_text("\n".join(out) + "\n")
           PY
           python3 scripts/verify_source_checksums.py
           python3 scripts/check_runtime_versions.py
           python3 scripts/check_dependency_locks.py
           python3 scripts/check_ci_dependency_policy.py
+          python3 backend/scripts/check_final_release_candidate.py
+          python3 scripts/test_release_candidate_unit.py
 
-      - name: Commit and push RC2 source branch
+      - name: Commit RC2 fix if needed
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "CPIM-MES Release Automation"
           git config user.email "actions@users.noreply.github.com"
-          git checkout -b "$RC2_BRANCH"
           git add -A
           git diff --cached --check
-          git commit -m "release: prepare v0.41.1-rc.2 after clean-room fixture fix"
+          if ! git diff --cached --quiet; then
+            git commit -m "release: finalize v0.41.1-rc.2 after clean-room fixture fix"
+            git push origin "HEAD:refs/heads/$RC2_BRANCH"
+          fi
           RC2_SHA="$(git rev-parse HEAD)"
-          echo "RC2_SOURCE_SHA=$RC2_SHA"
-          git push origin "HEAD:refs/heads/$RC2_BRANCH"
+          echo "RC2_SHA=$RC2_SHA" >> "$GITHUB_ENV"
+          echo "RC2_SHA=$RC2_SHA"
+
+      - name: Dispatch authoritative Final Clean-room Gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run release-candidate.yml --ref "$RC2_BRANCH"
+          for i in $(seq 1 60); do
+            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC2_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC2_SHA\") | .databaseId" | head -n1)"
+            if [ -n "$RUN_ID" ]; then
+              echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+              echo "RC_RUN_ID=$RUN_ID"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: dispatched RC2 workflow run not found" >&2
+          exit 1
+
+      - name: Wait for Final Clean-room PASS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 360); do
+            STATE="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
+            STATUS="$(jq -r '.status' <<<"$STATE")"
+            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
+            HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
+            URL="$(jq -r '.url' <<<"$STATE")"
+            test "$HEAD_SHA" = "$RC2_SHA"
+            echo "RC2 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            if [ "$STATUS" = "completed" ]; then
+              test "$CONCLUSION" = "success" || {
+                gh run view "$RC_RUN_ID" --log-failed || true
+                exit 1
+              }
+              echo "RC_RUN_URL=$URL" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "ERROR: Final Clean-room gate timeout" >&2
+          exit 1
+
+      - name: Create annotated GA tag after PASS only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "CPIM-MES Release Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git tag -a "$GA_TAG" "$RC2_SHA" \
+            -m "CPIM-MES v0.41.1 Production Hardening" \
+            -m "Final Clean-room PASS: $RC_RUN_URL"
+          git push origin "refs/tags/$GA_TAG"
+
+      - name: Verify GA tag identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin --tags
+          test "$(git rev-list -n1 "$GA_TAG")" = "$RC2_SHA"
+          echo "GA_TAG=$GA_TAG"
+          echo "GA_COMMIT=$RC2_SHA"
+          echo "FINAL_GATE=$RC_RUN_URL"
