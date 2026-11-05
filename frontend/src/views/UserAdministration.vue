@@ -22,7 +22,7 @@
             density="compact"
             hide-details
             style="min-width: 130px"
-            @update:model-value="changeRole(item, $event as UserRole)"
+            @update:model-value="changeRole(item, $event)"
           />
         </template>
         <template #item.isActive="{ item }">
