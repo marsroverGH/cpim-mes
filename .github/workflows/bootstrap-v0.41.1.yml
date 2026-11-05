@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.4 security remediation and promote GA
+name: Dispatch verified v0.41.1-rc.4 and promote GA
 
 on:
   push:
@@ -10,171 +10,33 @@ permissions:
   actions: write
 
 concurrency:
-  group: finalize-v0.41.1-rc.4
+  group: promote-v0.41.1-rc.4
   cancel-in-progress: false
 
 jobs:
-  finalize-rc4:
+  gate-and-tag:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 120
     env:
       RC4_BRANCH: release/v0.41.1-rc.4
+      RC4_SHA: 65f27fa66ef1e8ee7cb98d0ec6c4477d325366dc
       GA_TAG: v0.41.1
-      NEW_GO_VERSION: '1.26.10'
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ env.RC4_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - uses: actions/setup-go@v7.0.0
-        with:
-          go-version: ${{ env.NEW_GO_VERSION }}
-          cache: false
-
-      - uses: actions/setup-node@v7.1.0
-        with:
-          node-version: '24.20.0'
-          package-manager-cache: false
-
-      - name: Pin npm
-        run: npm install --global npm@11.19.0
-
-      - name: Preflight RC4 and absent GA tag
+      - name: Preflight exact RC4 identity
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin "$RC4_BRANCH" --tags
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$RC4_BRANCH")"
-          grep -q "RC_VERSION: 'v0.41.1-rc.4'" .github/workflows/release-candidate.yml
-          grep -q "GO_VERSION: '1.26.10'" .github/workflows/release-candidate.yml
+          test "$(git rev-parse "origin/$RC4_BRANCH")" = "$RC4_SHA"
           if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
             echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
             exit 1
           fi
-
-      - name: Apply runtime and dependency security remediation
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import subprocess
-
-          files = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
-          for name in files:
-              if not name:
-                  continue
-              p = Path(name)
-              try:
-                  s = p.read_text()
-              except (UnicodeDecodeError, IsADirectoryError):
-                  continue
-              if name != ".github/workflows/release-candidate.yml":
-                  s = s.replace("v0.41.1-rc.3", "v0.41.1-rc.4")
-              s = s.replace("1.26.7", "1.26.10")
-              p.write_text(s)
-          PY
-
-          (
-            cd backend
-            go get github.com/golang-jwt/jwt/v5@v5.2.2
-            go get github.com/go-chi/chi/v5@v5.3.0
-            go get github.com/jackc/pgx/v5@v5.9.2
-            go get golang.org/x/net@v0.60.0
-            go get golang.org/x/text@v0.41.0
-            go mod tidy
-          )
-
-          (
-            cd frontend
-            npm pkg set overrides.follow-redirects=1.16.2
-            npm install --save-exact axios@1.21.0 vue@3.5.45
-            npm install --save-dev --save-exact vite@6.4.5 @vitejs/plugin-vue@6.0.10
-            npm install
-          )
-
-          (
-            cd e2e
-            npm install --save-dev --save-exact @playwright/test@1.64.1
-          )
-
-      - name: Pre-commit security proof
-        shell: bash
-        run: |
-          set -euo pipefail
-          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
-          (
-            cd backend
-            govulncheck ./...
-          )
-          (
-            cd frontend
-            npm audit --omit=dev --audit-level=high
-            npm audit --audit-level=critical
-            npm run typecheck
-            npm run build
-          )
-          (
-            cd e2e
-            npm audit --audit-level=critical
-          )
-
-      - name: Recalculate and verify governed source
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import hashlib
-          checksum = Path("SHA256SUMS.txt")
-          out = []
-          for line in checksum.read_text().splitlines():
-              if not line.strip():
-                  continue
-              _, path = line.split("  ", 1)
-              p = Path(path)
-              if not p.is_file():
-                  raise SystemExit(f"checksum path missing: {path}")
-              out.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {path}")
-          checksum.write_text("\n".join(out) + "\n")
-          PY
-          python3 scripts/verify_source_checksums.py
-          python3 scripts/check_runtime_versions.py
-          python3 scripts/check_dependency_locks.py
-          python3 scripts/check_ci_dependency_policy.py
-          python3 backend/scripts/check_final_release_candidate.py
-          python3 scripts/test_release_candidate_unit.py
-          if grep -R "NewRouter(nil" -n backend/internal/api --include='*_test.go'; then
-            echo "ERROR: nil Router test fixture remains" >&2
-            exit 1
-          fi
-
-      - name: Backend full verification before RC commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          (
-            cd backend
-            go mod verify
-            go vet -mod=readonly ./...
-            go test -mod=readonly -race -count=1 ./...
-          )
-
-      - name: Commit RC4 security remediation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "CPIM-MES Release Automation"
-          git config user.email "actions@users.noreply.github.com"
-          git add -A
-          git diff --cached --check
-          git commit -m "release: remediate v0.41.1 security gate findings"
-          git push origin "HEAD:refs/heads/$RC4_BRANCH"
-          RC4_SHA="$(git rev-parse HEAD)"
-          echo "RC4_SHA=$RC4_SHA" >> "$GITHUB_ENV"
-          echo "RC4_SHA=$RC4_SHA"
 
       - name: Dispatch authoritative Final Clean-room Gate
         env:
