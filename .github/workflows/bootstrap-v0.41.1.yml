@@ -69,11 +69,11 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import base64
           import json
           import os
           import pathlib
           import subprocess
+          import sys
 
           repo = os.environ["GITHUB_REPOSITORY"]
           parent = os.environ["REGISTER_SHA"]
@@ -82,23 +82,24 @@ jobs:
               cmd = ["gh", "api"]
               if payload is not None:
                   cmd += ["--method", "POST", path, "--input", "-"]
-                  p = subprocess.run(
-                      cmd,
-                      input=json.dumps(payload),
-                      text=True,
-                      check=True,
-                      capture_output=True,
-                  )
               else:
-                  p = subprocess.run(
-                      cmd + [path],
-                      text=True,
-                      check=True,
-                      capture_output=True,
-                  )
+                  cmd += [path]
+              p = subprocess.run(
+                  cmd,
+                  input=(json.dumps(payload) if payload is not None else None),
+                  text=True,
+                  capture_output=True,
+              )
+              if p.returncode != 0:
+                  print("GH API FAILED:", " ".join(cmd), file=sys.stderr)
+                  print(p.stderr, file=sys.stderr)
+                  raise SystemExit(p.returncode)
               return json.loads(p.stdout)
 
-          base_tree = gh_api(f"repos/{repo}/git/commits/{parent}")["tree"]["sha"]
+          current_tree = gh_api(
+              f"repos/{repo}/git/commits/{parent}"
+          )["tree"]["sha"]
+
           names = subprocess.check_output(
               ["git", "diff", "--cached", "--name-only", "-z"]
           ).decode().split("\0")
@@ -119,38 +120,37 @@ jobs:
               ls = subprocess.check_output(
                   ["git", "ls-files", "-s", "--", path],
                   text=True,
-              ).strip()
-              mode = ls.split()[0]
-              blob = gh_api(
-                  f"repos/{repo}/git/blobs",
-                  {
-                      "content": base64.b64encode(p.read_bytes()).decode(),
-                      "encoding": "base64",
-                  },
-              )["sha"]
+              ).strip().split()
               entries.append({
                   "path": path,
-                  "mode": mode,
+                  "mode": ls[0],
                   "type": "blob",
-                  "sha": blob,
+                  "sha": ls[1],
               })
 
-          tree = gh_api(
-              f"repos/{repo}/git/trees",
-              {"base_tree": base_tree, "tree": entries},
-          )["sha"]
+          for offset in range(0, len(entries), 40):
+              chunk = entries[offset:offset + 40]
+              print(
+                  f"Creating tree chunk {offset // 40 + 1}: "
+                  f"{len(chunk)} entries"
+              )
+              current_tree = gh_api(
+                  f"repos/{repo}/git/trees",
+                  {"base_tree": current_tree, "tree": chunk},
+              )["sha"]
+
           commit = gh_api(
               f"repos/{repo}/git/commits",
               {
                   "message": "release: prepare v0.41.1-rc.1 production hardening",
-                  "tree": tree,
+                  "tree": current_tree,
                   "parents": [parent],
               },
           )["sha"]
 
           pathlib.Path("/tmp/rc-commit-sha.txt").write_text(commit + "\n")
           print(f"REMOTE_RC_COMMIT={commit}")
-          print(f"REMOTE_RC_TREE={tree}")
+          print(f"REMOTE_RC_TREE={current_tree}")
           print(f"CHANGED_PATHS={len(entries)}")
           PY
 
