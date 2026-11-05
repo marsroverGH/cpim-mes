@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.8 and promote GA
+name: Finalize v0.41.1-rc.9 and promote GA
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: promote-v0.41.1-rc.8
+  group: promote-v0.41.1-rc.9
   cancel-in-progress: false
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
-      RC_BRANCH: release/v0.41.1-rc.8
+      RC_BRANCH: release/v0.41.1-rc.9
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
@@ -41,15 +41,14 @@ jobs:
             exit 1
           fi
 
-      - name: Apply exact RC8 security remediations
+      - name: Freeze RC9 metadata and verify backend
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          root = Path(".")
           skip = {".git", "node_modules", "dist", "playwright-report", "test-results"}
-          for p in root.rglob("*"):
+          for p in Path(".").rglob("*"):
               if not p.is_file() or any(part in skip for part in p.parts):
                   continue
               if p.as_posix().startswith(".github/workflows/"):
@@ -58,61 +57,61 @@ jobs:
                   s = p.read_text(encoding="utf-8")
               except UnicodeDecodeError:
                   continue
-              ns = s.replace("v0.41.1-rc.6", "v0.41.1-rc.8").replace("1.30.4", "1.30.6")
+              ns = s.replace("v0.41.1-rc.8", "v0.41.1-rc.9")
               if ns != s:
                   p.write_text(ns, encoding="utf-8")
           PY
           cd backend
-          go get golang.org/x/net@v0.60.0
-          go mod tidy
           go mod verify
-          go test ./...
+          go vet -mod=readonly ./...
+          go test -mod=readonly -race -count=1 ./...
           cd ..
 
-      - name: Regenerate full source checksums and verify RC8 static gate
+      - name: Regenerate source checksums and static gates
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import hashlib
-          root = Path(".")
           excluded = {".git", "node_modules", "dist", "playwright-report", "test-results", "release-candidate-bundle", "security-release-bundle", ".secrets"}
           files = []
-          for p in root.rglob("*"):
+          for p in Path(".").rglob("*"):
               if not p.is_file() or p.name == "SHA256SUMS.txt":
                   continue
               if any(part in excluded for part in p.parts):
                   continue
               files.append(p)
-          lines = []
-          for p in sorted(files, key=lambda x: x.as_posix()):
-              h = hashlib.sha256(p.read_bytes()).hexdigest()
-              lines.append(f"{h}  ./{p.as_posix()}")
+          lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest()}  ./{p.as_posix()}" for p in sorted(files, key=lambda x: x.as_posix())]
           Path("SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
           print(f"regenerated {len(lines)} checksum entries")
           PY
           python3 scripts/verify_source_checksums.py
           python3 scripts/check_runtime_versions.py
+          python3 scripts/check_dependency_locks.py
+          python3 scripts/check_ci_dependency_policy.py
           python3 backend/scripts/check_final_release_candidate.py
+          python3 backend/scripts/check_cookie_auth_csrf.py
+          python3 backend/scripts/check_user_administration.py
           python3 backend/scripts/check_security_supply_chain.py
           python3 scripts/test_release_candidate_unit.py
-          grep -q 'golang.org/x/net v0.60.0' backend/go.mod
-          grep -q 'FROM nginx:1.30.6-alpine3.24 AS runtime' frontend/Dockerfile
+          grep -q 'proxy_set_header X-Forwarded-Host $http_host;' frontend/nginx.conf
+          grep -q '\$9::jsonb' backend/internal/repository/traceability.go
 
-      - name: Commit RC8 freeze
+      - name: Commit RC9 freeze
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "CPIM-MES Release Automation"
           git config user.email "actions@users.noreply.github.com"
           git add -A
-          git diff --cached --quiet && { echo "ERROR: RC8 remediation produced no change" >&2; exit 1; }
-          git commit -m "release: freeze v0.41.1-rc.8 security remediations"
-          git push origin "HEAD:refs/heads/$RC_BRANCH"
+          if ! git diff --cached --quiet; then
+            git commit -m "release: freeze v0.41.1-rc.9 clean-room fixes"
+            git push origin "HEAD:refs/heads/$RC_BRANCH"
+          fi
           RC_SHA="$(git rev-parse HEAD)"
           echo "RC_SHA=$RC_SHA" >> "$GITHUB_ENV"
-          echo "RC8_SHA=$RC_SHA"
+          echo "RC9_SHA=$RC_SHA"
 
       - name: Dispatch authoritative Final Clean-room Gate
         env:
@@ -130,7 +129,7 @@ jobs:
             fi
             sleep 5
           done
-          echo "ERROR: dispatched RC8 workflow run not found" >&2
+          echo "ERROR: dispatched RC9 workflow run not found" >&2
           exit 1
 
       - name: Wait for Final Clean-room PASS
@@ -146,7 +145,7 @@ jobs:
             HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
             URL="$(jq -r '.url' <<<"$STATE")"
             test "$HEAD_SHA" = "$RC_SHA"
-            echo "RC8 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            echo "RC9 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
             if [ "$STATUS" = "completed" ]; then
               test "$CONCLUSION" = "success" || {
                 gh run view "$RC_RUN_ID" --log-failed || true
@@ -160,7 +159,7 @@ jobs:
           echo "ERROR: Final Clean-room gate timeout" >&2
           exit 1
 
-      - name: Promote exact verified RC8 commit to main and GA tag
+      - name: Promote exact verified RC9 commit to main and GA tag
         shell: bash
         run: |
           set -euo pipefail
