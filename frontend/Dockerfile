@@ -24,6 +24,7 @@ LABEL org.opencontainers.image.title="CPIM-MES Frontend" \
       org.opencontainers.image.version="${RELEASE_VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_TIME}"
+RUN apk upgrade --no-cache
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080
