@@ -1,0 +1,176 @@
+name: Bootstrap v0.41.1 RC upload and promotion
+
+on:
+  push:
+    branches:
+      - bootstrap/v0.41.1-rc.1-upload
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: bootstrap-v0.41.1-rc.1
+  cancel-in-progress: false
+
+jobs:
+  upload-dispatch-promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      BASE_SHA: 028f9e30d489148abdaf768030e21fa8e8562cb5
+      RC_BRANCH: release/v0.41.1-rc.1
+      RC_VERSION: v0.41.1-rc.1
+      GA_TAG: v0.41.1
+      DELTA_SHA256: 146a1cb4cbb6e4cfee802fc74add60a3b11ca1e99efd13765c30f9f7f370fcf0
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Preflight immutable repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$BASE_SHA" || {
+            echo "ERROR: main moved from expected v0.41.0 baseline." >&2
+            exit 1
+          }
+          if git ls-remote --exit-code --heads origin "$RC_BRANCH" >/dev/null 2>&1; then
+            echo "ERROR: $RC_BRANCH already exists; refusing overwrite." >&2
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
+            echo "ERROR: tag $GA_TAG already exists; refusing overwrite." >&2
+            exit 1
+          fi
+
+      - name: Reconstruct and verify frozen RC delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rc-delta
+          base64 --decode .rc-upload/delta.b64 > /tmp/rc-delta.tar.xz
+          echo "$DELTA_SHA256  /tmp/rc-delta.tar.xz" | sha256sum -c -
+          tar -tJf /tmp/rc-delta.tar.xz >/dev/null
+          tar -xJf /tmp/rc-delta.tar.xz -C /tmp/rc-delta
+          test -f /tmp/rc-delta/.github/workflows/release-candidate.yml
+
+      - name: Register authoritative workflow on default branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "CPIM-MES Release Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -B main origin/main
+          mkdir -p .github/workflows
+          cp /tmp/rc-delta/.github/workflows/release-candidate.yml .github/workflows/release-candidate.yml
+          git add .github/workflows/release-candidate.yml
+          git diff --cached --quiet && {
+            echo "ERROR: release-candidate workflow registration produced no change." >&2
+            exit 1
+          }
+          git commit -m "ci: register v0.41.1 release candidate gate"
+          git push origin HEAD:main
+          echo "REGISTER_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build exact RC source tree and push release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -B "$RC_BRANCH" "$REGISTER_SHA"
+          tar -xJf /tmp/rc-delta.tar.xz -C .
+          rm -f \
+            .DS_Store \
+            backend/.DS_Store \
+            cpim-mes-v0.39.0-e2e-state-isolation-hotfix.patch \
+            cpim-mes-v0.39.0-realtime-dispatch-dynamic-rescheduling-schedule-adherence.patch
+          git add -A
+          python3 scripts/verify_source_checksums.py
+          test -z "$(git status --porcelain --untracked-files=all | grep '^??' || true)"
+          git commit -m "release: prepare v0.41.1-rc.1 production hardening"
+          RC_SHA="$(git rev-parse HEAD)"
+          echo "RC_SHA=$RC_SHA" >> "$GITHUB_ENV"
+          git push origin "HEAD:refs/heads/$RC_BRANCH"
+
+      - name: Dispatch authoritative release-candidate.yml
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run release-candidate.yml --ref "$RC_BRANCH"
+          for i in $(seq 1 60); do
+            RUN_ID="$(gh run list \
+              --workflow release-candidate.yml \
+              --branch "$RC_BRANCH" \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,headSha,createdAt \
+              --jq '.[] | select(.headSha == env.RC_SHA) | .databaseId' | head -n1)"
+            if [ -n "$RUN_ID" ]; then
+              echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
+              echo "Authoritative RC workflow run: $RUN_ID"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: dispatched RC workflow run was not found." >&2
+          exit 1
+
+      - name: Wait for Final Clean-room PASS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 360); do
+            STATE="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
+            STATUS="$(jq -r '.status' <<<"$STATE")"
+            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
+            HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
+            URL="$(jq -r '.url' <<<"$STATE")"
+            test "$HEAD_SHA" = "$RC_SHA" || {
+              echo "ERROR: RC workflow head SHA drifted." >&2
+              exit 1
+            }
+            echo "RC gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            if [ "$STATUS" = "completed" ]; then
+              test "$CONCLUSION" = "success" || {
+                echo "ERROR: Final Clean-room gate did not PASS." >&2
+                gh run view "$RC_RUN_ID" --log-failed || true
+                exit 1
+              }
+              echo "RC_RUN_URL=$URL" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "ERROR: Final Clean-room gate did not complete in bootstrap timeout." >&2
+          exit 1
+
+      - name: Fast-forward main and create annotated GA tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main "$RC_BRANCH" --tags
+          test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
+          test "$(git rev-parse origin/main)" = "$REGISTER_SHA"
+          git merge-base --is-ancestor "$REGISTER_SHA" "$RC_SHA"
+          git push origin "$RC_SHA:refs/heads/main"
+          git tag -a "$GA_TAG" "$RC_SHA" -m "CPIM-MES v0.41.1 Production Hardening\n\nFinal Clean-room PASS: $RC_RUN_URL"
+          git push origin "refs/tags/$GA_TAG"
+
+      - name: Verify GA promotion refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          test "$(git rev-parse origin/main)" = "$RC_SHA"
+          test "$(git rev-list -n1 "$GA_TAG")" = "$RC_SHA"
+          echo "GA promotion complete"
+          echo "commit=$RC_SHA"
+          echo "tag=$GA_TAG"
+          echo "gate=$RC_RUN_URL"
