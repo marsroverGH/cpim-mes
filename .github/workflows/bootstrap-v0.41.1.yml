@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.2 and promote GA
+name: Finalize v0.41.1-rc.3 and promote GA
 
 on:
   push:
@@ -10,36 +10,36 @@ permissions:
   actions: write
 
 concurrency:
-  group: finalize-v0.41.1-rc.2
+  group: finalize-v0.41.1-rc.3
   cancel-in-progress: false
 
 jobs:
-  finalize-rc2:
+  finalize-rc3:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      RC2_BRANCH: release/v0.41.1-rc.2
+      RC3_BRANCH: release/v0.41.1-rc.3
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ env.RC2_BRANCH }}
+          ref: ${{ env.RC3_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Preflight RC2 and absent GA tag
+      - name: Preflight RC3 and absent GA tag
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "$RC2_BRANCH" --tags
-          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$RC2_BRANCH")"
-          grep -q "RC_VERSION: 'v0.41.1-rc.2'" .github/workflows/release-candidate.yml
+          git fetch origin "$RC3_BRANCH" --tags
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$RC3_BRANCH")"
+          grep -q "RC_VERSION: 'v0.41.1-rc.3'" .github/workflows/release-candidate.yml
           if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
             echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
             exit 1
           fi
 
-      - name: Apply minimal RC2 fixture and metadata update
+      - name: Fix remaining nil Router test fixture and RC3 metadata
         shell: bash
         run: |
           set -euo pipefail
@@ -47,12 +47,12 @@ jobs:
           from pathlib import Path
           import subprocess
 
-          p = Path("backend/internal/api/router_config_test.go")
+          p = Path("backend/internal/api/version_test.go")
           s = p.read_text()
           if '"github.com/cpim-mes/backend/internal/service"' not in s:
               s = s.replace(
-                  '"testing"\n)',
-                  '"testing"\n\n\t"github.com/cpim-mes/backend/internal/service"\n)',
+                  '"testing"\n',
+                  '"testing"\n\n\t"github.com/cpim-mes/backend/internal/service"\n',
               )
           s = s.replace(
               "NewRouter(nil, RouterConfig{",
@@ -71,10 +71,14 @@ jobs:
                   text = q.read_text()
               except (UnicodeDecodeError, IsADirectoryError):
                   continue
-              if "v0.41.1-rc.1" in text:
-                  q.write_text(text.replace("v0.41.1-rc.1", "v0.41.1-rc.2"))
+              if "v0.41.1-rc.2" in text:
+                  q.write_text(text.replace("v0.41.1-rc.2", "v0.41.1-rc.3"))
           PY
-          gofmt -w backend/internal/api/router_config_test.go
+          gofmt -w backend/internal/api/version_test.go
+          if grep -R "NewRouter(nil" -n backend/internal/api --include='*_test.go'; then
+            echo "ERROR: nil Router test fixture remains" >&2
+            exit 1
+          fi
 
       - name: Recalculate and verify governed source
         shell: bash
@@ -83,7 +87,6 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import hashlib
-
           checksum = Path("SHA256SUMS.txt")
           out = []
           for line in checksum.read_text().splitlines():
@@ -103,7 +106,7 @@ jobs:
           python3 backend/scripts/check_final_release_candidate.py
           python3 scripts/test_release_candidate_unit.py
 
-      - name: Commit RC2 fix if needed
+      - name: Commit RC3 fix if needed
         shell: bash
         run: |
           set -euo pipefail
@@ -112,12 +115,12 @@ jobs:
           git add -A
           git diff --cached --check
           if ! git diff --cached --quiet; then
-            git commit -m "release: finalize v0.41.1-rc.2 after clean-room fixture fix"
-            git push origin "HEAD:refs/heads/$RC2_BRANCH"
+            git commit -m "release: finalize v0.41.1-rc.3 after router test fixture fixes"
+            git push origin "HEAD:refs/heads/$RC3_BRANCH"
           fi
-          RC2_SHA="$(git rev-parse HEAD)"
-          echo "RC2_SHA=$RC2_SHA" >> "$GITHUB_ENV"
-          echo "RC2_SHA=$RC2_SHA"
+          RC3_SHA="$(git rev-parse HEAD)"
+          echo "RC3_SHA=$RC3_SHA" >> "$GITHUB_ENV"
+          echo "RC3_SHA=$RC3_SHA"
 
       - name: Dispatch authoritative Final Clean-room Gate
         env:
@@ -125,9 +128,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run release-candidate.yml --ref "$RC2_BRANCH"
+          gh workflow run release-candidate.yml --ref "$RC3_BRANCH"
           for i in $(seq 1 60); do
-            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC2_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC2_SHA\") | .databaseId" | head -n1)"
+            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC3_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC3_SHA\") | .databaseId" | head -n1)"
             if [ -n "$RUN_ID" ]; then
               echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
               echo "RC_RUN_ID=$RUN_ID"
@@ -135,7 +138,7 @@ jobs:
             fi
             sleep 5
           done
-          echo "ERROR: dispatched RC2 workflow run not found" >&2
+          echo "ERROR: dispatched RC3 workflow run not found" >&2
           exit 1
 
       - name: Wait for Final Clean-room PASS
@@ -150,8 +153,8 @@ jobs:
             CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
             HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
             URL="$(jq -r '.url' <<<"$STATE")"
-            test "$HEAD_SHA" = "$RC2_SHA"
-            echo "RC2 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
+            test "$HEAD_SHA" = "$RC3_SHA"
+            echo "RC3 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
             if [ "$STATUS" = "completed" ]; then
               test "$CONCLUSION" = "success" || {
                 gh run view "$RC_RUN_ID" --log-failed || true
@@ -171,7 +174,7 @@ jobs:
           set -euo pipefail
           git config user.name "CPIM-MES Release Automation"
           git config user.email "actions@users.noreply.github.com"
-          git tag -a "$GA_TAG" "$RC2_SHA" \
+          git tag -a "$GA_TAG" "$RC3_SHA" \
             -m "CPIM-MES v0.41.1 Production Hardening" \
             -m "Final Clean-room PASS: $RC_RUN_URL"
           git push origin "refs/tags/$GA_TAG"
@@ -181,7 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin --tags
-          test "$(git rev-list -n1 "$GA_TAG")" = "$RC2_SHA"
+          test "$(git rev-list -n1 "$GA_TAG")" = "$RC3_SHA"
           echo "GA_TAG=$GA_TAG"
-          echo "GA_COMMIT=$RC2_SHA"
+          echo "GA_COMMIT=$RC3_SHA"
           echo "FINAL_GATE=$RC_RUN_URL"
