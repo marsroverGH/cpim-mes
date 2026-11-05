@@ -22,7 +22,7 @@
             density="compact"
             hide-details
             style="min-width: 130px"
-            @update:model-value="value => changeRole(item, value)"
+            @update:model-value="changeRole(item, $event as UserRole)"
           />
         </template>
         <template #item.isActive="{ item }">
@@ -31,7 +31,7 @@
             color="primary"
             hide-details
             density="compact"
-            @update:model-value="value => changeActive(item, Boolean(value))"
+            @update:model-value="changeActive(item, Boolean($event))"
           />
         </template>
         <template #item.createdAt="{ item }">{{ formatDate(item.createdAt) }}</template>
