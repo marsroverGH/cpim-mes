@@ -257,7 +257,7 @@ scripts/test_recovery_failed_persistence.py UNCHANGED
 
 ## 10. この実行環境で未実行の最終Runtime Gate
 
-現在の作業環境には、プロジェクト指定のGo 1.26.7 toolchain用module download環境とDocker daemonがないため、以下はGitHub Actionsまたは開発Macでの最終実行対象。
+現在の作業環境には、プロジェクト指定のGo 1.26.10 toolchain用module download環境とDocker daemonがないため、以下はGitHub Actionsまたは開発Macでの最終実行対象。
 
 ```text
 go mod verify

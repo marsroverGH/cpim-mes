@@ -7,11 +7,11 @@ APICS (現ASCM) **CPIM (Certified in Planning and Inventory Management)** の知
 | レイヤ | 技術 |
 | --- | --- |
 | フロントエンド | Vue 3 + Vuetify 3 + Vite + TypeScript + Pinia |
-| バックエンド | Go 1.26.7 + chi router + sqlx |
+| バックエンド | Go 1.26.10 + chi router + sqlx |
 | データベース | PostgreSQL 16.15 |
 | 開発支援 | Docker Compose |
 
-Production Hardeningのruntime baselineは **Go 1.26.7 / Node.js 24.20.0 LTS / npm 11.19.0 / PostgreSQL 16.15 / Alpine 3.24** です。詳細は [`docs/RUNTIME_SUPPORT.md`](./docs/RUNTIME_SUPPORT.md) を参照してください。
+Production Hardeningのruntime baselineは **Go 1.26.10 / Node.js 24.20.0 LTS / npm 11.19.0 / PostgreSQL 16.15 / Alpine 3.24** です。詳細は [`docs/RUNTIME_SUPPORT.md`](./docs/RUNTIME_SUPPORT.md) を参照してください。
 
 Step 12ではSecurity CI / Supply Chain gateを追加しています。`govulncheck`、`npm audit`、Trivy container scan、Syft SPDX SBOM、release bundle checksum/manifest検証をRelease Gateとして実行します。詳細は [`docs/SECURITY_CI_SUPPLY_CHAIN.md`](./docs/SECURITY_CI_SUPPLY_CHAIN.md) を参照してください。
 
@@ -174,7 +174,7 @@ passwordを環境変数へ直接渡す `BOOTSTRAP_ADMIN_PASSWORD` は禁止で�
 ### 前提
 
 - Docker Desktop (Compose v2)
-- もしくは Node.js 24.20.0 / npm 11.19.0 / Go 1.26.7 / PostgreSQL 16.15 のローカル環境
+- もしくは Node.js 24.20.0 / npm 11.19.0 / Go 1.26.10 / PostgreSQL 16.15 のローカル環境
 
 
 ### 依存関係ロックとCI

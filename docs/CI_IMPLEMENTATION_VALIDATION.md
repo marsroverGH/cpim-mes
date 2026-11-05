@@ -15,7 +15,7 @@ e2e/package-lock.json
 Direct npm dependency versions are exact. Runtime/tooling policy is pinned to:
 
 ```text
-Go       1.26.7
+Go       1.26.10
 Node.js  24.20.0 LTS
 npm      11.19.0
 ```

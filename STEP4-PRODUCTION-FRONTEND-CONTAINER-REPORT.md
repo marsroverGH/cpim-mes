@@ -160,7 +160,7 @@ backend/scripts/check_production_frontend_container.py
 Step 4時点:
 
 ```text
-Go          1.26.7
+Go          1.26.10
 Node.js     24.20.0 LTS
 npm         11.19.0
 PostgreSQL  16.15
@@ -243,7 +243,7 @@ ProjectはStep 1でNode 24.x/npm 11.x/Go 1.26.xをfail-closed要求するため�
 したがって以下は開発MacまたはGitHub Actionsで最終実行する。
 
 ```text
-Go 1.26.7: go mod verify / go vet / go test -race
+Go 1.26.10: go mod verify / go vet / go test -race
 Node 24.20.0 + npm 11.19.0: npm ci / typecheck / production build
 Docker: production image build
 Docker: production Compose config/start

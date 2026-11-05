@@ -12,7 +12,7 @@ Step 1 Runtime Upgrade has been implemented without creating a database migratio
 
 | Component | v0.41.0 baseline | Step 1 baseline |
 | --- | --- | --- |
-| Go | 1.22 | 1.26.7 |
+| Go | 1.22 | 1.26.10 |
 | Node.js | 20.x | 24.20.0 LTS |
 | npm | 10.9.2 | 11.19.0 |
 | PostgreSQL | 16 floating minor | 16.15 |
@@ -53,7 +53,7 @@ Step 1 Runtime Upgrade has been implemented without creating a database migratio
 `./scripts/generate-lockfiles.sh` now requires exact local versions:
 
 ```text
-Go       go1.26.7
+Go       go1.26.10
 Node     v24.20.0
 npm      11.19.0
 ```
@@ -102,7 +102,7 @@ docker compose build
 Playwright E2E
 ```
 
-The repository is configured so those gates run with Go 1.26.7 / Node 24.20.0 / npm 11.19.0 in GitHub Actions or on an Internet-connected development Mac.
+The repository is configured so those gates run with Go 1.26.10 / Node 24.20.0 / npm 11.19.0 in GitHub Actions or on an Internet-connected development Mac.
 
 ## Recommended first verification on the development Mac
 

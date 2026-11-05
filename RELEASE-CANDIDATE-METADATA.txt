@@ -1,7 +1,7 @@
 CPIM-MES v0.41.1 Release Candidate
 ==================================
 
-Candidate: v0.41.1-rc.3
+Candidate: v0.41.1-rc.4
 Target GA release: v0.41.1
 Baseline: v0.41.0 / 028f9e30d489148abdaf768030e21fa8e8562cb5
 Scope: Production Hardening Steps 1-13
@@ -21,4 +21,4 @@ Authoritative promotion gate:
   .github/workflows/release-candidate.yml
   -> scripts/final_clean_room_release_gate.sh
 
-A source archive can be frozen as v0.41.1-rc.3 after local static verification, but GA promotion requires a PASS from the authoritative live clean-room workflow for the exact candidate commit and independent verification of its release-candidate-bundle.
+A source archive can be frozen as v0.41.1-rc.4 after local static verification, but GA promotion requires a PASS from the authoritative live clean-room workflow for the exact candidate commit and independent verification of its release-candidate-bundle.

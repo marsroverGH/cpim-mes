@@ -269,7 +269,7 @@ Node:   22.16.0
 npm:    10.9.2
 ```
 
-The project runtime remains Go 1.26.7 / Node 24.20.0 / npm 11.19.0 / PostgreSQL 16.15.
+The project runtime remains Go 1.26.10 / Node 24.20.0 / npm 11.19.0 / PostgreSQL 16.15.
 
 Because Docker is unavailable here, the actual live `pg_dump -> pg_restore` drill cannot be executed in this container. The live restore drill is wired into GitHub Actions against the production Compose topology and is therefore a required release gate. The final production gate must also run the existing Go/Frontend/Docker/Playwright checks under the project-pinned runtimes.
 

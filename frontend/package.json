@@ -12,21 +12,21 @@
   },
   "dependencies": {
     "@mdi/font": "7.4.47",
-    "axios": "1.7.4",
+    "axios": "1.21.0",
     "chart.js": "4.4.4",
     "html5-qrcode": "2.3.8",
     "pinia": "2.2.2",
-    "vue": "3.5.13",
+    "vue": "3.5.45",
     "vue-chartjs": "5.3.1",
     "vue-router": "4.4.5",
     "vuetify": "3.7.5"
   },
   "devDependencies": {
     "@types/node": "22.5.0",
-    "@vitejs/plugin-vue": "5.1.4",
+    "@vitejs/plugin-vue": "6.0.10",
     "sass": "1.77.8",
     "typescript": "5.6.3",
-    "vite": "5.4.10",
+    "vite": "6.4.5",
     "vite-plugin-vuetify": "2.0.4",
     "vue-tsc": "2.1.10"
   },
@@ -34,5 +34,8 @@
     "node": "24.x",
     "npm": "11.x"
   },
-  "packageManager": "npm@11.19.0"
+  "packageManager": "npm@11.19.0",
+  "overrides": {
+    "follow-redirects": "1.16.2"
+  }
 }

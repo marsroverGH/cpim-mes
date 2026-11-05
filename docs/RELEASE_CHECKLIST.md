@@ -10,7 +10,7 @@
 
 ## Runtime / build
 
-- [ ] Go 1.26.7.
+- [ ] Go 1.26.10.
 - [ ] Node.js 24.20.0 LTS.
 - [ ] npm 11.19.0.
 - [ ] PostgreSQL 16.15.

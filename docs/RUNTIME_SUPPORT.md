@@ -7,18 +7,18 @@ It intentionally changes infrastructure/toolchain versions only; business semant
 
 | Component | Supported baseline | Repository enforcement |
 | --- | --- | --- |
-| Go | 1.26.7 | `backend/go.mod`, backend Dockerfile, GitHub Actions |
+| Go | 1.26.10 | `backend/go.mod`, backend Dockerfile, GitHub Actions |
 | Node.js | 24.20.0 LTS | `.nvmrc`, frontend Dockerfile, GitHub Actions |
 | npm | 11.19.0 | `packageManager`, Dockerfile, CI, lock generation script |
 | PostgreSQL | 16.15 | `docker-compose.yml` |
 | Nginx | 1.30.4 stable | Production frontend runtime (`frontend/Dockerfile`) |
 | Alpine Linux | 3.24 | Go build/runtime image, Node/Nginx image, PostgreSQL image |
 
-`backend/go.mod` declares `go 1.26.0` as the language/toolchain floor for the 1.26 release line, while CI and container builds are patch-pinned to Go 1.26.7.
+`backend/go.mod` declares `go 1.26.0` as the language/toolchain floor for the 1.26 release line, while CI and container builds are patch-pinned to Go 1.26.10.
 
 ## Why these versions
 
-- Go 1.26 remains a supported Go release line and 1.26.7 is its current patch release selected for this hardening baseline.
+- Go 1.26 remains a supported Go release line and 1.26.10 is its current patch release selected for this hardening baseline.
 - Node.js 24 is LTS. Node 20 is no longer an acceptable production baseline.
 - PostgreSQL remains on major version 16 to avoid a database-major upgrade during hardening, but is pinned to the current 16.x minor.
 - Alpine 3.24 replaces the old Alpine 3.19 runtime base.
@@ -36,7 +36,7 @@ The guard verifies that local selectors, package manifests, lockfile root metada
 Lockfile regeneration additionally requires the exact Go, Node, and npm versions:
 
 ```bash
-go version     # go1.26.7
+go version     # go1.26.10
 node --version # v24.20.0
 npm --version  # 11.19.0
 make lock

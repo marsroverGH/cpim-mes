@@ -105,4 +105,4 @@ Validated in the artifact-building environment:
   - `frontend/src`: unchanged
   - `e2e/tests`: unchanged
 
-Packaging environment limitations remain the same as Step 1: the installed Go is older than the pinned Go 1.26.7, external Go modules are not cached/network-accessible, and Docker is unavailable. Therefore the exact-runtime full `go test -race ./...`, `go vet ./...`, Docker build, frontend production build, and Playwright 18/18 gate must run on the development Mac or GitHub Actions.
+Packaging environment limitations remain the same as Step 1: the installed Go is older than the pinned Go 1.26.10, external Go modules are not cached/network-accessible, and Docker is unavailable. Therefore the exact-runtime full `go test -race ./...`, `go vet ./...`, Docker build, frontend production build, and Playwright 18/18 gate must run on the development Mac or GitHub Actions.

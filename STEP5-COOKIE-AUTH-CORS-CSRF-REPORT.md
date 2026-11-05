@@ -206,7 +206,7 @@ TypeScript syntax transpile: PASS
 
 ## 12. Go / Frontend test実行制約
 
-この実行環境はGo 1.23.2 / Node 22.16.0 / npm 10.9.2で、指定runtime Go 1.26.7 / Node 24.20.0ではない。またGo module cacheと外部network accessがなく、Go dependency downloadが失敗する。
+この実行環境はGo 1.23.2 / Node 22.16.0 / npm 10.9.2で、指定runtime Go 1.26.10 / Node 24.20.0ではない。またGo module cacheと外部network accessがなく、Go dependency downloadが失敗する。
 
 確認できたもの:
 

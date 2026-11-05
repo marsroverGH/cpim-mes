@@ -178,7 +178,7 @@ CI/dependency policy: PASS
 Runtime remains Step 1 baseline:
 
 ```text
-Go         1.26.7
+Go         1.26.10
 Node.js    24.20.0 LTS
 npm        11.19.0
 PostgreSQL 16.15
@@ -187,7 +187,7 @@ Alpine     3.24
 
 ### Config unit tests
 
-The local environment has Go 1.23 rather than the project-pinned Go 1.26.7. Because the config package uses only the Go standard library, it was tested directly in GOPATH compatibility mode:
+The local environment has Go 1.23 rather than the project-pinned Go 1.26.10. Because the config package uses only the Go standard library, it was tested directly in GOPATH compatibility mode:
 
 ```text
 GO111MODULE=off go test -count=1

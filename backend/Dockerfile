@@ -2,7 +2,7 @@ ARG RELEASE_VERSION=v0.41.1
 ARG VCS_REF=unknown
 ARG BUILD_TIME=unknown
 
-FROM golang:1.26.7-alpine3.24 AS build
+FROM golang:1.26.10-alpine3.24 AS build
 ARG RELEASE_VERSION
 ARG VCS_REF
 ARG BUILD_TIME

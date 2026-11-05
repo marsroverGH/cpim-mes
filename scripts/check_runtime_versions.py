@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 EXPECTED = {
-    "go": "1.26.7",
+    "go": "1.26.10",
     "go_mod": "1.26.0",
     "node": "24.20.0",
     "node_engine": "24.x",

@@ -10,7 +10,7 @@
     "ci": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.47.0",
+    "@playwright/test": "1.64.1",
     "@types/node": "22.5.0",
     "typescript": "5.6.3"
   },
