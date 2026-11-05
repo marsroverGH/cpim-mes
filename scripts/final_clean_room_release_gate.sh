@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 RELEASE_VERSION="${RELEASE_VERSION:-v0.41.1}"
-RC_VERSION="${RC_VERSION:-v0.41.1-rc.4}"
+RC_VERSION="${RC_VERSION:-v0.41.1-rc.5}"
 VCS_REF="${VCS_REF:-${GITHUB_SHA:-local}}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-rc-db-$(openssl rand -hex 16)}"
@@ -77,8 +77,11 @@ printf '%s\n' "==> Dependency security gate"
 printf '%s\n' "==> Empty-volume production image build"
 "${COMPOSE_BOOTSTRAP[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
 "${COMPOSE[@]}" build --pull
-BACKEND_IMAGE_ID="$("${COMPOSE[@]}" images -q backend | head -n1)"
-FRONTEND_IMAGE_ID="$("${COMPOSE[@]}" images -q frontend | head -n1)"
+BACKEND_IMAGE_REF="$("${COMPOSE[@]}" config --images | grep -E '(^|/)cpim-mes-backend(:|$)|cpim-mes-backend' | head -n1)"
+FRONTEND_IMAGE_REF="$("${COMPOSE[@]}" config --images | grep -E '(^|/)cpim-mes-frontend(:|$)|cpim-mes-frontend' | head -n1)"
+[[ -n "$BACKEND_IMAGE_REF" && -n "$FRONTEND_IMAGE_REF" ]] || fail "could not resolve configured production image references"
+BACKEND_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$BACKEND_IMAGE_REF" 2>/dev/null || true)"
+FRONTEND_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$FRONTEND_IMAGE_REF" 2>/dev/null || true)"
 [[ -n "$BACKEND_IMAGE_ID" && -n "$FRONTEND_IMAGE_ID" ]] || fail "could not resolve built production image IDs"
 
 printf '%s\n' "==> Container scan + SBOM"
