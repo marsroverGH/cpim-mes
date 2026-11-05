@@ -132,7 +132,7 @@ test.describe.serial('Step 7 User Administration', () => {
     await page.getByText('ユーザー管理').click()
     await expect(page).toHaveURL(/\/admin\/users$/)
     await expect(page.getByRole('heading', { name: 'User Administration' })).toBeVisible()
-    await expect(page.getByText(E2E_ADMIN_USERNAME)).toBeVisible()
+    await expect(page.getByRole('cell', { name: E2E_ADMIN_USERNAME, exact: true })).toBeVisible()
     await expect(page.getByText(managedUsername)).toBeVisible()
 
     await page.getByText('アカウント').click()
