@@ -142,11 +142,12 @@ func (s *AuthService) VerifyCSRFToken(sessionToken, csrfToken string) bool {
 	if len(parts) != 3 || parts[0] != csrfTokenVersion || parts[1] == "" || parts[2] == "" {
 		return false
 	}
-	if _, err := base64.RawURLEncoding.DecodeString(parts[1]); err != nil {
+	nonce, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil || len(nonce) != 32 || base64.RawURLEncoding.EncodeToString(nonce) != parts[1] {
 		return false
 	}
 	provided, err := base64.RawURLEncoding.DecodeString(parts[2])
-	if err != nil {
+	if err != nil || len(provided) != sha256.Size || base64.RawURLEncoding.EncodeToString(provided) != parts[2] {
 		return false
 	}
 	expected := s.csrfMAC(sessionToken, parts[1])
