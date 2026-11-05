@@ -1,4 +1,4 @@
-name: Bootstrap v0.41.1 RC gate and GA tag
+name: Prepare v0.41.1-rc.2 source branch
 
 on:
   push:
@@ -7,106 +7,116 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 concurrency:
-  group: bootstrap-v0.41.1-rc.1-gate
+  group: prepare-v0.41.1-rc.2
   cancel-in-progress: false
 
 jobs:
-  dispatch-gate-and-tag:
+  prepare-rc2:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 30
     env:
-      RC_BRANCH: release/v0.41.1-rc.1
-      RC_SHA: d7c7f07f4591bfdb06c8d1e3a068c59bad07403e
+      RC1_BRANCH: release/v0.41.1-rc.1
+      RC1_SHA: d7c7f07f4591bfdb06c8d1e3a068c59bad07403e
+      RC2_BRANCH: release/v0.41.1-rc.2
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
         with:
+          ref: ${{ env.RC1_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Preflight RC identity and absent GA tag
+      - name: Preflight immutable RC1 and absent RC2/tag
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin "$RC_BRANCH" --tags
-          test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
+          git fetch origin "$RC1_BRANCH" --tags
+          test "$(git rev-parse HEAD)" = "$RC1_SHA"
+          test "$(git rev-parse "origin/$RC1_BRANCH")" = "$RC1_SHA"
+          if git ls-remote --exit-code --heads origin "$RC2_BRANCH" >/dev/null 2>&1; then
+            echo "ERROR: $RC2_BRANCH already exists; refusing overwrite." >&2
+            exit 1
+          fi
           if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
-            echo "ERROR: tag $GA_TAG already exists; refusing overwrite." >&2
+            echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
             exit 1
           fi
 
-      - name: Dispatch authoritative release-candidate.yml
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Apply minimal RC2 fixture and metadata update
         shell: bash
         run: |
           set -euo pipefail
-          gh workflow run release-candidate.yml --ref "$RC_BRANCH"
-          for i in $(seq 1 60); do
-            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha,createdAt --jq ".[] | select(.headSha == \"$RC_SHA\") | .databaseId" | head -n1)"
-            if [ -n "$RUN_ID" ]; then
-              echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
-              echo "Authoritative RC workflow run: $RUN_ID"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "ERROR: dispatched RC workflow run was not found." >&2
-          exit 1
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
 
-      - name: Wait for Final Clean-room PASS
-        env:
-          GH_TOKEN: ${{ github.token }}
+          p = Path("backend/internal/api/router_config_test.go")
+          s = p.read_text()
+          if '"github.com/cpim-mes/backend/internal/service"' not in s:
+              s = s.replace(
+                  '"testing"\n)',
+                  '"testing"\n\n\t"github.com/cpim-mes/backend/internal/service"\n)',
+              )
+          s = s.replace(
+              "NewRouter(nil, RouterConfig{",
+              "NewRouter(&service.Services{}, RouterConfig{",
+          )
+          p.write_text(s)
+
+          files = subprocess.check_output(
+              ["git", "ls-files", "-z"]
+          ).decode().split("\0")
+          for name in files:
+              if not name or name == ".github/workflows/release-candidate.yml":
+                  continue
+              q = Path(name)
+              try:
+                  text = q.read_text()
+              except (UnicodeDecodeError, IsADirectoryError):
+                  continue
+              if "v0.41.1-rc.1" in text:
+                  q.write_text(text.replace("v0.41.1-rc.1", "v0.41.1-rc.2"))
+          PY
+          gofmt -w backend/internal/api/router_config_test.go
+
+      - name: Recalculate governed source checksums
         shell: bash
         run: |
           set -euo pipefail
-          for i in $(seq 1 360); do
-            STATE="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
-            STATUS="$(jq -r '.status' <<<"$STATE")"
-            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
-            HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
-            URL="$(jq -r '.url' <<<"$STATE")"
-            test "$HEAD_SHA" = "$RC_SHA" || {
-              echo "ERROR: RC workflow head SHA drifted." >&2
-              exit 1
-            }
-            echo "RC gate status=$STATUS conclusion=$CONCLUSION url=$URL"
-            if [ "$STATUS" = "completed" ]; then
-              test "$CONCLUSION" = "success" || {
-                echo "ERROR: Final Clean-room gate did not PASS." >&2
-                gh run view "$RC_RUN_ID" --log-failed || true
-                exit 1
-              }
-              echo "RC_RUN_URL=$URL" >> "$GITHUB_ENV"
-              exit 0
-            fi
-            sleep 15
-          done
-          echo "ERROR: Final Clean-room gate did not complete in bootstrap timeout." >&2
-          exit 1
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
 
-      - name: Create GA tag only after Final Clean-room PASS
+          checksum = Path("SHA256SUMS.txt")
+          out = []
+          for line in checksum.read_text().splitlines():
+              if not line.strip():
+                  continue
+              old_hash, path = line.split("  ", 1)
+              p = Path(path)
+              if not p.is_file():
+                  raise SystemExit(f"checksum path missing: {path}")
+              digest = hashlib.sha256(p.read_bytes()).hexdigest()
+              out.append(f"{digest}  {path}")
+          checksum.write_text("\n".join(out) + "\n")
+          PY
+          python3 scripts/verify_source_checksums.py
+          python3 scripts/check_runtime_versions.py
+          python3 scripts/check_dependency_locks.py
+          python3 scripts/check_ci_dependency_policy.py
+
+      - name: Commit and push RC2 source branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "CPIM-MES Release Automation"
           git config user.email "actions@users.noreply.github.com"
-          git fetch origin "$RC_BRANCH" --tags
-          test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
-          git tag -a "$GA_TAG" "$RC_SHA" \
-            -m "CPIM-MES v0.41.1 Production Hardening" \
-            -m "Final Clean-room PASS: $RC_RUN_URL"
-          git push origin "refs/tags/$GA_TAG"
-
-      - name: Verify GA tag identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch origin --tags
-          test "$(git rev-list -n1 "$GA_TAG")" = "$RC_SHA"
-          echo "GA_TAG=$GA_TAG"
-          echo "GA_COMMIT=$RC_SHA"
-          echo "FINAL_GATE=$RC_RUN_URL"
+          git checkout -b "$RC2_BRANCH"
+          git add -A
+          git diff --cached --check
+          git commit -m "release: prepare v0.41.1-rc.2 after clean-room fixture fix"
+          RC2_SHA="$(git rev-parse HEAD)"
+          echo "RC2_SOURCE_SHA=$RC2_SHA"
+          git push origin "HEAD:refs/heads/$RC2_BRANCH"
