@@ -82,11 +82,11 @@ for pkg in ("frontend/package.json", "e2e/package.json"):
         continue
     if version != "0.41.1":
         errors.append(f"{pkg}: expected version 0.41.1, got {version!r}")
-need("RELEASE-CANDIDATE-METADATA.txt", "Candidate: v0.41.1-rc.2")
+need("RELEASE-CANDIDATE-METADATA.txt", "Candidate: v0.41.1-rc.3")
 need("RELEASE-CANDIDATE-METADATA.txt", "Migration 0042: intentionally not created")
 need("RELEASE-CANDIDATE-METADATA.txt", "Playwright definitions: 25")
 need("RELEASE-METADATA.txt", "Step 13 Documentation / Final Clean-room Release Gate")
-need("RELEASE-METADATA.txt", "v0.41.1-rc.2 source candidate")
+need("RELEASE-METADATA.txt", "v0.41.1-rc.3 source candidate")
 
 # Final clean-room script must prove the requested gates, not merely reference them.
 for needle in [

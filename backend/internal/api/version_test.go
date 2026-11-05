@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/cpim-mes/backend/internal/service"
+
 	"github.com/cpim-mes/backend/internal/buildinfo"
 )
 
@@ -16,7 +18,7 @@ func TestVersionIsPublicAndNoStore(t *testing.T) {
 		BuildTime:       "2026-11-05T12:34:56Z",
 		MigrationLatest: 41,
 	}
-	h := NewRouter(nil, RouterConfig{BuildInfo: want})
+	h := NewRouter(&service.Services{}, RouterConfig{BuildInfo: want})
 	req := httptest.NewRequest(http.MethodGet, "/version", nil)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
