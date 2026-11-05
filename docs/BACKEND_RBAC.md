@@ -26,12 +26,13 @@ This version enforces authorization in the Go backend. Hiding buttons in the fro
 | ECO approve / apply / cancel | No | No | No | Yes |
 | Audit log read | No | No | Yes | Yes |
 | AI agent ask | Yes | Yes | Yes | Yes |
+| User administration | No | No | No | Yes |
 
 `admin` is an all-permissions role. Unknown roles are denied by default.
 
 ## Enforcement
 
-Every authenticated `POST`, `PUT`, `DELETE`, or `PATCH` route in `router.go` is registered through `requirePermission(...)`. Authorization happens after JWT authentication and before the handler executes. Missing permission returns HTTP `403 Forbidden`.
+Business/admin mutations in `router.go` are registered through `requirePermission(...)`. The only authenticated non-RBAC mutations are self-service logout and self-service password change; both still require authentication and cookie requests remain CSRF-protected. Authorization happens after JWT authentication and before the handler executes. Missing permission returns HTTP `403 Forbidden`.
 
 `backend/scripts/check_rbac_routes.py` is a dependency-free static guard that fails if a secured mutation route is added without permission middleware. It also verifies critical BOM, inventory, WO, PO, and ECO mappings.
 
@@ -51,10 +52,10 @@ The existing audit middleware wraps secured mutation handlers. Permission-denied
 
 ## Validation performed for this build
 
-- 49 authenticated mutation routes detected and permission-protected.
-- 0 raw `secured.Post/Put/Delete/Patch` mutation registrations remain.
-- Critical BOM / Inventory / WO / PO / ECO route mappings pass the dependency-free static guard.
-- All Go source files pass `go/parser` syntax validation.
-- Full `go test ./...` cannot run from the supplied source tree because the upstream project does not contain `backend/go.sum`; dependency lookup is unavailable in the build sandbox.
+- Backend RBAC static guard detects 115 permission-protected mutation routes after Step 7.
+- `admin.users.manage` is admin-only; planner/operator/viewer denial is unit-tested.
+- Self-service logout and password change are the only authenticated mutation routes intentionally exempt from business RBAC.
+- Role/deactivation changes continue to use per-request DB authorization refresh.
+- Step 7 User Administration invariants are additionally checked by `backend/scripts/check_user_administration.py`.
 
-No database migration is required for this RBAC change; the existing `users.role` and `users.is_active` columns are used.
+No database migration is required for Step 7; the existing `users.role` and `users.is_active` columns are used.

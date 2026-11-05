@@ -1,12 +1,10 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16.15-alpine3.24
     environment:
       POSTGRES_USER: cpim
       POSTGRES_PASSWORD: cpim
       POSTGRES_DB: cpim
-    ports:
-      - "55433:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,30 +18,35 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://cpim:cpim@db:5432/cpim?sslmode=disable
+      # Safe shared defaults. Production-specific fail-closed values are supplied
+      # by docker-compose.prod.yml; development host ports live in the dev override.
+      # Setting APP_ENV=production on this base file alone is expected to fail closed.
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgres://cpim:cpim@db:5432/cpim?sslmode=disable}
       HTTP_ADDR: ":8080"
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-in-production}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-Lax}
+      LOGIN_RATE_LIMIT_WINDOW: ${LOGIN_RATE_LIMIT_WINDOW:-15m}
+      LOGIN_RATE_LIMIT_IP_MAX_FAILURES: ${LOGIN_RATE_LIMIT_IP_MAX_FAILURES:-30}
+      LOGIN_RATE_LIMIT_USERNAME_MAX_FAILURES: ${LOGIN_RATE_LIMIT_USERNAME_MAX_FAILURES:-5}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-cpim-mes-backend}
+      OTEL_EXPORT_TIMEOUT: ${OTEL_EXPORT_TIMEOUT:-5s}
+      OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-256}
       MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
       MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-docker-compose-backend}
-    ports:
-      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    # NOTE: do NOT set VITE_API_BASE here.
-    # Leaving it unset makes the browser bundle use the relative URL '/api',
-    # which the Vite dev server proxies to http://backend:8080 (see vite.config.ts).
-    # This works whether the user opens the app at http://localhost:5173
-    # or at http://<server-LAN-IP>:5173 from another machine.
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 12
 
 volumes:
   db_data:

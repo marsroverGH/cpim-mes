@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
@@ -13,6 +18,10 @@ import (
 )
 
 var ErrInvalidCredentials = errors.New("invalid username or password")
+
+const SessionTTL = 8 * time.Hour
+
+const csrfTokenVersion = "v1"
 
 type AuthService struct {
 	repo   *repository.UserRepo
@@ -36,7 +45,9 @@ type LoginResponse struct {
 	Role     domain.Role `json:"role"`
 }
 
-// Login — ユーザー名+パスワード検証→JWT発行
+// Login authenticates username/password and issues a short-lived signed JWT.
+// Browser handlers place this JWT only in an HttpOnly cookie; the token value is
+// returned directly only by the explicit /api/auth/token endpoint for CLI/API use.
 func (s *AuthService) Login(ctx context.Context, username, password string) (*LoginResponse, error) {
 	u, err := s.repo.FindByUsername(ctx, username)
 	if err != nil {
@@ -57,7 +68,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*Lo
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   u.ID.String(),
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(8 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(SessionTTL)),
 			Issuer:    "cpim-mes",
 		},
 	}
@@ -69,11 +80,11 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (*Lo
 	return &LoginResponse{Token: signed, Username: u.Username, Role: u.Role}, nil
 }
 
-// Verify — JWT を検証し Claims を返す
+// Verify validates a signed JWT and returns its claims.
 func (s *AuthService) Verify(tokenStr string) (*Claims, error) {
 	c := &Claims{}
 	tok, err := jwt.ParseWithClaims(tokenStr, c, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, errors.New("unexpected signing method")
 		}
 		return s.secret, nil
@@ -81,7 +92,7 @@ func (s *AuthService) Verify(tokenStr string) (*Claims, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !tok.Valid {
+	if !tok.Valid || c.ExpiresAt == nil || c.Issuer != "cpim-mes" {
 		return nil, errors.New("invalid token")
 	}
 	return c, nil
@@ -106,9 +117,47 @@ func (s *AuthService) VerifyCurrent(ctx context.Context, tokenStr string) (*Clai
 	if u == nil || !u.IsActive {
 		return nil, errors.New("user is inactive or no longer exists")
 	}
-	// Always trust the current database values over potentially stale JWT
-	// authorization claims.
 	claims.Username = u.Username
 	claims.Role = u.Role
 	return claims, nil
+}
+
+// NewCSRFToken creates a signed double-submit token bound to one exact session
+// JWT. The random nonce is readable by browser JavaScript, but the session JWT
+// remains HttpOnly. The signature prevents attacker-chosen cookie/header pairs.
+func (s *AuthService) NewCSRFToken(sessionToken string) (string, error) {
+	nonceBytes := make([]byte, 32)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return "", err
+	}
+	nonce := base64.RawURLEncoding.EncodeToString(nonceBytes)
+	sig := s.csrfMAC(sessionToken, nonce)
+	return csrfTokenVersion + "." + nonce + "." + base64.RawURLEncoding.EncodeToString(sig), nil
+}
+
+// VerifyCSRFToken validates a signed double-submit token against the exact JWT
+// presented in the HttpOnly session cookie.
+func (s *AuthService) VerifyCSRFToken(sessionToken, csrfToken string) bool {
+	parts := strings.Split(csrfToken, ".")
+	if len(parts) != 3 || parts[0] != csrfTokenVersion || parts[1] == "" || parts[2] == "" {
+		return false
+	}
+	if _, err := base64.RawURLEncoding.DecodeString(parts[1]); err != nil {
+		return false
+	}
+	provided, err := base64.RawURLEncoding.DecodeString(parts[2])
+	if err != nil {
+		return false
+	}
+	expected := s.csrfMAC(sessionToken, parts[1])
+	return hmac.Equal(provided, expected)
+}
+
+func (s *AuthService) csrfMAC(sessionToken, nonce string) []byte {
+	mac := hmac.New(sha256.New, s.secret)
+	_, _ = mac.Write([]byte("cpim-mes-csrf:" + csrfTokenVersion + "\x00"))
+	_, _ = mac.Write([]byte(sessionToken))
+	_, _ = mac.Write([]byte{0})
+	_, _ = mac.Write([]byte(nonce))
+	return mac.Sum(nil)
 }

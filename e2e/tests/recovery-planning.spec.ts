@@ -1,13 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { createHash } from 'node:crypto'
+import { E2E_ADMIN_USERNAME, E2E_ADMIN_PASSWORD } from '../support/credentials'
 
 async function adminToken(page: any) {
   const res = await page.request.post(
-    '/api/auth/login',
+    '/api/auth/token',
     {
       data: {
-        username: 'admin',
-        password: 'admin123'
+        username: E2E_ADMIN_USERNAME,
+        password: E2E_ADMIN_PASSWORD
       }
     }
   )
@@ -469,11 +470,11 @@ test.describe(
 
         await page
           .getByLabel('ユーザー名')
-          .fill('admin')
+          .fill(E2E_ADMIN_USERNAME)
 
         await page
           .getByLabel('パスワード')
-          .fill('admin123')
+          .fill(E2E_ADMIN_PASSWORD)
 
         await page
           .getByRole(

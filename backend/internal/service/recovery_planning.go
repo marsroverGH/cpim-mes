@@ -176,7 +176,7 @@ func (s *RecoveryPlanningService) Simulate(
 	ctx context.Context,
 	in RecoverySimulationRequest,
 	actor RecoveryPlanningActor,
-) (*RecoverySimulationExecution, error) {
+) (execution *RecoverySimulationExecution, retErr error) {
 	if s == nil || s.db == nil {
 		return nil, fmt.Errorf(
 			"Recovery Planning database is required",
@@ -196,7 +196,44 @@ func (s *RecoveryPlanningService) Simulate(
 		return nil, err
 	}
 
-	tx, err := s.db.BeginTxx(
+	// Once a RUNNING row is committed, every subsequent error must leave
+	// durable terminal audit evidence. Register failure finalization before
+	// the transaction rollback defer so an in-flight Tx B is always rolled
+	// back before Tx C attempts RUNNING -> FAILED.
+	var failureRunID uuid.UUID
+	failureAuditArmed := false
+
+	defer func() {
+		if !failureAuditArmed ||
+			retErr == nil ||
+			failureRunID == uuid.Nil {
+			return
+		}
+
+		if auditErr := s.markRecoveryRunFailed(
+			ctx,
+			failureRunID,
+			retErr,
+		); auditErr != nil {
+			retErr = errors.Join(
+				retErr,
+				fmt.Errorf(
+					"persist recovery simulation FAILED audit: %w",
+					auditErr,
+				),
+			)
+		}
+	}()
+
+	var tx *sqlx.Tx
+
+	defer func() {
+		if tx != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	tx, err = s.db.BeginTxx(
 		ctx,
 		&sql.TxOptions{
 			Isolation: sql.LevelRepeatableRead,
@@ -205,10 +242,6 @@ func (s *RecoveryPlanningService) Simulate(
 	if err != nil {
 		return nil, err
 	}
-
-	defer func() {
-		_ = tx.Rollback()
-	}()
 
 	var scenario domain.RecoveryScenario
 
@@ -351,7 +384,7 @@ LIMIT 1
 	)
 
 	if err == nil {
-		execution, err :=
+		execution, err =
 			s.loadExecutionTx(
 				ctx,
 				tx,
@@ -401,19 +434,6 @@ LIMIT 1
 
 				RootCauseRef: row.RootCauseRef,
 			},
-		)
-	}
-
-	// Pure engine. No DB handle is supplied.
-	simulated, err :=
-		SimulateRecoveryScenario(
-			inputs,
-			actions,
-		)
-	if err != nil {
-		return nil, domain.NewBadRequest(
-			err.Error(),
-			nil,
 		)
 	}
 
@@ -478,6 +498,120 @@ VALUES(
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	// Tx A ends here. RUNNING is durable before the pure engine starts.
+	// Any later application/DB failure is terminalized independently by Tx C.
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	tx = nil
+
+	failureRunID = run.ID
+	failureAuditArmed = true
+
+	// Pure engine. No DB handle is supplied. Because RUNNING was already
+	// committed, an engine error is now preserved as durable FAILED evidence.
+	simulated, err :=
+		SimulateRecoveryScenario(
+			inputs,
+			actions,
+		)
+	if err != nil {
+		return nil, domain.NewBadRequest(
+			err.Error(),
+			nil,
+		)
+	}
+
+	// Tx B persists all result evidence and RUNNING -> SUCCEEDED atomically.
+	// Re-lock the scenario and verify the action request has not changed
+	// since Tx A. This preserves the consistency previously provided by the
+	// single long transaction without holding DB locks during simulation.
+	tx, err = s.db.BeginTxx(
+		ctx,
+		&sql.TxOptions{
+			Isolation: sql.LevelRepeatableRead,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var currentScenarioStatus string
+
+	if err := tx.GetContext(
+		ctx,
+		&currentScenarioStatus,
+		`
+SELECT status
+FROM recovery_scenarios
+WHERE id=$1
+FOR UPDATE
+`,
+		run.ScenarioID,
+	); err != nil {
+		return nil, err
+	}
+
+	if currentScenarioStatus != "DRAFT" &&
+		currentScenarioStatus != "SIMULATED" {
+		return nil, domain.NewConflict(
+			"recovery scenario changed while simulation was running",
+		)
+	}
+
+	currentActions := []domain.RecoveryScenarioAction{}
+
+	if err := tx.SelectContext(
+		ctx,
+		&currentActions,
+		`
+SELECT *
+FROM recovery_scenario_actions
+WHERE scenario_id=$1
+ORDER BY sequence_no,id
+`,
+		run.ScenarioID,
+	); err != nil {
+		return nil, err
+	}
+
+	currentRequestHash, err := recoveryRequestHash(
+		run.BaselineHash,
+		run.HorizonDays,
+		currentActions,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if currentRequestHash != run.RequestHash {
+		return nil, domain.NewConflict(
+			"recovery scenario actions changed while simulation was running",
+		)
+	}
+
+	var currentRunStatus string
+
+	if err := tx.GetContext(
+		ctx,
+		&currentRunStatus,
+		`
+SELECT status
+FROM recovery_scenario_runs
+WHERE id=$1
+FOR UPDATE
+`,
+		run.ID,
+	); err != nil {
+		return nil, err
+	}
+
+	if currentRunStatus != "RUNNING" {
+		return nil, fmt.Errorf(
+			"recovery scenario run is no longer RUNNING",
+		)
 	}
 
 	caseRows := make(
@@ -894,7 +1028,7 @@ WHERE id=$1
 		)
 	}
 
-	if scenario.Status == "DRAFT" {
+	if currentScenarioStatus == "DRAFT" {
 		result, err = tx.ExecContext(
 			ctx,
 			`
@@ -935,6 +1069,8 @@ WHERE id=$1
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
+	tx = nil
+	failureAuditArmed = false
 
 	return &RecoverySimulationExecution{
 		Run: run,
@@ -947,4 +1083,135 @@ WHERE id=$1
 
 		Reused: false,
 	}, nil
+}
+
+const recoveryFailureReasonMaxRunes = 2000
+
+func recoveryFailureReason(cause error) string {
+	if cause == nil {
+		return "recovery simulation failed"
+	}
+
+	reason := strings.TrimSpace(cause.Error())
+	if reason == "" {
+		reason = "recovery simulation failed"
+	}
+
+	runes := []rune(reason)
+	if len(runes) > recoveryFailureReasonMaxRunes {
+		reason = string(runes[:recoveryFailureReasonMaxRunes])
+	}
+
+	return reason
+}
+
+// markRecoveryRunFailed is Tx C of the simulation lifecycle.
+//
+// It deliberately detaches from request cancellation so that an HTTP client
+// disconnect cannot erase failure audit evidence after Tx A committed RUNNING.
+// The update is idempotent for already-terminal runs: FAILED is preserved and
+// SUCCEEDED is never rewritten after an ambiguous Tx B commit result.
+func (s *RecoveryPlanningService) markRecoveryRunFailed(
+	parent context.Context,
+	runID uuid.UUID,
+	cause error,
+) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("Recovery Planning database is required")
+	}
+
+	if runID == uuid.Nil {
+		return fmt.Errorf("recovery scenario run ID is required")
+	}
+
+	if parent == nil {
+		parent = context.Background()
+	}
+
+	auditCtx, cancel := context.WithTimeout(
+		context.WithoutCancel(parent),
+		10*time.Second,
+	)
+	defer cancel()
+
+	tx, err := s.db.BeginTxx(
+		auditCtx,
+		&sql.TxOptions{
+			Isolation: sql.LevelReadCommitted,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = tx.Rollback()
+	}()
+
+	var status string
+
+	if err := tx.GetContext(
+		auditCtx,
+		&status,
+		`
+SELECT status
+FROM recovery_scenario_runs
+WHERE id=$1
+FOR UPDATE
+`,
+		runID,
+	); err != nil {
+		return err
+	}
+
+	switch status {
+	case "FAILED", "SUCCEEDED":
+		// A prior finalizer already persisted the terminal state, or Tx B
+		// committed successfully but returned an ambiguous client-side error.
+		return tx.Commit()
+
+	case "RUNNING":
+		// Expected failure-finalization path.
+
+	default:
+		return fmt.Errorf(
+			"invalid recovery scenario run status %q during failure finalization",
+			status,
+		)
+	}
+
+	completedAt := time.Now().UTC()
+	reason := recoveryFailureReason(cause)
+
+	result, err := tx.ExecContext(
+		auditCtx,
+		`
+UPDATE recovery_scenario_runs
+SET
+    status='FAILED',
+    result_hash=NULL,
+    completed_at=$2,
+    failure_reason=$3
+WHERE id=$1
+  AND status='RUNNING'
+`,
+		runID,
+		completedAt,
+		reason,
+	)
+	if err != nil {
+		return err
+	}
+
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 1 {
+		return fmt.Errorf(
+			"recovery scenario FAILED terminalization lost",
+		)
+	}
+
+	return tx.Commit()
 }

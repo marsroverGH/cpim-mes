@@ -4,37 +4,70 @@ import { http } from '@/api'
 
 export type Role = 'admin' | 'planner' | 'operator' | 'viewer'
 
-const TOKEN_KEY = 'cpim.token'
-const USER_KEY  = 'cpim.user'
+interface SessionUser {
+  username: string
+  role: Role
+  userId?: string
+  permissions?: string[]
+}
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref<string>(localStorage.getItem(TOKEN_KEY) || '')
-  const userJson = localStorage.getItem(USER_KEY)
-  const username = ref<string>(userJson ? (JSON.parse(userJson).username || '') : '')
-  const role = ref<Role | ''>(userJson ? ((JSON.parse(userJson).role || '') as Role) : '')
+  const username = ref('')
+  const role = ref<Role | ''>('')
+  const initialized = ref(false)
+  const authenticated = ref(false)
+  let initialization: Promise<void> | null = null
 
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => authenticated.value)
   const canEdit = computed(() => role.value === 'admin' || role.value === 'planner')
   const isAdmin = computed(() => role.value === 'admin')
 
-  async function login(u: string, p: string) {
-    const { data } = await http.post<{ token: string; username: string; role: Role }>(
-      '/auth/login', { username: u, password: p }
-    )
-    token.value = data.token
-    username.value = data.username
-    role.value = data.role
-    localStorage.setItem(TOKEN_KEY, data.token)
-    localStorage.setItem(USER_KEY, JSON.stringify({ username: data.username, role: data.role }))
+  function applyUser(user: SessionUser) {
+    username.value = user.username
+    role.value = user.role
+    authenticated.value = true
   }
 
-  function logout() {
-    token.value = ''
+  function clearSessionState() {
     username.value = ''
     role.value = ''
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    authenticated.value = false
   }
 
-  return { token, username, role, isAuthenticated, canEdit, isAdmin, login, logout }
+  async function initialize() {
+    if (initialized.value) return
+    if (initialization) return initialization
+    initialization = (async () => {
+      try {
+        const { data } = await http.get<SessionUser>('/auth/me')
+        applyUser(data)
+      } catch {
+        clearSessionState()
+      } finally {
+        initialized.value = true
+        initialization = null
+      }
+    })()
+    return initialization
+  }
+
+  async function login(u: string, p: string) {
+    const { data } = await http.post<SessionUser>('/auth/login', { username: u, password: p })
+    applyUser(data)
+    initialized.value = true
+  }
+
+  async function logout() {
+    try {
+      await http.post('/auth/logout', {})
+    } finally {
+      clearSessionState()
+      initialized.value = true
+    }
+  }
+
+  return {
+    username, role, initialized, isAuthenticated, canEdit, isAdmin,
+    initialize, login, logout, clearSessionState
+  }
 })

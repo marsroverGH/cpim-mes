@@ -1,0 +1,20 @@
+services:
+  db:
+    ports:
+      - "55433:5432"
+
+  backend:
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_BASE_INTERNAL: http://backend:8080
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy

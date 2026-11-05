@@ -65,6 +65,7 @@ const (
 	PermECOApproveApply          Permission = "eco.approve-apply"
 	PermAuditRead                Permission = "audit.read"
 	PermAgentUse                 Permission = "agent.use"
+	PermAdminUsersManage         Permission = "admin.users.manage"
 )
 
 // rolePermissions is intentionally explicit. Admin is handled as an all-access
@@ -149,7 +150,7 @@ func permissionsForRole(role domain.Role) []Permission {
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,
-		PermECODraft, PermECOApproveApply, PermAuditRead, PermAgentUse,
+		PermECODraft, PermECOApproveApply, PermAuditRead, PermAgentUse, PermAdminUsersManage,
 	}
 	out := make([]Permission, 0, len(all))
 	for _, p := range all {

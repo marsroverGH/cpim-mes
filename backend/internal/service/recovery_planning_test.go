@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -112,6 +114,22 @@ func TestRecoverySimulationRequestRequiresScenarioID(
 	if err == nil {
 		t.Fatal(
 			"expected missing scenarioId error",
+		)
+	}
+}
+
+func TestRecoveryFailureReasonDefaultsAndBounds(t *testing.T) {
+	if got := recoveryFailureReason(nil); got != "recovery simulation failed" {
+		t.Fatalf("default failure reason = %q", got)
+	}
+
+	long := strings.Repeat("失", recoveryFailureReasonMaxRunes+50)
+	got := recoveryFailureReason(errors.New(long))
+	if len([]rune(got)) != recoveryFailureReasonMaxRunes {
+		t.Fatalf(
+			"failure reason rune length: want %d got %d",
+			recoveryFailureReasonMaxRunes,
+			len([]rune(got)),
 		)
 	}
 }

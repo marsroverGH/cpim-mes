@@ -10,22 +10,24 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7.0.1
         with:
-          go-version: '1.22.x'
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.26.7'
           cache: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
-          node-version: '20.x'
+          node-version: '24.20.0'
       - name: Pin npm
-        run: npm install --global npm@10.9.2
+        run: npm install --global npm@11.19.0
       - name: Generate lockfiles
         run: ./scripts/generate-lockfiles.sh
       - name: Validate generated lockfiles
         run: python3 scripts/check_dependency_locks.py
       - name: Upload lockfiles
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: dependency-lockfiles
           path: |

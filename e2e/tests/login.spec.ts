@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { E2E_ADMIN_USERNAME, E2E_ADMIN_PASSWORD } from '../support/credentials'
 
 test.describe('Login flow', () => {
   test('redirects unauthenticated users to /login', async ({ page }) => {
@@ -7,22 +8,22 @@ test.describe('Login flow', () => {
     await expect(page.getByText('CPIM-MES ログイン')).toBeVisible()
   })
 
-  test('admin can log in with seed credentials', async ({ page }) => {
+  test('configured bootstrap admin can log in', async ({ page }) => {
     await page.goto('/login')
-    await page.getByLabel('ユーザー名').fill('admin')
-    await page.getByLabel('パスワード').fill('admin123')
+    await page.getByLabel('ユーザー名').fill(E2E_ADMIN_USERNAME)
+    await page.getByLabel('パスワード').fill(E2E_ADMIN_PASSWORD)
     await page.getByRole('button', { name: 'ログイン' }).click()
 
     // After login, redirect to "/" and dashboard renders
     await expect(page).toHaveURL('/')
-    await expect(page.getByText(/admin.*\(admin\)/)).toBeVisible()
+    await expect(page.getByText(new RegExp(`${E2E_ADMIN_USERNAME}.*\\(admin\\)`))).toBeVisible()
     // Dashboard KPI cards
     await expect(page.getByText('品目数')).toBeVisible()
   })
 
   test('rejects invalid credentials', async ({ page }) => {
     await page.goto('/login')
-    await page.getByLabel('ユーザー名').fill('admin')
+    await page.getByLabel('ユーザー名').fill(E2E_ADMIN_USERNAME)
     await page.getByLabel('パスワード').fill('wrong-password')
     await page.getByRole('button', { name: 'ログイン' }).click()
     await expect(page.getByText(/失敗|invalid/i)).toBeVisible()

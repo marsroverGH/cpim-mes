@@ -41,6 +41,88 @@ Repeated successful requests reuse canonical evidence.
 The unique successful-request constraint applies only to SUCCEEDED runs,
 so failed requests remain retryable.
 
+## FAILED Run Persistence Hardening (v0.41.1 Step 8)
+
+A simulation run is now persisted in three explicit transaction phases so an
+application failure cannot erase the run audit row together with its results.
+
+```text
+Tx A
+  validate actor / scenario / actions
+  capture Control Tower baseline
+  calculate baseline_hash / request_hash
+  reuse existing SUCCEEDED evidence when present
+  INSERT recovery_scenario_runs status=RUNNING
+  COMMIT
+
+Pure simulation engine
+  no DB handle
+
+Tx B
+  re-lock scenario
+  re-check scenario lifecycle
+  recompute request_hash from the current action definition
+  verify the run is still RUNNING
+  INSERT case/action/summary evidence
+  RUNNING -> SUCCEEDED
+  DRAFT -> SIMULATED when required
+  COMMIT
+
+Tx C (only after any post-Tx-A failure)
+  detach from HTTP request cancellation
+  lock the run
+  RUNNING -> FAILED
+  result_hash = NULL
+  failure_reason = bounded error text
+  completed_at = now()
+  COMMIT
+```
+
+If Tx B fails, its result rows roll back atomically and Tx C leaves the original
+RUNNING row as durable FAILED evidence. A FAILED run cannot be published.
+FAILED requests remain retryable because the unique request index continues to
+cover only SUCCEEDED rows. Once an identical request succeeds, subsequent
+identical requests reuse that canonical SUCCEEDED run.
+
+Tx B also revalidates the scenario/action definition after the pure simulation.
+If a DRAFT action was edited or the scenario lifecycle changed between Tx A and
+Tx B, the in-flight run becomes FAILED rather than persisting stale success
+evidence. This replaces the consistency protection that the previous single
+long transaction obtained by holding locks during the entire simulation.
+
+The failure finalizer uses a short context detached from request cancellation,
+so a client disconnect after Tx A does not by itself erase the FAILED audit
+transition. A process/host crash while a run is RUNNING is a separate crash
+reconciliation concern and is not silently treated as FAILED by this change.
+
+### Step 8 verification
+
+Static guard:
+
+```bash
+python3 backend/scripts/check_recovery_failed_persistence.py
+```
+
+With the production Compose topology already running, the integration gate
+installs a temporary PostgreSQL trigger that intentionally fails Tx B while
+inserting the recovery summary. No test-only failpoint exists in product code.
+
+```bash
+python3 scripts/test_recovery_failed_persistence.py
+```
+
+The integration gate verifies:
+
+- forced failure leaves a FAILED run
+- failure_reason and completed_at are present
+- result_hash remains NULL
+- Tx B child evidence is rolled back
+- FAILED cannot publish
+- the same failed request can retry and SUCCEED
+- the next identical successful request reuses the canonical run
+- operational Purchase Order / Work Order / Work Center / Sales Order /
+  Inventory state remains unchanged
+
 ## Scenario Comparison
 
 Only scenarios sharing the same baseline_hash are ranked together.

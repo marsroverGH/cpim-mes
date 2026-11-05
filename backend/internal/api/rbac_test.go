@@ -65,6 +65,9 @@ func TestRBACCriticalPermissions(t *testing.T) {
 		{"planner cannot approve/apply ECO", domain.RolePlanner, PermECOApproveApply, false},
 		{"admin can approve/apply ECO", domain.RoleAdmin, PermECOApproveApply, true},
 		{"admin can adjust inventory", domain.RoleAdmin, PermInventoryAdjust, true},
+		{"admin can manage users", domain.RoleAdmin, PermAdminUsersManage, true},
+		{"planner cannot manage users", domain.RolePlanner, PermAdminUsersManage, false},
+		{"operator cannot manage users", domain.RoleOperator, PermAdminUsersManage, false},
 		{"unknown role has no permission", domain.Role("unknown"), PermAgentUse, false},
 	}
 	for _, tt := range tests {
@@ -95,7 +98,7 @@ func TestViewerHasNoMutationPermission(t *testing.T) {
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,
-		PermECODraft, PermECOApproveApply,
+		PermECODraft, PermECOApproveApply, PermAdminUsersManage,
 	}
 	for _, p := range mutationPerms {
 		if roleHasPermission(domain.RoleViewer, p) {

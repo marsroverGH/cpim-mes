@@ -5,7 +5,7 @@ The CI/lock infrastructure is implemented and the production Dockerfiles require
 On the first Internet-connected checkout, run:
 
 ```bash
-npm install --global npm@10.9.2
+npm install --global npm@11.19.0
 ./scripts/generate-lockfiles.sh
 python3 scripts/check_dependency_locks.py
 ```

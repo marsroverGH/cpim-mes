@@ -87,10 +87,16 @@ volume is mounted at `/docker-entrypoint-initdb.d`.
 
 ## Operations
 
-Normal upgrade:
+Development upgrade:
 
 ```bash
-docker compose up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+Production upgrade uses the hardened topology:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
 Inspect migration history:

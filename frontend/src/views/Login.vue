@@ -27,10 +27,6 @@
             <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-2">
               {{ error }}
             </v-alert>
-            <v-alert type="info" variant="tonal" density="compact" class="mt-3">
-              <strong>初期ユーザー:</strong> admin / admin123, planner / planner123,
-              operator / operator123, viewer / viewer123
-            </v-alert>
           </v-card-text>
           <v-card-actions class="px-6 pb-6">
             <v-btn block color="primary" :loading="busy" @click="submit">ログイン</v-btn>
@@ -46,8 +42,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
-const username = ref('admin')
-const password = ref('admin123')
+const username = ref('')
+const password = ref('')
 const error = ref('')
 const busy = ref(false)
 const auth = useAuthStore()

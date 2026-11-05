@@ -6,7 +6,7 @@
         <v-list-item
           prepend-icon="mdi-factory"
           title="CPIM-MES"
-          subtitle="Production Management"
+          :subtitle="`Production Management · ${frontendBuildInfo.version}`"
         />
         <v-divider />
         <v-list density="compact" nav>
@@ -26,8 +26,8 @@
         <v-chip class="mr-2" size="small" prepend-icon="mdi-account">
           {{ auth.username }} ({{ auth.role }})
         </v-chip>
-        <v-btn icon="mdi-refresh" @click="reload" />
-        <v-btn icon="mdi-logout" @click="logout" />
+        <v-btn icon="mdi-refresh" aria-label="再読み込み" @click="reload" />
+        <v-btn icon="mdi-logout" aria-label="ログアウト" @click="logout" />
       </v-app-bar>
 
       <v-main>
@@ -48,6 +48,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { frontendBuildInfo } from '@/buildInfo'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -55,7 +56,11 @@ const router = useRouter()
 
 const isLoginRoute = computed(() => route.path === '/login')
 
-const links = [
+type NavLink = { to: string; title: string; icon: string; adminOnly?: boolean }
+
+const allLinks: NavLink[] = [
+  { to: '/account',          title: 'アカウント',      icon: 'mdi-account-key', adminOnly: false },
+  { to: '/admin/users',      title: 'ユーザー管理',    icon: 'mdi-account-cog', adminOnly: true },
   { to: '/',                title: 'ダッシュボード',  icon: 'mdi-view-dashboard' },
   { to: '/items',           title: '品目マスタ',      icon: 'mdi-package-variant-closed' },
   { to: '/bom',             title: 'BOM',             icon: 'mdi-file-tree' },
@@ -97,14 +102,16 @@ const links = [
   { to: '/agent',           title: 'AI アシスタント', icon: 'mdi-robot-outline' }
 ]
 
+const links = computed(() => allLinks.filter(link => !link.adminOnly || auth.isAdmin))
+
 const pageTitle = computed(() => {
-  const m = links.find(l => l.to === route.path)
+  const m = allLinks.find(l => l.to === route.path)
   return m?.title ?? 'CPIM-MES'
 })
 
 function reload() { window.location.reload() }
-function logout() {
-  auth.logout()
+async function logout() {
+  await auth.logout()
   router.push('/login')
 }
 </script>

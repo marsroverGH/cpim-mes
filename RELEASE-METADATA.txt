@@ -1,0 +1,216 @@
+CPIM-MES Production Hardening Working Bundle
+============================================
+
+Baseline release: v0.41.0
+Baseline branch: main
+Baseline commit: 028f9e30d489148abdaf768030e21fa8e8562cb5
+Target release: v0.41.1 Production Hardening
+Implemented scope: Step 1 Runtime Upgrade + Step 2 Production Config / Fail Closed + Step 3 Demo Credentials Removal + Step 4 Production Frontend Container + Step 5 Cookie Auth / CORS / CSRF + Step 6 Login Rate Limit / Auth Audit + Step 7 User Administration + Step 8 0041 FAILED Run Persistence + Step 9 Version / Build Metadata + Step 10 Observability + Step 11 Backup / Restore / Disaster Recovery + Step 12 Security CI / Supply Chain + Step 13 Documentation / Final Clean-room Release Gate
+Bundle status: v0.41.1-rc.1 source candidate; GA promotion requires the authoritative live clean-room workflow to PASS for the exact candidate commit
+Migration range: 0001-0041
+Migration count: 41
+Migration 0042: intentionally not created
+
+Runtime baseline:
+- Go 1.26.7 (go.mod language/toolchain floor: 1.26.0)
+- Node.js 24.20.0 LTS
+- npm 11.19.0
+- PostgreSQL 16.15
+- Alpine Linux 3.24
+- Nginx 1.30.4 stable (production frontend runtime)
+
+
+Step 13 documentation / final clean-room hardening:
+- Documentation drift corrected: current fine-grained RBAC, committed lockfiles, and 25-test Playwright suite documented
+- Dedicated `.github/workflows/release-candidate.yml` with exact GitHub Action release pins
+- Single-run clean-room gate starts by removing Docker volumes, then validates empty DB migration 0001 -> 0041
+- Migration ledger must be exactly 1..41; count/max-only validation is insufficient
+- Production topology is machine-validated: DB/backend host-private, Nginx frontend only public
+- Dependency vulnerability, container vulnerability, SBOM, version, observability, forced recovery failure, E2E and live restore drill are one RC promotion sequence
+- Verified RC bundle contains a checksum-verified source archive, nested verified security evidence, final clean-room result, manifest, and SHA-256 checksums
+- Any post-RC code/config/documentation change requires a new Release Candidate and the full gate again
+- Migration latest remains 0041; Migration 0042 is not created
+- No planning/domain business semantics changed
+- No schema/migration changes
+
+
+Step 12 Security CI / Supply Chain hardening:
+- Dedicated read-only Security CI workflow separate from normal build/test CI
+- govulncheck pinned to v1.9.0; any reachable known Go vulnerability blocks release
+- frontend production npm audit blocks HIGH/CRITICAL; complete frontend and E2E trees block CRITICAL
+- Trivy pinned to 0.76.1 and Syft pinned to 1.55.0
+- Trivy/Syft upstream checksum files are themselves SHA-256 pinned before release-asset verification
+- Deployable backend/frontend images are scanned for fixable HIGH/CRITICAL vulnerabilities
+- SPDX JSON SBOMs generated for repository source and both deployable runtime images
+- No repository .trivyignore or automatic vulnerability-ID suppression
+- Verified release evidence bundle includes scan reports, SBOMs, release/security metadata, manifest, and SHA-256 checksums
+- Release bundle is created only after dependency and container security gates both pass
+- Supply-chain verifier rejects tampering, unsafe paths/symlinks, metadata drift, invalid SBOMs, and non-zero security-gate evidence
+- Security tool/report output is not added to application runtime images or application dependencies
+- Migration latest remains 0041; Migration 0042 is not created
+- No planning/domain business semantics changed
+- No schema/migration changes
+
+
+Step 11 backup / restore / disaster recovery hardening:
+- Private-service pg_dump -Fc logical backup without exposing PostgreSQL host port
+- SHA-256 sidecar and non-secret backup manifest with migration count/latest
+- Safe restore refuses in-place overwrite of POSTGRES_DB and defaults to a new target database
+- pg_restore --list validation + --exit-on-error restore
+- Automated restore drill creates an ephemeral DB and compares migration ledger, public object inventory, and all public-table row counts
+- Release gate requires migration count/latest 41/0041 after restore
+- Generated drill DB and backup artifacts are cleaned up; DB backups are gitignored
+- CI runs a live backup/restore drill after Playwright activity and does not upload database contents
+- Production PITR runbook covers physical base backup, pg_verifybackup, WAL archive, recovery target, recovery.signal, verification, and controlled cutover
+- RPO/RTO/retention/off-site/encryption policy remains an explicit organization decision rather than an invented repository default
+- Production DB remains host-private; no schema/migration or planning/domain changes
+
+
+Step 10 observability hardening:
+- Private backend GET /metrics in Prometheus text exposition format
+- Production Nginx explicitly returns 404 for public /metrics; Prometheus scrapes backend:8080 privately
+- HTTP request count/duration uses bounded method + Chi route pattern + status labels
+- DB connection gauges use database/sql pool statistics
+- MRP, Detailed Scheduling, Pegging, Dynamic Rescheduling, Control Tower and Recovery Simulation run metrics
+- Recovery simulation failure counter and duration histogram
+- Optional OTLP/HTTP JSON tracing enabled only by OTEL_EXPORTER_OTLP_ENDPOINT
+- W3C traceparent continuation with bounded trace attributes; no request bodies/JWT/cookies/usernames in spans
+- Bounded asynchronous OTLP queue; exporter failures and drops never fail MES requests
+- OTLP export/drop/failure self-metrics
+- CI verifies private metrics scrape and public /metrics 404 boundary
+- No new Go dependency, no planning/domain semantic changes, no schema/migration changes
+
+Step 9 version / build metadata hardening:
+- New backend internal/buildinfo package with ldflags-injectable Version / Commit / BuildTime
+- Public GET /version returns version, commit, buildTime, and startup-validated migrationLatest
+- /version is Cache-Control: no-store and requires no authentication
+- Production Nginx proxies /version to the internal backend
+- Backend and frontend production images receive the same release/commit/build-time args
+- OCI image version/revision/created labels added to both production images
+- Frontend and E2E package metadata aligned to 0.41.1
+- Frontend navigation displays the compiled release version
+- GitHub Actions injects GITHUB_SHA + UTC RFC3339 build time and validates the running image via Playwright
+- Migration latest remains 0041; Migration 0042 is not created
+- No planning/domain business semantics changed
+- No schema/migration changes
+
+Step 8 recovery failure-audit hardening:
+- Recovery Simulation is split into Tx A (durable RUNNING), pure engine, Tx B (evidence + SUCCEEDED), and Tx C (FAILED finalization)
+- Any post-Tx-A application/DB error attempts durable RUNNING -> FAILED with completed_at and bounded failure_reason
+- Tx C uses a short context detached from request cancellation
+- Tx B re-locks scenario and recomputes request_hash to reject action/lifecycle drift
+- FAILED keeps result_hash NULL and Tx B child evidence rolls back atomically
+- Existing SUCCEEDED-only partial unique index is preserved, so failed identical requests can retry
+- FAILED runs remain non-publishable; successful identical requests still reuse canonical SUCCEEDED evidence
+- Integration gate forces a real Tx B database failure with a temporary PostgreSQL trigger; no product test failpoint added
+- Operational Purchase Order / Work Order / Work Center / Sales Order / Inventory state remains unchanged
+- Existing 0041 schema reused; no migration/schema changes
+
+Step 7 user administration hardening:
+- Admin-only user management permission: admin.users.manage
+- List/create users; change role/active status; reset password
+- Authenticated self-service password change with current-password verification
+- Password policy: 15-72 UTF-8 bytes (bcrypt-safe), single-line/no NUL
+- Last active administrator cannot be disabled or demoted
+- Admin role/active mutations serialized with PostgreSQL advisory transaction lock + row lock
+- Role and active changes take effect on the next authenticated request via current-user refresh
+- Dedicated USER_CREATED / ROLE_CHANGED / USER_DISABLED / USER_ENABLED / PASSWORD_RESET / PASSWORD_CHANGED audit events
+- User-administration request bodies excluded from generic mutation audit to prevent password capture
+- Admin user management and self-service Account UI added
+- Existing users schema reused; no migration/schema changes
+- No planning/domain business semantics changed
+
+Step 6 login security hardening:
+- Independent per-IP and normalized-username failed-login buckets
+- Defaults: IP 30 / username 5 failures per 15-minute window
+- HTTP 429 with Retry-After once either threshold is reached
+- Generic invalid-credential 401 remains unchanged
+- Successful login clears username bucket only; IP aggregate history remains
+- Login body capped at 8 KiB; limiter key maps are memory-bounded
+- Dedicated LOGIN_SUCCESS / LOGIN_FAILURE / LOGIN_THROTTLED / LOGOUT audit events
+- Existing migration 0004 audit_log reused; no schema changes
+- Authentication bodies and secrets excluded from audit payloads
+- Production X-Real-IP trust boundary documented; X-Forwarded-For is not used for limiter identity
+- No business/domain planning semantics changed
+- No schema/migration changes
+
+Step 5 browser authentication hardening:
+- Browser login JWT is stored only in HttpOnly session cookie; no JWT localStorage
+- Production uses __Host-cpim-session and __Host-cpim-csrf with Secure + Path=/
+- Signed double-submit CSRF is HMAC-bound to the exact JWT session
+- Unsafe cookie-authenticated requests require X-CSRF-Token
+- Origin + Fetch Metadata checks reject cross-site browser requests
+- Credentialed CORS uses explicit origins only; wildcard removed in all environments
+- /api/auth/token preserves explicit Bearer JWT compatibility for CLI/API
+- /api/auth/logout and /api/auth/me support cookie session lifecycle
+- Nginx preserves upstream X-Forwarded-Proto for TLS-terminated deployments
+- No business/domain planning semantics changed
+- No schema/migration changes
+
+Step 2 production configuration hardening:
+- APP_ENV production startup gate before DB connection
+- Production DATABASE_URL and JWT_SECRET fallback removed
+- Development JWT sentinel rejected in production
+- Production wildcard CORS rejected; empty allow-list means no CORS
+- Cookie Secure / SameSite policy introduced and validated
+
+Step 3 authentication bootstrap hardening:
+- Fixed demo user/password seed path removed from runtime
+- Removed legacy SEED_DEMO_USERS operational setting; stale non-empty value fails startup
+- Login UI has no default credentials or demo-credential alert
+- OpenAPI has no fixed login password example
+- Initial admin uses BOOTSTRAP_ADMIN_USERNAME + BOOTSTRAP_ADMIN_PASSWORD_FILE
+- Inline BOOTSTRAP_ADMIN_PASSWORD is rejected
+- Empty users table is a startup gate
+- Initial admin creation is serialized with PostgreSQL advisory transaction lock
+- Bootstrap password length is 15-72 bytes; plaintext buffers are zeroed after use
+- Compose one-time secret-file bootstrap override added
+- E2E uses fresh ephemeral credentials generated by CI; no Playwright credential fallback
+- Migration 0003 is byte-for-byte preserved for checksum compatibility
+- No business/domain planning semantics changed
+- No schema/migration changes
+
+Step 4 production frontend/deployment hardening:
+- Production frontend Dockerfile is multi-stage: locked Node build -> Nginx static runtime
+- Vite development server moved to frontend/Dockerfile.dev only
+- Nginx serves SPA assets and reverse-proxies same-origin /api to backend:8080
+- Base Compose publishes no DB or Backend host ports
+- docker-compose.dev.yml owns development ports 55433/8080/5173
+- docker-compose.prod.yml publishes only the Nginx application port (default host 8080)
+- Production Compose requires POSTGRES_PASSWORD, DATABASE_URL, and JWT_SECRET
+- CI Docker build and Playwright E2E exercise the production Nginx/reverse-proxy path
+- No business/domain planning semantics changed
+- No schema/migration changes
+
+See:
+- STEP1-RUNTIME-UPGRADE-REPORT.md
+- STEP2-PRODUCTION-CONFIG-REPORT.md
+- STEP3-DEMO-CREDENTIALS-REMOVAL-REPORT.md
+- STEP4-PRODUCTION-FRONTEND-CONTAINER-REPORT.md
+- STEP5-COOKIE-AUTH-CORS-CSRF-REPORT.md
+- STEP6-LOGIN-RATE-LIMIT-AUTH-AUDIT-REPORT.md
+- STEP7-USER-ADMINISTRATION-REPORT.md
+- STEP8-RECOVERY-FAILED-PERSISTENCE-REPORT.md
+- STEP9-VERSION-BUILD-METADATA-REPORT.md
+- STEP10-OBSERVABILITY-REPORT.md
+- STEP11-BACKUP-RESTORE-DR-REPORT.md
+- STEP12-SECURITY-CI-SUPPLY-CHAIN-REPORT.md
+- STEP13-FINAL-CLEAN-ROOM-RELEASE-GATE-REPORT.md
+- docs/RUNTIME_SUPPORT.md
+- docs/PRODUCTION_CONFIGURATION.md
+- docs/BOOTSTRAP_ADMIN.md
+- docs/PRODUCTION_FRONTEND_CONTAINER.md
+- docs/COOKIE_AUTH_CORS_CSRF.md
+- docs/LOGIN_RATE_LIMIT_AUTH_AUDIT.md
+- docs/USER_ADMINISTRATION.md
+
+- docs/VERSION_BUILD_METADATA.md
+- docs/OBSERVABILITY.md
+
+- docs/BACKUP_RESTORE.md
+- docs/DISASTER_RECOVERY.md
+
+- docs/SECURITY_CI_SUPPLY_CHAIN.md
+
+- docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md
+- docs/RELEASE_CHECKLIST.md

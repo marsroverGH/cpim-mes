@@ -185,7 +185,7 @@ Permissions:
 - 0039 Static Guard: 106 checks PASS
 - 0040 Static Guard: 93 checks PASS before documentation checks
 - Dedicated Production Control Tower E2E PASS
-- Clean-room complete E2E: 17/17 PASS
+- Historical 0040 clean-room complete E2E at the time of that feature release: 17/17 PASS (the v0.41.1 RC suite is now 25 tests)
 
 The clean-room acceptance test removes the cpim-locktest DB volume before
 starting the complete migration and E2E sequence.

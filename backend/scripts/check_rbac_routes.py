@@ -8,9 +8,14 @@ router = Path(__file__).resolve().parents[1] / "internal" / "api" / "router.go"
 text = router.read_text(encoding="utf-8")
 
 raw = []
+self_service = {
+    'secured.Post("/auth/logout", srv.logout)',
+    'secured.Post("/auth/change-password", srv.changeOwnPassword)',
+}
 for n, line in enumerate(text.splitlines(), 1):
-    if re.search(r"\bsecured\.(Post|Put|Delete|Patch)\(", line):
-        raw.append((n, line.strip()))
+    stripped = line.strip()
+    if re.search(r"\bsecured\.(Post|Put|Delete|Patch)\(", line) and stripped not in self_service:
+        raw.append((n, stripped))
 if raw:
     print("FAIL: secured mutation route(s) without requirePermission:")
     for n, line in raw:
@@ -49,5 +54,6 @@ if errors:
         print("  " + e)
     sys.exit(1)
 
-print(f"PASS: {len(protected)} authenticated mutation routes are permission-protected")
+print(f"PASS: {len(protected)} business mutation routes are permission-protected")
+print("PASS: authenticated logout/change-password are the only non-RBAC secured mutations")
 print("PASS: critical BOM / Inventory / WO / PO / ECO route permissions match policy")

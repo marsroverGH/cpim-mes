@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
+import { E2E_ADMIN_USERNAME, E2E_ADMIN_PASSWORD } from '../support/credentials'
 
 async function adminToken(page: any) {
-  const loginRes = await page.request.post('/api/auth/login', {
-    data: { username: 'admin', password: 'admin123' }
+  const loginRes = await page.request.post('/api/auth/token', {
+    data: { username: E2E_ADMIN_USERNAME, password: E2E_ADMIN_PASSWORD }
   })
   expect(loginRes.ok()).toBeTruthy()
   const auth = await loginRes.json()

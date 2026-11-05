@@ -1,9 +1,10 @@
 import { test, expect, Page } from '@playwright/test'
+import { E2E_ADMIN_USERNAME, E2E_ADMIN_PASSWORD } from '../support/credentials'
 
 async function login({ page }: { page: Page }) {
   await page.goto('/login')
-  await page.getByLabel('ユーザー名').fill('admin')
-  await page.getByLabel('パスワード').fill('admin123')
+  await page.getByLabel('ユーザー名').fill(E2E_ADMIN_USERNAME)
+  await page.getByLabel('パスワード').fill(E2E_ADMIN_PASSWORD)
   await page.getByRole('button', { name: 'ログイン' }).click()
   await expect(page).toHaveURL('/')
 }

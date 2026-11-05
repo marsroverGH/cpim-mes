@@ -1,0 +1,47 @@
+services:
+  db:
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cpim}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD for production}
+      POSTGRES_DB: ${POSTGRES_DB:-cpim}
+
+  backend:
+    build:
+      args:
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.41.1}
+        VCS_REF: ${VCS_REF:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL for production}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET for production}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-Strict}
+      LOGIN_RATE_LIMIT_WINDOW: ${LOGIN_RATE_LIMIT_WINDOW:-15m}
+      LOGIN_RATE_LIMIT_IP_MAX_FAILURES: ${LOGIN_RATE_LIMIT_IP_MAX_FAILURES:-30}
+      LOGIN_RATE_LIMIT_USERNAME_MAX_FAILURES: ${LOGIN_RATE_LIMIT_USERNAME_MAX_FAILURES:-5}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-cpim-mes-backend}
+      OTEL_EXPORT_TIMEOUT: ${OTEL_EXPORT_TIMEOUT:-5s}
+      OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-256}
+      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
+      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-production-backend}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.41.1}
+        VCS_REF: ${VCS_REF:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    ports:
+      - "${CPIM_HTTP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

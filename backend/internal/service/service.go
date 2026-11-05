@@ -41,11 +41,12 @@ type Services struct {
 	CRP         *CRPService
 	CostRollup  *CostRollupService
 
-	Auth  *AuthService
-	ABC   *ABCService
-	CSV   *CSVService
-	Lots  *LotService
-	Audit *AuditService
+	Auth      *AuthService
+	UserAdmin *UserAdminService
+	ABC       *ABCService
+	CSV       *CSVService
+	Lots      *LotService
+	Audit     *AuditService
 
 	Forecast   *ForecastService
 	CycleCount *CycleCountService
@@ -120,6 +121,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		CRP:                   crp,
 		CostRollup:            &CostRollupService{repos: r},
 		Auth:                  NewAuthService(r.Users, cfg.JWTSecret),
+		UserAdmin:             NewUserAdminService(r.Users),
 		ABC:                   abc,
 		CSV:                   NewCSVService(r),
 		Lots:                  &LotService{r: r.Lots, ledger: ledger},

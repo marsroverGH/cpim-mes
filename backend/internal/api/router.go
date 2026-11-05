@@ -8,7 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cpim-mes/backend/internal/buildinfo"
 	"github.com/cpim-mes/backend/internal/domain"
+	"github.com/cpim-mes/backend/internal/observability"
 	"github.com/cpim-mes/backend/internal/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -18,23 +20,57 @@ import (
 
 // server wraps the service container so HTTP handlers can be methods.
 type server struct {
-	s *service.Services
+	s              *service.Services
+	cookies        authCookieConfig
+	allowedOrigins []string
+	loginLimiter   *loginRateLimiter
+	buildInfo      buildinfo.Info
+	metrics        *observability.Registry
+	tracer         *observability.Tracer
 }
 
-func NewRouter(s *service.Services) http.Handler {
-	srv := &server{s: s}
+type RouterConfig struct {
+	AllowedOrigins                    []string
+	CookieSecure                      bool
+	CookieSameSite                    string
+	LoginRateLimitWindow              time.Duration
+	LoginRateLimitIPMaxFailures       int
+	LoginRateLimitUsernameMaxFailures int
+	BuildInfo                         buildinfo.Info
+	Metrics                           *observability.Registry
+	Tracer                            *observability.Tracer
+}
+
+func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
+	cookies := newAuthCookieConfig(cfg.CookieSecure, cfg.CookieSameSite)
+	limiter := newLoginRateLimiter(loginRateLimitConfig{
+		Window:              cfg.LoginRateLimitWindow,
+		IPMaxFailures:       cfg.LoginRateLimitIPMaxFailures,
+		UsernameMaxFailures: cfg.LoginRateLimitUsernameMaxFailures,
+	})
+	srv := &server{s: s, cookies: cookies, allowedOrigins: cfg.AllowedOrigins, loginLimiter: limiter, buildInfo: cfg.BuildInfo, metrics: cfg.Metrics, tracer: cfg.Tracer}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	if cfg.Metrics != nil {
+		r.Use(cfg.Metrics.Middleware(cfg.Tracer))
+	}
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Authorization", "Content-Type"},
-		AllowCredentials: false,
-	}))
+	if len(cfg.AllowedOrigins) > 0 {
+		r.Use(cors.Handler(cors.Options{
+			AllowedOrigins:   cfg.AllowedOrigins,
+			AllowedMethods:   []string{"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowedHeaders:   []string{"Authorization", "Content-Type", csrfHeaderName},
+			AllowCredentials: true,
+		}))
+	}
+
+	r.Get("/version", srv.version)
+	if cfg.Metrics != nil {
+		r.Get("/metrics", srv.prometheusMetrics)
+	}
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -45,15 +81,28 @@ func NewRouter(s *service.Services) http.Handler {
 		api.Get("/openapi.json", srv.serveOpenAPI)
 		api.Get("/docs", srv.serveSwaggerUI)
 
-		// Auth (no JWT required)
+		// Auth entry points. Browser login returns only secure cookies; /token is
+		// the explicit Bearer compatibility path for CLI/API clients.
 		api.Post("/auth/login", srv.login)
+		api.Post("/auth/token", srv.tokenLogin)
 
 		// Everything below requires a valid JWT
 		api.Group(func(secured chi.Router) {
-			secured.Use(authMiddleware(srv.s.Auth))
+			secured.Use(authMiddleware(srv.s.Auth, cookies))
+			secured.Use(csrfMiddleware(srv.s.Auth, cookies, cfg.AllowedOrigins))
 			secured.Use(auditMiddleware(srv.s.Audit))
 
 			secured.Get("/auth/me", srv.me)
+			secured.Post("/auth/logout", srv.logout)
+			secured.Post("/auth/change-password", srv.changeOwnPassword)
+
+			// User Administration. The backend permission is authoritative; the
+			// frontend's admin-only navigation is convenience, not security.
+			secured.With(requirePermission(PermAdminUsersManage)).Get("/admin/users", srv.listUsers)
+			secured.With(requirePermission(PermAdminUsersManage)).Post("/admin/users", srv.createUser)
+			secured.With(requirePermission(PermAdminUsersManage)).Put("/admin/users/{id}/role", srv.updateUserRole)
+			secured.With(requirePermission(PermAdminUsersManage)).Put("/admin/users/{id}/active", srv.updateUserActive)
+			secured.With(requirePermission(PermAdminUsersManage)).Post("/admin/users/{id}/reset-password", srv.resetUserPassword)
 
 			secured.Get("/items", srv.listItems)
 			secured.With(requirePermission(PermItemMasterWrite)).Post("/items", srv.createItem)

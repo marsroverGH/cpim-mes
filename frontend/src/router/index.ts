@@ -5,6 +5,8 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login',           component: () => import('@/views/Login.vue'), meta: { public: true } },
+    { path: '/account',         component: () => import('@/views/Account.vue') },
+    { path: '/admin/users',     component: () => import('@/views/UserAdministration.vue'), meta: { requiresAdmin: true } },
     { path: '/',                component: () => import('@/views/Dashboard.vue') },
     { path: '/items',           component: () => import('@/views/Items.vue') },
     { path: '/bom',             component: () => import('@/views/Bom.vue') },
@@ -47,12 +49,16 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  await auth.initialize()
   if (!to.meta.public && !auth.isAuthenticated) {
     return { path: '/login' }
   }
   if (to.path === '/login' && auth.isAuthenticated) {
+    return { path: '/' }
+  }
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { path: '/' }
   }
   return true

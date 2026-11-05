@@ -10,14 +10,20 @@ import (
 	"time"
 
 	"github.com/cpim-mes/backend/internal/api"
+	"github.com/cpim-mes/backend/internal/buildinfo"
 	"github.com/cpim-mes/backend/internal/config"
 	"github.com/cpim-mes/backend/internal/migration"
+	"github.com/cpim-mes/backend/internal/observability"
 	"github.com/cpim-mes/backend/internal/repository"
 	"github.com/cpim-mes/backend/internal/service"
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("configuration validation failed; backend will not start: %v", err)
+	}
+	log.Printf("configuration validated: environment=%s allowed_origins=%d bootstrap_admin_configured=%t", cfg.Environment, len(cfg.AllowedOrigins), cfg.HasBootstrapAdmin())
 
 	db, err := repository.NewDB(cfg.DatabaseURL)
 	if err != nil {
@@ -39,17 +45,75 @@ func main() {
 
 	repos := repository.NewRepositories(db)
 
-	// 起動時に初期ユーザーをシード (users テーブルが空のときのみ)
-	seedCtx, seedCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := repos.Users.SeedDefaultUsers(seedCtx); err != nil {
-		log.Printf("[warn] seed users failed: %v", err)
+	// Step 3 removes fixed demo credentials entirely. An empty users table is a
+	// startup gate: the first administrator must be supplied explicitly via a
+	// password file. Existing databases are never overwritten by bootstrap.
+	bootstrapCtx, bootstrapCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	userCount, err := repos.Users.Count(bootstrapCtx)
+	if err != nil {
+		bootstrapCancel()
+		log.Fatalf("initial administrator gate failed while counting users: %v", err)
 	}
-	seedCancel()
+	if userCount == 0 {
+		if !cfg.HasBootstrapAdmin() {
+			bootstrapCancel()
+			log.Fatal("users table is empty; set BOOTSTRAP_ADMIN_USERNAME and BOOTSTRAP_ADMIN_PASSWORD_FILE to create the initial administrator")
+		}
+		password, err := config.ReadBootstrapAdminPassword(cfg.BootstrapAdminPasswordFile)
+		if err != nil {
+			bootstrapCancel()
+			log.Fatalf("initial administrator secret could not be read: %v", err)
+		}
+		created, bootstrapErr := repos.Users.BootstrapAdmin(bootstrapCtx, cfg.BootstrapAdminUsername, password)
+		for i := range password {
+			password[i] = 0
+		}
+		if bootstrapErr != nil {
+			bootstrapCancel()
+			log.Fatalf("initial administrator bootstrap failed: %v", bootstrapErr)
+		}
+		if created {
+			log.Printf("[auth] initial administrator created: username=%q", cfg.BootstrapAdminUsername)
+		} else {
+			log.Printf("[auth] initial administrator bootstrap skipped because another instance created a user first")
+		}
+	} else if cfg.HasBootstrapAdmin() {
+		log.Printf("[auth] bootstrap configuration ignored because users already exist")
+	}
+	bootstrapCancel()
+
+	info := buildinfo.Current(result.LatestVersion)
+	log.Printf("build metadata: version=%s commit=%s build_time=%s migration_latest=%d", info.Version, info.Commit, info.BuildTime, info.MigrationLatest)
+
+	metrics := observability.NewRegistry(db)
+	tracer, err := observability.NewTracer(observability.TracerConfig{
+		Endpoint:      cfg.OTELExporterOTLPEndpoint,
+		Headers:       cfg.OTELExporterOTLPHeaders,
+		ServiceName:   cfg.OTELServiceName,
+		Environment:   cfg.Environment,
+		BuildInfo:     info,
+		ExportTimeout: cfg.OTELExportTimeout,
+		QueueSize:     cfg.OTELQueueSize,
+	}, metrics)
+	if err != nil {
+		log.Fatalf("observability configuration failed; backend will not start: %v", err)
+	}
+	log.Printf("observability ready: prometheus=/metrics otlp_tracing=%t", tracer.Enabled())
 
 	services := service.NewServices(db, repos, service.ServicesConfig{
 		JWTSecret: cfg.JWTSecret,
 	})
-	router := api.NewRouter(services)
+	router := api.NewRouter(services, api.RouterConfig{
+		AllowedOrigins:                    cfg.AllowedOrigins,
+		CookieSecure:                      cfg.CookieSecure,
+		CookieSameSite:                    cfg.CookieSameSite,
+		LoginRateLimitWindow:              cfg.LoginRateLimitWindow,
+		LoginRateLimitIPMaxFailures:       cfg.LoginRateLimitIPMaxFailures,
+		LoginRateLimitUsernameMaxFailures: cfg.LoginRateLimitUsernameMaxFailures,
+		BuildInfo:                         info,
+		Metrics:                           metrics,
+		Tracer:                            tracer,
+	})
 
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
@@ -72,4 +136,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
+	if err := tracer.Close(ctx); err != nil {
+		log.Printf("observability shutdown warning: %v", err)
+	}
 }

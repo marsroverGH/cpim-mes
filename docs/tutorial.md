@@ -4,8 +4,9 @@
 本システムが実装する CPIM の主要機能を一通り体験できます。
 所要時間は約 20 分です。
 
-> 前提: `docker compose up --build` で起動済み、
-> `http://localhost:5173` で `admin` / `admin123` にログイン済み。
+> 前提: 初回Admin bootstrap済みのCPIM-MESが起動しており、
+> `http://localhost:5173` でセットアップ時に作成したAdmin accountへログイン済み。
+> clean DBのbootstrap手順は `docs/BOOTSTRAP_ADMIN.md` を参照してください。
 
 ---
 

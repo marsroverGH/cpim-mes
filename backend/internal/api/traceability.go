@@ -5,13 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/cpim-mes/backend/internal/repository"
 	"github.com/cpim-mes/backend/internal/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 // ====================================================================
@@ -50,10 +53,14 @@ func auditMiddleware(audit *service.AuditService) func(http.Handler) http.Handle
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rec, r)
 
-			// Skip very long uploads (multipart) and login (sensitive)
-			if strings.Contains(r.URL.Path, "/items/import") ||
-				strings.HasSuffix(r.URL.Path, "/auth/login") {
+			// Skip very long uploads and every authentication route. Authentication
+			// uses dedicated security audit events so passwords/tokens/cookies can
+			// never be captured by generic request-body auditing.
+			if strings.Contains(r.URL.Path, "/items/import") || strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/users") {
 				bodyBytes = nil
+			}
+			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+				return
 			}
 
 			c, _ := r.Context().Value(ctxKeyClaims).(*service.Claims)
@@ -102,10 +109,46 @@ func guessResource(path string) string {
 }
 
 func clientIP(r *http.Request) string {
-	if h := r.Header.Get("X-Forwarded-For"); h != "" {
-		return strings.SplitN(h, ",", 2)[0]
+	// In the supported production topology Nginx overwrites X-Real-IP before
+	// forwarding to the internal-only backend. Ignore X-Forwarded-For here so
+	// a client-supplied chain cannot select its own rate-limit/audit identity.
+	if raw := strings.TrimSpace(r.Header.Get("X-Real-IP")); raw != "" {
+		if ip := net.ParseIP(raw); ip != nil {
+			return ip.String()
+		}
 	}
-	return r.RemoteAddr
+	host, _, err := net.SplitHostPort(strings.TrimSpace(r.RemoteAddr))
+	if err == nil {
+		if ip := net.ParseIP(host); ip != nil {
+			return ip.String()
+		}
+		return host
+	}
+	return strings.TrimSpace(r.RemoteAddr)
+}
+
+func recordAuthAudit(audit *service.AuditService, r *http.Request, username, role, event string, status int, details map[string]any) {
+	if audit == nil {
+		return
+	}
+	if details == nil {
+		details = map[string]any{}
+	}
+	if requestID := middleware.GetReqID(r.Context()); requestID != "" {
+		details["requestId"] = requestID
+	}
+	entry := &domain.AuditLogEntry{
+		Username:   strings.TrimSpace(username),
+		UserRole:   strings.TrimSpace(role),
+		Action:     event,
+		Resource:   "authentication",
+		HTTPStatus: status,
+		IPAddress:  clientIP(r),
+		Payload:    repository.MarshalPayload(details),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = audit.Record(ctx, entry)
 }
 
 // ====================================================================

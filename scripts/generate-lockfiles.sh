@@ -7,8 +7,22 @@ need go
 need node
 need npm
 
-EXPECTED_NPM_VERSION="10.9.2"
+EXPECTED_GO_VERSION="go1.26.7"
+EXPECTED_NODE_VERSION="v24.20.0"
+EXPECTED_NPM_VERSION="11.19.0"
+
+ACTUAL_GO_VERSION="$(go env GOVERSION)"
+ACTUAL_NODE_VERSION="$(node --version)"
 ACTUAL_NPM_VERSION="$(npm --version)"
+
+if [[ "$ACTUAL_GO_VERSION" != "$EXPECTED_GO_VERSION" ]]; then
+  echo "ERROR: $EXPECTED_GO_VERSION is required to generate reproducible Go module metadata (found $ACTUAL_GO_VERSION)." >&2
+  exit 1
+fi
+if [[ "$ACTUAL_NODE_VERSION" != "$EXPECTED_NODE_VERSION" ]]; then
+  echo "ERROR: Node $EXPECTED_NODE_VERSION is required to generate reproducible package-lock.json files (found $ACTUAL_NODE_VERSION)." >&2
+  exit 1
+fi
 if [[ "$ACTUAL_NPM_VERSION" != "$EXPECTED_NPM_VERSION" ]]; then
   echo "ERROR: npm $EXPECTED_NPM_VERSION is required to generate reproducible package-lock.json files (found $ACTUAL_NPM_VERSION)." >&2
   echo "Run: npm install --global npm@$EXPECTED_NPM_VERSION" >&2

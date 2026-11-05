@@ -7,9 +7,13 @@ APICS (現ASCM) **CPIM (Certified in Planning and Inventory Management)** の知
 | レイヤ | 技術 |
 | --- | --- |
 | フロントエンド | Vue 3 + Vuetify 3 + Vite + TypeScript + Pinia |
-| バックエンド | Go 1.22 + chi router + sqlx |
-| データベース | PostgreSQL 16 |
+| バックエンド | Go 1.26.7 + chi router + sqlx |
+| データベース | PostgreSQL 16.15 |
 | 開発支援 | Docker Compose |
+
+Production Hardeningのruntime baselineは **Go 1.26.7 / Node.js 24.20.0 LTS / npm 11.19.0 / PostgreSQL 16.15 / Alpine 3.24** です。詳細は [`docs/RUNTIME_SUPPORT.md`](./docs/RUNTIME_SUPPORT.md) を参照してください。
+
+Step 12ではSecurity CI / Supply Chain gateを追加しています。`govulncheck`、`npm audit`、Trivy container scan、Syft SPDX SBOM、release bundle checksum/manifest検証をRelease Gateとして実行します。詳細は [`docs/SECURITY_CI_SUPPLY_CHAIN.md`](./docs/SECURITY_CI_SUPPLY_CHAIN.md) を参照してください。
 
 ## CPIM 機能モジュール対応
 
@@ -150,38 +154,83 @@ Scheduled Receipts には `OPEN` / `PARTIALLY_RECEIVED` の購買発注**未入�
 これにより `inventory_txns` が物理在庫の真実の源 (single source of truth) となり、
 `v_stock_balance` ビューで `on_hand` / `reserved` / `available` を一元管理できます。
 
-## 初期ユーザー (起動時に自動作成)
+## 初回Admin bootstrap
 
-| ユーザー名 | パスワード | ロール | 権限 |
-| --- | --- | --- | --- |
-| `admin`    | `admin123`    | admin    | 全権限 |
-| `planner`  | `planner123`  | planner  | マスタ編集・計画実行 |
-| `operator` | `operator123` | operator | WO ステータス更新等 |
-| `viewer`   | `viewer123`   | viewer   | 参照のみ |
+固定demo user / 固定passwordは **v0.41.1 Step 3で廃止**しました。Development/Test/Productionのいずれにも既知credentialsは自動作成されません。
 
-⚠️ **本番環境では必ずパスワードと `JWT_SECRET` 環境変数を変更してください。**
+`users` テーブルが空の場合、BackendはHTTP listen前に起動を停止し、次の2項目を要求します。
+
+```text
+BOOTSTRAP_ADMIN_USERNAME=<initial administrator username>
+BOOTSTRAP_ADMIN_PASSWORD_FILE=<path to a one-line secret file>
+```
+
+passwordを環境変数へ直接渡す `BOOTSTRAP_ADMIN_PASSWORD` は禁止です。secret fileは15〜72 bytesで、bootstrap後は削除してください。既存usersが1件以上あるDBではbootstrapは何も上書きしません。詳細は [`docs/BOOTSTRAP_ADMIN.md`](./docs/BOOTSTRAP_ADMIN.md) を参照してください。
+
+既存v0.41.0/Step 2の開発DBに旧demo accountが残っている場合、Step 3は既存userを自動変更・削除しません。**そのDBをProductionへ昇格させず、Productionはclean DB + bootstrapまたは別途安全に移行した認証データを使用してください。** Migration 0003の歴史的コメントはchecksum互換性のため変更していませんが、実行コードから固定credentialsは除去済みです。
 
 ## クイックスタート
 
 ### 前提
 
 - Docker Desktop (Compose v2)
-- もしくは Node.js 20+ / Go 1.22+ / PostgreSQL 16+ のローカル環境
+- もしくは Node.js 24.20.0 / npm 11.19.0 / Go 1.26.7 / PostgreSQL 16.15 のローカル環境
 
 
 ### 依存関係ロックとCI
 
 依存関係は `backend/go.sum`、`frontend/package-lock.json`、`e2e/package-lock.json` をコミットして固定します。 Dockerfileもこれらを必須とし、Goは `-mod=readonly`、Nodeは `npm ci` でビルドします。初回のみ `./scripts/generate-lockfiles.sh` を実行してください。更新時はリポジトリ直下で `./scripts/generate-lockfiles.sh` を実行し、`python3 scripts/check_dependency_locks.py` で検証してください。CI定義は `.github/workflows/ci.yml`、詳細は [`docs/DEPENDENCY_LOCKS_AND_CI.md`](./docs/DEPENDENCY_LOCKS_AND_CI.md) を参照してください。
 
-### Docker で一括起動
+### Production configuration fail-closed
+
+本番Backendは `APP_ENV=production` を指定します。`DATABASE_URL` と `JWT_SECRET` を明示し、wildcard CORSを無効化し、secure cookie policyを満たさない限り起動しません。Step 3以降 `SEED_DEMO_USERS` は削除済み設定で、指定すると起動エラーになります。
+
+```text
+APP_ENV=production
+DATABASE_URL=<production DSN>
+JWT_SECRET=<high-entropy secret>
+ALLOWED_ORIGINS=
+COOKIE_SECURE=true
+COOKIE_SAMESITE=Strict
+```
+
+clean DBの初回だけ、Admin usernameとpassword fileを追加指定します。`.env.production.example`、[`docs/PRODUCTION_CONFIGURATION.md`](./docs/PRODUCTION_CONFIGURATION.md)、[`docs/BOOTSTRAP_ADMIN.md`](./docs/BOOTSTRAP_ADMIN.md) を参照してください。Step 4以降、base `docker-compose.yml` はDB/Backendの共通内部定義で、Developmentは `docker-compose.dev.yml`、Productionは `docker-compose.prod.yml` を必ず重ねます。
+
+### Production Frontend Container / Compose topology
+
+Step 4ではProductionのVite dev serverを廃止し、`frontend/Dockerfile`を **Node build stage → Nginx static runtime** のmulti-stage imageへ変更しました。ProductionではNginxのみをhostへ公開し、`/api`を内部Backendへreverse proxyします。DBとBackendはhostへ公開しません。
+
+Development:
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
+
+Production:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+
+clean DBの初回だけ上記へ `-f docker-compose.bootstrap.yml` を追加します。Productionのbrowser endpointは既定で `http://localhost:8080`（実運用ではTLS終端の背後）です。詳細は [`docs/PRODUCTION_FRONTEND_CONTAINER.md`](./docs/PRODUCTION_FRONTEND_CONTAINER.md) を参照してください。
+
+### Dockerでclean DBを初回起動
+
+固定credentialsはないため、初回だけsecret fileを作成してbootstrap overrideを使用します。
+
+```bash
+mkdir -p .secrets
+openssl rand -base64 36 | tr -d '\n' > .secrets/bootstrap-admin-password
+chmod 600 .secrets/bootstrap-admin-password
+export BOOTSTRAP_ADMIN_USERNAME=initial-admin
+docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.bootstrap.yml up --build
+```
+
+作成したpasswordを安全なpassword managerへ保存し、初回Adminでログインできることを確認してください。その後stackを停止（volumeは削除しない）し、`.secrets/bootstrap-admin-password` を削除して `docker-compose.bootstrap.yml` なしの通常構成へ戻します。既存usersがあるDBはbootstrap override不要です。
 
 ### 依存Lock / CI
 
-再現可能Buildのため、`backend/go.sum`、`frontend/package-lock.json`、`e2e/package-lock.json`を正式なlockfileとして管理します。Frontend/E2Eの直接依存はexact version、Nodeは20.x、npmは10.9.2に固定しています。Docker buildはGoを`-mod=readonly`、Frontendを`npm ci`で実行し、lockfile無しのunlocked fallbackはありません。
+再現可能Buildのため、`backend/go.sum`、`frontend/package-lock.json`、`e2e/package-lock.json`を正式なlockfileとして管理します。Frontend/E2Eの直接依存はexact version、Nodeは24.20.0（LTS）、npmは11.19.0に固定しています。Docker buildはGoを`-mod=readonly`、Frontendを`npm ci`で実行し、lockfile無しのunlocked fallbackはありません。
 
 GitHub Actionsは `.github/workflows/ci.yml` でGo test/vet、Vue build/typecheck、既存業務整合性チェック、Docker build、Playwright E2Eを実行します。lockfile生成専用workflowは `.github/workflows/generate-lockfiles.yml` です。詳細は `docs/DEPENDENCY_LOCKS_AND_CI.md` を参照してください。
 
@@ -192,7 +241,7 @@ Migration失敗・checksum不一致・履歴欠落・DBがアプリより新し�
 
 - フロントエンド: http://localhost:5173
 - バックエンドAPI: http://localhost:8080
-- PostgreSQL:     localhost:5432 (db=cpim, user=cpim, pass=cpim)
+- PostgreSQL:     localhost:55433 (Development overrideのみ)
 
 ### バックエンドテスト
 
@@ -234,28 +283,18 @@ Authorize ボタンに `Bearer <token>` を貼れば、保護エンドポイン�
 lockfileがまだ無い生成アーカイブを初めて展開した場合は、インターネット接続環境で最初に一度だけ次を実行します。
 
 ```bash
-npm install --global npm@10.9.2
+npm install --global npm@11.19.0
 make lock
 make check-locks
 ```
 
-以後の通常起動では依存定義を変更しません。
+以後の通常のDocker開発起動では依存定義を変更しません。
 
 ```bash
-# DB
-docker compose up -d db
-
-# Backend
-cd backend
-go mod download
-go mod verify
-go run -mod=readonly ./cmd/server
-
-# Frontend (別ターミナル)
-cd frontend
-npm ci
-npm run dev
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
+
+FrontendをVite HMRで実行する開発用構成は `frontend/Dockerfile.dev` に分離されています。Productionでは `frontend/Dockerfile` のstatic build + Nginxのみを使用します。
 
 ## ディレクトリ構成
 
@@ -395,3 +434,50 @@ Inventory等の実運用状態を直接変更しない。
 
 詳細:
 docs/0041-scenario-based-recovery-planning.md
+
+
+## v0.41.1 Step 5 security
+
+Browser authentication now uses HttpOnly session cookies with signed CSRF protection; CLI/API Bearer tokens use `/api/auth/token`. See `docs/COOKIE_AUTH_CORS_CSRF.md`.
+
+
+## v0.41.1 Step 6 security
+
+Login authentication now has independent per-IP and per-username failed-attempt limits, `429 Retry-After`, and dedicated `LOGIN_SUCCESS / LOGIN_FAILURE / LOGIN_THROTTLED / LOGOUT` audit events using the existing `audit_log`. See `docs/LOGIN_RATE_LIMIT_AUTH_AUDIT.md`.
+
+## v0.41.1 Step 7 User Administration
+
+User lifecycle management is now backend-enforced through `admin.users.manage`. Admins can create users, change roles, enable/disable accounts, and reset passwords; every authenticated user can change their own password using the current password. Role/deactivation changes are effective on the next request, and transaction/advisory-lock protection prevents the last active administrator from being disabled or demoted. Password-bearing request bodies are excluded from audit payloads. See `docs/USER_ADMINISTRATION.md`.
+
+## v0.41.1 Step 8 — 0041 FAILED Run Persistence
+
+Recovery Planning simulation now commits the `RUNNING` run header before the pure What-if engine executes, persists successful evidence in a separate transaction, and terminalizes any post-`RUNNING` failure in an independent `FAILED + failure_reason + completed_at` transaction. Tx B re-locks the scenario and recomputes the action request hash so action/lifecycle drift cannot become stale success evidence. FAILED requests remain retryable because the existing partial unique index still covers only `SUCCEEDED` runs. See `docs/0041-scenario-based-recovery-planning.md`.
+
+## v0.41.1 Step 9 — Version / Build Metadata
+
+Step 9 adds a public `GET /version` endpoint with release version, Git commit, UTC build time, and the Migration Manager's validated latest migration. Production Docker builds inject version/commit/build-time into both backend and frontend images, Nginx proxies `/version`, and CI verifies the running production topology reports `v0.41.1`, the exact GitHub SHA, a real build timestamp, and `migrationLatest: 41`. See `docs/VERSION_BUILD_METADATA.md`.
+
+
+## v0.41.1 Step 10 — Observability
+
+Step 10 adds a private backend `GET /metrics` endpoint with Prometheus-compatible HTTP, DB pool, MRP, Detailed Scheduling, Pegging, Dynamic Rescheduling, Control Tower and Recovery Simulation metrics. Production Nginx explicitly returns 404 for public `/metrics`; Prometheus is expected to scrape `backend:8080/metrics` from the private application network. Optional OTLP/HTTP JSON server tracing is enabled only when `OTEL_EXPORTER_OTLP_ENDPOINT` is configured, uses W3C `traceparent`, a bounded asynchronous queue and non-blocking exporter failure handling. No new Go dependency or database migration is introduced. See `docs/OBSERVABILITY.md`.
+
+## Backup / Restore / Disaster Recovery (v0.41.1 Step 11)
+
+Production DB port remains private. Logical backups and restore drills operate through the Compose `db` service:
+
+```bash
+CPIM_ENV_FILE=.env.production ./scripts/backup_postgres.sh
+CPIM_ENV_FILE=.env.production ./scripts/restore_drill.sh
+```
+
+Restore is intentionally fail-closed against in-place overwrite of `POSTGRES_DB`; restore into a separate candidate database/instance, verify, then perform a controlled cutover. Production PITR requires a separately designed and monitored physical base-backup + WAL archive destination. See [`docs/BACKUP_RESTORE.md`](./docs/BACKUP_RESTORE.md) and [`docs/DISASTER_RECOVERY.md`](./docs/DISASTER_RECOVERY.md).
+
+
+## v0.41.1 Step 12 — Security CI / Supply Chain
+
+Release-blocking security gates run in `.github/workflows/security.yml`: reachable Go vulnerability analysis with pinned `govulncheck`, npm audit policy, Trivy scans of deployable Backend/Frontend images, and Syft SPDX SBOM generation. The verified security evidence bundle contains manifests and SHA-256 checksums and is produced only after dependency and container gates pass. See [`docs/SECURITY_CI_SUPPLY_CHAIN.md`](./docs/SECURITY_CI_SUPPLY_CHAIN.md).
+
+## v0.41.1 Step 13 — Final Clean-room Release Candidate Gate
+
+The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0041` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **25 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.41.1-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).

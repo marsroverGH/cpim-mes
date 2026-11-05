@@ -1,34 +1,50 @@
 import axios from 'axios'
 
 const base = (import.meta.env.VITE_API_BASE as string) || '/api'
+const CSRF_HEADER = 'X-CSRF-Token'
+const UNSAFE_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 
 export const http = axios.create({
   baseURL: base,
-  timeout: 30000
+  timeout: 30000,
+  withCredentials: true
 })
 
-// Inject JWT into every request
+function readCookie(name: string): string {
+  const prefix = `${name}=`
+  for (const part of document.cookie.split(';')) {
+    const value = part.trim()
+    if (value.startsWith(prefix)) return value.slice(prefix.length)
+  }
+  return ''
+}
+
+function csrfToken(): string {
+  return readCookie('__Host-cpim-csrf') || readCookie('cpim-csrf')
+}
+
+// Browser requests authenticate with HttpOnly session cookies. JWTs are never
+// read from Web Storage or injected into Authorization headers by the SPA.
 http.interceptors.request.use((config) => {
-  const tok = localStorage.getItem('cpim.token')
-  if (tok) {
-    config.headers.Authorization = `Bearer ${tok}`
+  const method = (config.method || 'get').toLowerCase()
+  if (UNSAFE_METHODS.has(method) && !config.headers.has('Authorization')) {
+    const token = csrfToken()
+    if (token) config.headers.set(CSRF_HEADER, token)
   }
   return config
 })
 
-// Auto-logout on 401
+// A 401 means the server-side session is gone/inactive. Reloading the login
+// route clears in-memory Pinia state without persisting any authentication data.
 http.interceptors.response.use(
-  (r) => r,
-  (err) => {
-    if (err?.response?.status === 401) {
-      localStorage.removeItem('cpim.token')
-      localStorage.removeItem('cpim.user')
-      // SPA routing - reload to /login
-      if (location.pathname !== '/login') {
-        location.href = '/login'
-      }
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status
+    const requestURL = String(error?.config?.url || '')
+    if (status === 401 && !requestURL.endsWith('/auth/login') && location.pathname !== '/login') {
+      location.assign('/login')
     }
-    return Promise.reject(err)
+    return Promise.reject(error)
   }
 )
 
@@ -1093,6 +1109,29 @@ export const LotsApi = {
   addMovement: (id: string, m: Omit<LotMovement, 'lotId'>) =>
     http.post<LotMovement>(`/lots/${id}/movements`, m).then(r => r.data),
   whereUsed: (id: string) => http.get<LotMovement[]>(`/lots/${id}/where-used`).then(r => r.data)
+}
+
+// ------- User Administration -------
+export type UserRole = 'admin' | 'planner' | 'operator' | 'viewer'
+export interface ManagedUser {
+  id: string
+  username: string
+  role: UserRole
+  isActive: boolean
+  createdAt: string
+}
+export const UserAdminApi = {
+  list: () => http.get<ManagedUser[]>('/admin/users').then(r => r.data),
+  create: (input: { username: string; password: string; role: UserRole }) =>
+    http.post<ManagedUser>('/admin/users', input).then(r => r.data),
+  setRole: (id: string, role: UserRole) =>
+    http.put<ManagedUser>(`/admin/users/${id}/role`, { role }).then(r => r.data),
+  setActive: (id: string, isActive: boolean) =>
+    http.put<ManagedUser>(`/admin/users/${id}/active`, { isActive }).then(r => r.data),
+  resetPassword: (id: string, newPassword: string) =>
+    http.post(`/admin/users/${id}/reset-password`, { newPassword }),
+  changeOwnPassword: (currentPassword: string, newPassword: string) =>
+    http.post('/auth/change-password', { currentPassword, newPassword })
 }
 
 // ------- Audit Log -------

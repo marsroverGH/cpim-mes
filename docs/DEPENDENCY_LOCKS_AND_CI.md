@@ -27,7 +27,7 @@ A manual GitHub Actions workflow, `.github/workflows/generate-lockfiles.yml`, ca
 
 `.github/workflows/ci.yml` first fails if any lockfile is missing or its root manifest does not match. Backend CI then verifies `go.sum` checksums and rejects a `go mod tidy` diff. Frontend and E2E use `npm ci`, which refuses a manifest/lock mismatch.
 
-The integration job starts PostgreSQL, Backend, and Frontend through Docker Compose, waits for health, runs Playwright, retains the HTML report, and always tears down the stack.
+The integration job starts PostgreSQL, Backend, and the production Nginx Frontend through `docker-compose.yml + docker-compose.prod.yml`, verifies the proxied backend through `/api`, runs Playwright against the Nginx endpoint, retains the HTML report, and always tears down the stack.
 
 ## Updating dependencies
 
@@ -40,7 +40,10 @@ If the archive was produced in an offline analysis environment and the three gen
 ```bash
 ./scripts/generate-lockfiles.sh
 python3 scripts/check_dependency_locks.py
-docker compose build
+POSTGRES_PASSWORD='ci-db-password' \
+DATABASE_URL='postgres://cpim:ci-db-password@db:5432/cpim?sslmode=disable' \
+JWT_SECRET='ci-only-secret-not-for-production' \
+docker compose -f docker-compose.yml -f docker-compose.prod.yml build
 ```
 
 The normal CI dependency-lock job also regenerates the files and uploads them as a workflow artifact. It then fails if the committed copies differ, so a first CI run can be used to obtain the generated files without silently accepting uncommitted dependency changes.

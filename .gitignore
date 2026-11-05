@@ -1,0 +1,21 @@
+
+# Local bootstrap/admin secrets
+.secrets/*
+!.secrets/README.md
+
+# Local PostgreSQL backup / restore-drill artifacts
+backups/
+*.dump
+*.dump.sha256
+*.dump.manifest.txt
+
+# Python local caches
+__pycache__/
+*.pyc
+
+# Step 12 local security tooling / reports / release evidence
+.tools/
+security-reports/
+security-artifacts/
+release-bundle/
+cpim-mes-v0.41.1-security-release-bundle.tar.gz

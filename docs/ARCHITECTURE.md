@@ -104,8 +104,16 @@ items 1───< purchase_orders
 | DELETE | /api/routing-operations/{opId}      | 工程削除 |
 | POST   | /api/crp/run                        | CRP実行 |
 | GET    | /api/cost-rollup                    | 標準原価積み上げ計算 |
-| POST   | /api/auth/login                     | ログイン (JWT発行) |
+| POST   | /api/auth/login                     | Browserログイン (HttpOnly Cookie発行) |
+| POST   | /api/auth/token                     | CLI/API用Bearer JWT発行 |
+| POST   | /api/auth/logout                    | Browserログアウト (CSRF保護) |
 | GET    | /api/auth/me                        | 現在のユーザー情報 |
+| POST   | /api/auth/change-password           | 自分のパスワード変更 (CSRF保護) |
+| GET    | /api/admin/users                    | ユーザー一覧 (admin.users.manage) |
+| POST   | /api/admin/users                    | ユーザー作成 (admin.users.manage) |
+| PUT    | /api/admin/users/{id}/role          | Role変更 (最後のactive admin保護) |
+| PUT    | /api/admin/users/{id}/active        | 有効/無効 (最後のactive admin保護) |
+| POST   | /api/admin/users/{id}/reset-password | パスワードreset (admin.users.manage) |
 | GET    | /api/abc-analysis                   | ABC分析実行 |
 | GET    | /api/items/export.csv               | 品目CSVエクスポート |
 | POST   | /api/items/import                   | 品目CSVインポート (multipart) |
@@ -174,7 +182,7 @@ items 1───< purchase_orders
 - ✅ エラーハンドリング: domain.AppError による統一構造化レスポンス
 - ✅ ユニットテスト: 主要ロジックに table-driven test (mathutil/abc/mrp/workflow/calendar)
 - ✅ CRP: 工程毎の seq_no で 1日ずつ後方展開、作業カレンダーで休日スキップ
-- 認可: ロールチェック用ミドルウェア `requireRole` は用意済みだが、現状は「認証必須」のみ。細粒度の認可は未実装
+- ✅ 認可: Backend `requirePermission(...)` による細粒度RBACを実装済み。51個のpermissionをadmin/planner/operator/viewerへ割り当て、115本の業務/admin mutation routeをBackendで強制保護。logoutとself-service password changeのみ認証済みself-service例外
 - ABC分析は直近12か月の ISSUE 数量 × Standard Cost（年間使用金額）で分類し、Cycle Count頻度にも連動
 - 需要予測: SMA / 指数平滑 / **Holt-Winters加法モデル** (level + trend + seasonal) を実装済み
 - マルチテナント、トランザクション分離レベル詳細指定は最小限

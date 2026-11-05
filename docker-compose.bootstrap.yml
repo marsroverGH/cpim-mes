@@ -1,0 +1,14 @@
+# One-time bootstrap override for a clean development/production database.
+# Before use, create .secrets/bootstrap-admin-password with a strong password
+# (15-72 bytes). Remove the secret file after the initial administrator exists.
+services:
+  backend:
+    environment:
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:?set BOOTSTRAP_ADMIN_USERNAME}
+      BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/bootstrap_admin_password
+    secrets:
+      - bootstrap_admin_password
+
+secrets:
+  bootstrap_admin_password:
+    file: ./.secrets/bootstrap-admin-password
