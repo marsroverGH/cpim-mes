@@ -107,7 +107,11 @@ func sameRequestOrigin(r *http.Request, origin string) bool {
 			scheme = "http"
 		}
 	}
-	return strings.EqualFold(parsed.Scheme, scheme) && strings.EqualFold(parsed.Host, r.Host)
+	requestHost := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-Host"), ",")[0])
+	if requestHost == "" {
+		requestHost = r.Host
+	}
+	return strings.EqualFold(parsed.Scheme, scheme) && strings.EqualFold(parsed.Host, requestHost)
 }
 
 func trustedBrowserOrigin(r *http.Request, allowedOrigins []string) bool {
