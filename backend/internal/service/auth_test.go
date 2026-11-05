@@ -14,7 +14,11 @@ func TestCSRFTokensAreSessionBoundAndTamperEvident(t *testing.T) {
 	if auth.VerifyCSRFToken("session-two", token) {
 		t.Fatal("CSRF token unexpectedly valid for another session")
 	}
-	tampered := token[:len(token)-1] + "A"
+	replacement := "A"
+	if token[len(token)-1] == 'A' {
+		replacement = "B"
+	}
+	tampered := token[:len(token)-1] + replacement
 	if auth.VerifyCSRFToken("session-one", tampered) {
 		t.Fatal("tampered CSRF token accepted")
 	}
