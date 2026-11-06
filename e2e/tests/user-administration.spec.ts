@@ -143,6 +143,7 @@ test.describe.serial('Step 7 User Administration', () => {
     await page.getByLabel('ユーザー名').fill(managedUsername)
     await page.getByLabel('パスワード').fill(changedPassword)
     await page.getByRole('button', { name: 'ログイン' }).click()
+    await expect(page).toHaveURL(/\/$/)
     await expect(page.getByText('ユーザー管理')).toHaveCount(0)
     await page.goto('/admin/users')
     await expect(page).toHaveURL(/\/$/)
