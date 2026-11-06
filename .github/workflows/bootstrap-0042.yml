@@ -19,7 +19,7 @@ jobs:
     env:
       FEATURE_BRANCH: feature/0042-controlled-recovery-plan-execution
       BASE_GA_SHA: f7c6491c8493e57e532fa57df1d0d7d3f3d44110
-      BUNDLE_SHA256: 7fffd93c1d4b071c0a248f9fe16aab76032f01aa3e7a2955cc64034383bb9d4e
+      BUNDLE_SHA256: 97e1734bda46d1a989fb22bf7fe2f61f581f013d7b7ca7b70f6ee80b815050c0
     steps:
       - uses: actions/checkout@v7.0.1
         with:
