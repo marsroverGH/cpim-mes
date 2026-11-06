@@ -4,7 +4,7 @@ e792160c758bf3d3c2fae348a89be928fdce4a2dd1cd55048e3d8d2a20651a5b  ./.github/work
 e78510c4cc5a421d867f57b8d5d085a32245ce122796b2ece1f380fc037bb6e9  ./.github/workflows/generate-lockfiles.yml
 6a5e1f03733eb81704456b24a2b0cb0d7a1e98accf08827d5ad3d3253bc59cb9  ./.github/workflows/release-candidate.yml
 d208128d85fee8e4cc778033edc05698194c2b8148e1bf1795a4486a0aacf8a9  ./.github/workflows/security.yml
-22700e335e4648fe607d4faec800b2a5434c9e39cf07174e6eb048b3cda67e6a  ./.gitignore
+480211c26803d88279f800febe6bb0026fcfb2db09deff2185d1f0a90bada741  ./.gitignore
 5b9d0e73029969ae9000117cb877f17bb9841c1279bfe8024e294acfcf017800  ./.nvmrc
 681e1ebfd094e3a9e391cc5facc55e439f4f88743e46a2109da33fc096b799e3  ./Makefile
 5b8d218aa2ef31e9f4b3451396fa426309d0da193791e338619d943cfa16f997  ./README.md
@@ -67,7 +67,7 @@ bbba9b68a7f2b3abcda60141e546fe74b63f74e9885e676c2740845dc9a65001  ./backend/inte
 7f952d8baf9a70bfa5a3e2ed8579fc60d5205057ed6b8b8bc8c1bbfc8bb3a0a8  ./backend/internal/api/wip_atp_quality.go
 3a129bae372678e0f120a02e348bb4c713cd7e15422b9da1705d4853fc026986  ./backend/internal/api/workflow.go
 c2af899b0ee7e8ceed7890e0c2a8b6bbe808992585cc4218661f0f79f28cee6f  ./backend/internal/buildinfo/buildinfo.go
-2a9ca23f76b0f284932aab3dce54cdb3781968cdc5fe36f29c934568aa58b703  ./backend/internal/buildinfo/buildinfo_test.go
+486628be5a9cd4f05949dc811b22773ac181c7d241772ddeabee19912769f172  ./backend/internal/buildinfo/buildinfo_test.go
 15ca2e15fc4192d4685157f1e90b6be014ca69ac2afd6acbdda7bc46e6b9a671  ./backend/internal/config/config.go
 1b5693c1f98c7da9deb1055eceb3c2802f2aec4de53a0c5bbfbe24cf68e9f35e  ./backend/internal/config/config_test.go
 63d496efc382a64d8be59f74aa5fcc0f5d284768424b9bfd899952fc008a9437  ./backend/internal/domain/errors.go
@@ -275,6 +275,7 @@ ea9583235bb2d2627c04f1e5f5331c27946f15bd3ab267ef1f7695dfcdb25028  ./docs/ARCHITE
 480b1890285f6219cfd35c92ca9522bd52ee7501cc0d241cd400d22261c002ec  ./docs/BACKEND_RBAC.md
 46a9efd0ac555df62f559f3186102b72bdcafdd0e106012dc04d64dccf392ae2  ./docs/BACKORDER_PROCESSING_PRODUCT_ALLOCATION.md
 65649aee604d75e6e18654f024ab710177d43ed95a648ef6fa18db327713155e  ./docs/BACKUP_RESTORE.md
+e0831a8fa73f101d057240e1a0e3a8d5d5d853e6c2beb6dac7e682d46e15167c  ./docs/BASELINE_MEASUREMENT.md
 8bbd8764353b523e08354a63c88ce8778d39ff3ce7f72e054ef877c05b214f01  ./docs/BOM_CYCLE_LLC_GUARD.md
 35d832e281d5e7e1fde111242f36979e5aaf8f4f26a008e8620006c94c993a06  ./docs/BOOTSTRAP_ADMIN.md
 d7fb192c23fbf7abe98615d626558c020c307a638a43bbfa5dff409f02ca9a96  ./docs/CI_IMPLEMENTATION_VALIDATION.md
@@ -337,7 +338,7 @@ c94dcf69e027bbe7496cb9f3142eedf42c77354a9933774f65c955c70b43ec49  ./e2e/tests/lo
 b6c08e551fa9086eb69d7496b0846ae870e240fe4577f083abafd68b06faee8f  ./e2e/tests/pegging-exceptions.spec.ts
 ba8ab7fc6136cb64ac9bb9794cf56734bda665cd4b831312ef58e6868f1e38be  ./e2e/tests/production-control-tower.spec.ts
 e28e6a34ba9445a4b9f5bbd7ebd2b25cffaf29072b70daf07335520609fee5cd  ./e2e/tests/production-performance.spec.ts
-d00af2e674d980dca7cbc7f3f0005eee2bff7f0d5817d4a03e6e9099869348f4  ./e2e/tests/recovery-execution.spec.ts
+31f7d6ee9389029c55bca1d1f7aa6c32dd92f15ad773e900c487fe391570aafb  ./e2e/tests/recovery-execution.spec.ts
 03a0000f2a39af14f5aa15072472eb0e1bc1acdc809b7af440be1ca012f1e278  ./e2e/tests/recovery-planning.spec.ts
 9d833606c11a8a91583a69b54b4e0a34582666d4f07cfd911d774a8a9b29bcf5  ./e2e/tests/sales-orders.spec.ts
 14e41fc585762adf12cae2184a76c0f023f72ace26e84c724149b382ae366f4e  ./e2e/tests/supplier-scheduling.spec.ts
@@ -419,6 +420,7 @@ aadf89bd839c126413720720fcd1430d9bb2e86b5eb87b6f71ce223ba3e65fbc  ./scripts/chec
 02f66ae34477bb9de21cd13e541eda24965459fb0ff19a76e845e241b05dedb3  ./scripts/final_clean_room_release_gate.sh
 c4eeff83b4a64144039fc6e437f62b182ef7d475f32cbeda133dbd12a9f36fc8  ./scripts/generate-lockfiles.sh
 021c88f519b2fcb7cd364e25cb8e888c799805b8e2f7ec4a5dda8f3f0f4c09ea  ./scripts/install_security_tools.sh
+579025165739226615311bfa2432ab5e8e4618251e93abac1259f75c712267f7  ./scripts/measure_local_stack.sh
 c5a98697babb8db4850735284c22f96f08fc6e56902679fc02c0ec4262c0cf3c  ./scripts/postgres_dr.py
 e518dadd2168ab4e8132473ab08a106388c88642dcbefd9dc2701980f35f8dd9  ./scripts/restore_drill.sh
 9d3a77abc5cefdd3d2599801bd534c3ecd78d3e1a5b16210ebfdd9162943fc63  ./scripts/restore_postgres.sh
