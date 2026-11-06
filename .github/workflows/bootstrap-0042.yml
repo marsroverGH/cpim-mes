@@ -89,7 +89,7 @@ jobs:
           test "$(find backend/migrations -maxdepth 1 -name '*.sql' | wc -l)" -eq 42
           test -f backend/migrations/0042_controlled_recovery_plan_execution.sql
           echo "325c558c86bd247439e7e7ea765c02b3e2e9bd718a82831aef89960f09ecdf18  backend/migrations/0041_scenario_based_recovery_planning_what_if_simulation.sql" | sha256sum -c -
-          python3 backend/scripts/check_0041_recovery_planning.py
+          python3 backend/scripts/check_recovery_planning.py
           python3 backend/scripts/check_0042_controlled_recovery_execution.py
 
       - name: Go verification
