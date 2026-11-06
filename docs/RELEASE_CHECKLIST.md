@@ -3,7 +3,7 @@
 ## Source freeze
 
 - [ ] Working tree clean at the candidate commit.
-- [ ] `SHA256SUMS.txt` verifies every distributed source file.
+- [ ] `SHA256SUMS.txt` (generated at release time by `scripts/generate_source_checksums.py --require-clean`) verifies every distributed source file.
 - [ ] Target is `v0.42.0`; candidate matches `v0.42.0-rc.N`.
 - [ ] Migration files are exactly `0001` through `0042`; `0042` is Controlled Recovery Plan Execution.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.

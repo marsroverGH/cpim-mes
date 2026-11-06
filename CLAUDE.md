@@ -33,19 +33,11 @@ make ci-local
 
 ## 必ず守ること
 
-### SHA256SUMS.txt の再生成（ファイルを追加・変更・削除したら毎回）
+### SHA256SUMS.txt はコミットしない
 
-`SHA256SUMS.txt` は git 管理下の全ファイルのハッシュ一覧。更新しないと CI の
-「Backend / Go（Static business-integrity guards）」と「Dependency vulnerability gates」が checksum mismatch で落ちる。
-変更をコミットに含めた（`git add` 済みの）状態で、リポジトリ root で実行する:
-
-```bash
-git ls-files -z | grep -zv '^SHA256SUMS.txt$' | xargs -0 shasum -a 256 \
-  | awk '{h=$1; $1=""; sub(/^ +/,""); print h"  ./"$0}' | LC_ALL=C sort -k2 > SHA256SUMS.txt
-python3 scripts/verify_source_checksums.py
-```
-
-新規ファイルは `git add` してから実行すること（`git ls-files` に載らないと一覧に入らない）。
+`SHA256SUMS.txt` はリリース時に `scripts/generate_source_checksums.py` が git 管理下のファイルから自動生成する（`.gitignore` 済み）。
+普段の変更で作り直す必要はない。配布物（リリース候補の source tar）の改ざん検知にだけ使う。
+手元で確認したいときは `make verify-source-checksums`。
 
 ### 公開リポジトリと秘密情報
 
@@ -74,7 +66,6 @@ python3 scripts/verify_source_checksums.py
 
 移行時の解析で見つかった主な改善点。着手するときは個別に相談のうえ進める。
 
-- SHA256SUMS 方式の廃止（git のコミットハッシュ／タグでの検証へ）
 - シリアライザブル競合（SQLSTATE 40001）のリトライ無し
 - `writeError` が内部エラー文言 `err.Error()` をそのまま返す
 - 数量計算が float
