@@ -104,7 +104,7 @@ func TestOpsInventoryPolicyLifecycleAndRefresh(t *testing.T) {
 
 	// Issue history: 2 units on even days, 4 on odd days over the last 20 days.
 	opsStock(t, f, item.ID, 1000, opsCode("L"))
-	asOf := TruncateDay(time.Now()).AddDate(0, 0, -1)
+	asOf := BusinessToday().AddDate(0, 0, -1)
 	for d := 0; d < 20; d++ {
 		q := 2.0
 		if d%2 == 1 {

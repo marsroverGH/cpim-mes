@@ -66,7 +66,7 @@ func normalizeScenario(v string) string {
 
 func forecastAsOfDate(raw string) (time.Time, error) {
 	if strings.TrimSpace(raw) == "" {
-		return TruncateDay(time.Now()), nil
+		return BusinessToday(), nil
 	}
 	t, err := time.Parse("2006-01-02", raw)
 	if err != nil {
@@ -540,7 +540,7 @@ func (s *CycleCountService) GenerateSchedule(ctx context.Context) (int, error) {
 		if last != nil {
 			sched = last.Add(time.Duration(interval) * 24 * time.Hour)
 		} else {
-			sched = TruncateDay(now)
+			sched = BusinessDate(now)
 		}
 		expected := a.OnHand
 		c := &domain.CycleCount{

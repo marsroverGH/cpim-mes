@@ -17,13 +17,9 @@
 
 | # | 内容 | 場所 |
 | --- | --- | --- |
-| 5 | MRP の期間バケットがタイムゾーンで分裂する（DATE 列は UTC、開始日はローカル）。計画期間最終日の MPS が落ちる（再現: 18 → 15） | `backend/internal/service/service.go`（`MRPService.run`） |
-| 6 | MRP アクションメッセージの「今日」がローカル、期日が UTC。JST では当日期日が CRITICAL でなく WARNING になる | `backend/internal/service/action_messages.go:213` |
-| 7 | 開始日を省略した CRP で休日が無視される（開始日・期間の既定値が無く、例外カレンダーの範囲が西暦 1 年になる） | `backend/internal/service/capacity.go:163-196`、`backend/internal/api/capacity.go:188` |
 | 8 | CTP が 2 階層で使われる部品を同じ空き在庫で二重に判定し、不足でも「今日可能」と回答する | `backend/internal/service/ctp.go:44-104` |
 | 9 | ABC 分析で使用金額最大の品目が B/C になり得る（累積比率に自分自身を含めて判定） | `backend/internal/service/abc.go:131` |
 | 10 | 安全在庫計算で品目マスター値へのフォールバックが到達不能。履歴の無い品目が 0 になる | `backend/internal/service/inventory_policy.go`（`Refresh` 付近 408 行） |
-| 11 | 詳細スケジューリング・ペギングの日付計算がサーバーのタイムゾーンに依存する | `backend/internal/service/detailed_scheduling.go:756-888`、`backend/internal/service/pegging.go:303` |
 
 ## データを壊す・検証漏れ（優先度：中）
 
@@ -39,6 +35,10 @@
 | 14 | 同じ実行計画への Execute が 8 件以上同時に来るとデッドロック（40P01）が起き、5 回のリトライで解消しきれず 409 になる。データ整合性は保たれる | `backend/internal/service/recovery_execution.go:781, 1091`（ロック順序） |
 | 15 | 同一 PO への RecordEvent が 6 件以上同時だと 40001 がリトライ上限を超える（advisory lock の時点でスナップショットが固定され、待機者が必ず 1 回失敗する） | `backend/internal/service/supplier_scheduling.go:179, 199` |
 | 16 | 同一実行内の 2 つのアクションが同じ部品・同じ残業枠を使うと、自分自身の変更を「ドリフト」と判定して PARTIAL_FAILED になる | `backend/internal/service/recovery_execution.go:476, 586` |
+
+## 要判断（未対応）
+
+- 詳細スケジューリング・有限 CRP の稼働時間帯は「UTC の日」を基準に置かれる（例: 8:00 開始のシフトは 8:00 UTC＝17:00 JST）。本番コンテナ（TZ=UTC）の従来動作を維持しているが、工場の稼働時間を業務タイムゾーンで解釈すべきなら、時間帯の基準を `BusinessLocation()` に変える必要がある（既存スケジュールの時刻が 9 時間ずれるため要判断）。
 
 ## API のステータス・その他（優先度：低）
 

@@ -55,7 +55,7 @@ func GenerateActionMessages(in ActionMessageInput) []domain.ActionMessage {
 		in.ToleranceDays = 1
 	}
 	tol := time.Duration(in.ToleranceDays) * 24 * time.Hour
-	today := TruncateDay(in.Today)
+	today := BusinessDate(in.Today)
 
 	// 品目別にグルーピング
 	byItemPlanned := make(map[uuid.UUID][]domain.MRPResult)
@@ -106,7 +106,7 @@ func GenerateActionMessages(in ActionMessageInput) []domain.ActionMessage {
 			if matched >= 0 {
 				used[matched] = true
 				s := supplies[matched]
-				diff := needDate.Sub(TruncateDay(s.DueDate))
+				diff := needDate.Sub(BusinessDate(s.DueDate))
 				absDiff := diff
 				if absDiff < 0 {
 					absDiff = -absDiff
@@ -210,17 +210,17 @@ func fmtDate(t time.Time) string { return t.Format("2006-01-02") }
 // planner actions. Existing PO/WO supplies must NOT be matched again here because
 // MRP.Run has already included them as Scheduled Receipts during netting.
 func GenerateNettedMRPActions(today time.Time, planned []domain.MRPResult) []domain.ActionMessage {
-	today = TruncateDay(today)
+	today = BusinessDate(today)
 	out := make([]domain.ActionMessage, 0)
 
 	for _, p := range planned {
 		if p.PlannedOrder <= 0 {
 			continue
 		}
-		needDate := TruncateDay(p.Period) // planned-order receipt / requirement date
+		needDate := BusinessDate(p.Period) // planned-order receipt / requirement date
 		releaseDate := needDate
 		if p.PlannedReleaseDate != nil {
-			releaseDate = TruncateDay(*p.PlannedReleaseDate)
+			releaseDate = BusinessDate(*p.PlannedReleaseDate)
 		}
 
 		kind := "FUTURE_RELEASE"

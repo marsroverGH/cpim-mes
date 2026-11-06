@@ -148,7 +148,7 @@ func TestOpsItemServiceCRUD(t *testing.T) {
 	if _, err := f.Svc.Demand.List(f.Ctx); err != nil {
 		t.Fatalf("demand list: %v", err)
 	}
-	if err := f.Svc.MPS.Upsert(f.Ctx, &domain.MPSEntry{ItemID: it.ID, Period: TruncateDay(time.Now()), Planned: 5}); err != nil {
+	if err := f.Svc.MPS.Upsert(f.Ctx, &domain.MPSEntry{ItemID: it.ID, Period: BusinessToday(), Planned: 5}); err != nil {
 		t.Fatalf("mps upsert: %v", err)
 	}
 	mps, err := f.Svc.MPS.List(f.Ctx)
@@ -178,7 +178,7 @@ func TestOpsECOLifecycle(t *testing.T) {
 	newPart := opsItem(t, f, opsCode("NEW"), domain.ItemTypeRawMaterial)
 	opsBOM(t, f, fg.ID, old.ID, 1, 0)
 	opsBOM(t, f, fg.ID, keep.ID, 2, 0)
-	past := TruncateDay(time.Now()).AddDate(0, 0, -2)
+	past := BusinessToday().AddDate(0, 0, -2)
 
 	// Create validation and requester derivation.
 	opsWantErr(t, f.Svc.ECO.Create(f.Ctx, &domain.EngineeringChange{ECONo: "x", Title: "x", EffectiveDate: past}, ECOActor{}), domain.ErrCodeUnauthorized, "")
@@ -296,7 +296,7 @@ func TestOpsECOApplyRollsBack(t *testing.T) {
 		}
 		return e
 	}
-	past := TruncateDay(time.Now()).AddDate(0, 0, -2)
+	past := BusinessToday().AddDate(0, 0, -2)
 
 	// Negative scrap is rejected by a CHECK constraint before it can be approved.
 	draft := &domain.EngineeringChange{ECONo: opsCode("ECO"), Title: "t", EffectiveDate: past}
@@ -312,7 +312,7 @@ func TestOpsECOApplyRollsBack(t *testing.T) {
 		code domain.ErrorCode
 		want string
 	}{
-		{"not yet effective", approved(TruncateDay(time.Now()).AddDate(0, 1, 0),
+		{"not yet effective", approved(BusinessToday().AddDate(0, 1, 0),
 			domain.ECOComponent{Action: "MODIFY", ParentID: a.ID, ChildID: b.ID, NewQuantity: 9}), domain.ErrCodeConflict, "not effective"},
 		{"cycle", approved(past,
 			domain.ECOComponent{Action: "MODIFY", ParentID: a.ID, ChildID: b.ID, NewQuantity: 9},

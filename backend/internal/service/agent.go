@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/cpim-mes/backend/internal/repository"
@@ -250,7 +249,7 @@ func (a *AgentService) handleWODueSoon(ctx context.Context, p intentParams) (*Ag
 	if days == 0 {
 		days = 7
 	}
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	cutoff := now.AddDate(0, 0, days)
 	matched := make([]domain.WorkOrder, 0)
 	for _, w := range wos {
@@ -274,7 +273,7 @@ func (a *AgentService) handlePOOverdue(ctx context.Context) (*AgentResponse, err
 	if err != nil {
 		return nil, err
 	}
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	matched := make([]domain.PurchaseOrder, 0)
 	for _, p := range pos {
 		if (p.Status == "OPEN" || p.Status == "PARTIALLY_RECEIVED") && p.DueDate.Before(now) {

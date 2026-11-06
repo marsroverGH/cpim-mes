@@ -68,8 +68,11 @@ func TestPeggingExceptionDeduplicatesRootCause(t *testing.T) {
 }
 
 func TestPeggingDateLateUsesCalendarDays(t *testing.T) {
-	req := time.Date(2026, 9, 10, 22, 0, 0, 0, time.UTC)
-	act := time.Date(2026, 9, 13, 1, 0, 0, 0, time.UTC)
+	// Calendar days in the business timezone, not 24h periods: 22:00 on the
+	// 10th to 01:00 on the 13th is 3 days late although only 51 hours apart.
+	loc := BusinessLocation()
+	req := time.Date(2026, 9, 10, 22, 0, 0, 0, loc)
+	act := time.Date(2026, 9, 13, 1, 0, 0, 0, loc)
 	if got := daysLate(act, req); got != 3 {
 		t.Fatalf("daysLate=%d", got)
 	}

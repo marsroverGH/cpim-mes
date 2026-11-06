@@ -216,7 +216,7 @@ func TestOpsATPAndAvailability(t *testing.T) {
 		t.Fatal("draft order not created")
 	}
 	opsPO(t, f, fg.ID, opsCode("SUP"), 5) // due day+5
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	planned := &domain.WorkOrder{OrderNo: opsCode("WO"), ItemID: fg.ID, Quantity: 6, StartDate: now, DueDate: now.AddDate(0, 0, 7)}
 	if err := f.Svc.WorkOrders.Create(f.Ctx, planned); err != nil {
 		t.Fatal(err)
@@ -306,7 +306,7 @@ func TestOpsKPIAndActionMessages(t *testing.T) {
 
 	// An overdue released WO, an overdue open PO, stock value and inspections.
 	fg := opsItem(t, f, opsCode("FG"), domain.ItemTypeFinished)
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	wo := &domain.WorkOrder{OrderNo: opsCode("WO"), ItemID: fg.ID, Quantity: 8, StartDate: now.AddDate(0, 0, -5), DueDate: now.AddDate(0, 0, -1)}
 	if err := f.Svc.WorkOrders.Create(f.Ctx, wo); err != nil {
 		t.Fatal(err)
@@ -383,7 +383,7 @@ func TestOpsKPIAndActionMessages(t *testing.T) {
 		}
 		r, ok := kinds["RELEASE"]
 		if _, off := time.Now().Zone(); ok && off > 0 && opsNear(r.Quantity, 4) {
-			t.Skipf("KNOWN BUG action_messages.go GenerateNettedMRPActions: today=TruncateDay(time.Now()) is local midnight "+
+			t.Skipf("KNOWN BUG action_messages.go GenerateNettedMRPActions: today=BusinessToday() is local midnight "+
 				"but MRP periods read from DATE columns are UTC midnight, so with TZ offset %+ds a requirement due today "+
 				"(%s) is reported as %s/%s instead of EXPEDITE/CRITICAL", off, r.NeedDate.Format(time.RFC3339), r.Kind, r.Severity)
 		}

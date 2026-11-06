@@ -2,7 +2,6 @@ package service
 
 import (
 	"testing"
-	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
@@ -18,7 +17,7 @@ func opsCustomer(t *testing.T, f *dbFixture, actor SalesOrderActor) *domain.Cust
 }
 
 func opsDay(offset int) string {
-	return TruncateDay(time.Now()).AddDate(0, 0, offset).Format("2006-01-02")
+	return BusinessToday().AddDate(0, 0, offset).Format("2006-01-02")
 }
 
 func opsSalesOrder(t *testing.T, f *dbFixture, actor SalesOrderActor, customerID uuid.UUID, lines ...SalesOrderLineInput) *domain.SalesOrderDetail {
@@ -213,7 +212,7 @@ func TestOpsSalesOrderLifecycle(t *testing.T) {
 	if err != nil || len(dem) != 1 || !opsNear(dem[0].Quantity, 10) || dem[0].Source != "ORDER" {
 		t.Fatalf("confirmed demand: %+v err=%v", dem, err)
 	}
-	from, to := TruncateDay(time.Now()), TruncateDay(time.Now()).AddDate(0, 0, 5)
+	from, to := BusinessToday(), BusinessToday().AddDate(0, 0, 5)
 	if dem, _ := f.Svc.SalesOrders.SalesOrderDemand(f.Ctx, fg.ID, &from, &to, false); len(dem) != 0 {
 		t.Fatalf("demand window should exclude day+10 order: %+v", dem)
 	}

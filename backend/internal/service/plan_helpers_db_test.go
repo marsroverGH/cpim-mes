@@ -21,8 +21,8 @@ func planDay(y int, m time.Month, d int) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-// planToday is the local business day used by services that plan from time.Now().
-func planToday() time.Time { return TruncateDay(time.Now()) }
+// planToday is the business day used by services that plan from time.Now().
+func planToday() time.Time { return BusinessToday() }
 
 func planNear(a, b float64) bool { return math.Abs(a-b) <= planTol }
 

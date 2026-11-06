@@ -132,7 +132,7 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	if req.HorizonDays > 366 {
 		return nil, domain.NewBadRequest("horizonDays must be <= 366", nil)
 	}
-	start := TruncateDay(req.StartDate)
+	start := schedDay(req.StartDate)
 	end := start.AddDate(0, 0, req.HorizonDays-1)
 
 	overtime, err := loadRecoveryOvertime(ctx, s.db, start, end)
@@ -388,7 +388,7 @@ func (s *CRPService) SimulateCTPOrder(ctx context.Context, itemID uuid.UUID, qty
 	if horizonDays > 366 {
 		return nil, domain.NewBadRequest("horizonDays must be <= 366", nil)
 	}
-	start := TruncateDay(time.Now())
+	start := BusinessToday() // business "today", same day MRP and promising use
 	if earliest.Before(start) {
 		earliest = start
 	}
@@ -835,7 +835,7 @@ func (st *detailedWCState) planClock(earliest time.Time, minutes float64, worker
 			t = next
 		}
 		if remaining > 1e-9 {
-			t = TruncateDay(t).AddDate(0, 0, 1)
+			t = schedDay(t).AddDate(0, 0, 1)
 		}
 	}
 	if remaining > 1e-6 {
@@ -848,8 +848,8 @@ func (st *detailedWCState) planClock(earliest time.Time, minutes float64, worker
 }
 
 func (st *detailedWCState) workingWindow(t time.Time) (time.Time, time.Time, bool) {
-	day := TruncateDay(t)
-	for !day.After(TruncateDay(st.end)) {
+	day := schedDay(t)
+	for !day.After(schedDay(st.end)) {
 		mins := st.wc.CapacityMinutesPerDay
 		if mins <= 0 {
 			mins = 480
@@ -979,7 +979,7 @@ func (s *CRPService) buildDetailedTasks(ctx context.Context, start time.Time, ho
 		if wo.Status == "IN_PROGRESS" {
 			pri = 10
 		}
-		tasks = append(tasks, detailedOrderTask{sourceType: "FIRM_WO", sourceRef: wo.OrderNo, workOrderID: &wid, itemID: wo.ItemID, itemCode: it.Code, quantity: wo.Quantity, priority: pri, earliest: maxTime(start, TruncateDay(wo.StartDate)), dueAt: businessDueEnd(wo.DueDate), firm: true, operations: specs})
+		tasks = append(tasks, detailedOrderTask{sourceType: "FIRM_WO", sourceRef: wo.OrderNo, workOrderID: &wid, itemID: wo.ItemID, itemCode: it.Code, quantity: wo.Quantity, priority: pri, earliest: maxTime(start, schedDay(wo.StartDate)), dueAt: businessDueEnd(wo.DueDate), firm: true, operations: specs})
 	}
 	var mrpRows []domain.MRPResult
 	if simulateMRP {
@@ -1017,9 +1017,9 @@ func (s *CRPService) buildDetailedTasks(ctx context.Context, start time.Time, ho
 		}
 		earliest := start
 		if row.PlannedReleaseDate != nil {
-			earliest = maxTime(start, TruncateDay(*row.PlannedReleaseDate))
+			earliest = maxTime(start, schedDay(*row.PlannedReleaseDate))
 		}
-		ref := fmt.Sprintf("MRP:%s:%s", row.ItemCode, TruncateDay(row.Period).Format("2006-01-02"))
+		ref := fmt.Sprintf("MRP:%s:%s", row.ItemCode, schedDay(row.Period).Format("2006-01-02"))
 		tasks = append(tasks, detailedOrderTask{sourceType: "MRP_PLANNED", sourceRef: ref, itemID: row.ItemID, itemCode: row.ItemCode, quantity: row.PlannedOrder, priority: 100, earliest: earliest, dueAt: businessDueEnd(row.Period), operations: specs})
 	}
 	return tasks, nil
@@ -1039,7 +1039,7 @@ func buildDetailedLoadRows(segs []domain.DetailedScheduleSegment, wcs map[uuid.U
 	}
 	used := map[k]float64{}
 	for _, s := range segs {
-		used[k{s.WorkCenterID, TruncateDay(s.StartAt)}] += s.ClockMinutes * float64(s.MachinesRequired)
+		used[k{s.WorkCenterID, schedDay(s.StartAt)}] += s.ClockMinutes * float64(s.MachinesRequired)
 	}
 	var out []domain.CapacityLoadRow
 	for key, u := range used {
@@ -1089,7 +1089,7 @@ func maintenanceAdjustedMachineMinutes(st *detailedWCState, day time.Time, baseM
 	if shift < 0 || shift > 1439 {
 		shift = 480
 	}
-	ws := TruncateDay(day).Add(time.Duration(shift) * time.Minute)
+	ws := schedDay(day).Add(time.Duration(shift) * time.Minute)
 	we := ws.Add(time.Duration(baseMinutes) * time.Minute)
 	points := []time.Time{ws, we}
 	for _, b := range st.maintenance {
@@ -1188,7 +1188,7 @@ func (s *CRPService) persistDetailedSchedule(ctx context.Context, res *domain.De
 			INSERT INTO detailed_schedule_loads
 			(run_id,work_center_id,work_center_code,work_center_name,load_date,required_minutes,available_minutes,load_pct,is_holiday)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-			res.Run.ID, load.WorkCenterID, load.WorkCenterCode, load.WorkCenterName, TruncateDay(load.Date),
+			res.Run.ID, load.WorkCenterID, load.WorkCenterCode, load.WorkCenterName, schedDay(load.Date),
 			load.RequiredMinutes, load.AvailableMinutes, load.LoadPct, load.IsHoliday); err != nil {
 			return err
 		}
@@ -1313,3 +1313,10 @@ func (s *CRPService) GetDetailedRun(ctx context.Context, id uuid.UUID) (*domain.
 	res.Summary.PeakWorkers = peakDetailedWorkers(res.Segments)
 	return res, nil
 }
+
+// schedDay floors t to 00:00 UTC. The scheduler mixes instants that come back
+// from PostgreSQL in the server's local zone (maintenance windows) with UTC
+// dates from MRP; flooring in each value's own zone made working windows
+// depend on the server TZ. Normalising to UTC keeps the result identical to
+// the production container (TZ=UTC) on every host.
+func schedDay(t time.Time) time.Time { return TruncateDay(t.UTC()) }

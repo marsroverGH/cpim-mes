@@ -351,10 +351,8 @@ func TestPlanPeggingPlannedSupplyWithScheduleEvidence(t *testing.T) {
 	for _, e := range res.Exceptions {
 		exc[e.ExceptionType] = e
 	}
-	// Impact days are counted on the calendar date of the scheduled end as read back from
-	// PostgreSQL (time.Local): 2 days under TZ=UTC, 3 under e.g. Asia/Tokyo (see report).
-	endLocal := planned.ScheduledEnd.In(time.Local)
-	wantImpact := int(planDay(endLocal.Year(), endLocal.Month(), endLocal.Day()).Sub(need).Hours() / 24)
+	// Impact days are business-timezone calendar days, independent of the host TZ.
+	wantImpact := int(BusinessDate(*planned.ScheduledEnd).Sub(need).Hours() / 24)
 	if e, ok := exc["CAPACITY_LATE"]; !ok || e.ImpactDays != wantImpact || e.Severity != "WARNING" {
 		t.Fatalf("CAPACITY_LATE = %+v (present=%v); all=%v", e, ok, exc)
 	}

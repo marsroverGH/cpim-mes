@@ -161,6 +161,14 @@ type CRPRequest struct {
 }
 
 func (s *CRPService) Run(ctx context.Context, req CRPRequest) ([]domain.CapacityLoadRow, error) {
+	// Use the same defaults as MRP. Without them a zero StartDate made the
+	// calendar window start in year 1, so holidays near today were ignored.
+	if req.StartDate.IsZero() {
+		req.StartDate = BusinessToday()
+	}
+	if req.HorizonDays <= 0 {
+		req.HorizonDays = 28
+	}
 	// 1) MRP で Planned Order を取得
 	mrpResults, err := s.mrp.Run(ctx, MRPRequest{
 		HorizonDays: req.HorizonDays,
@@ -185,7 +193,7 @@ func (s *CRPService) Run(ctx context.Context, req CRPRequest) ([]domain.Capacity
 	}
 
 	// 2.5) 作業区毎のカレンダースナップショットを構築
-	from := TruncateDay(req.StartDate)
+	from := BusinessDate(req.StartDate)
 	to := from.AddDate(0, 0, req.HorizonDays)
 	calSvc := &CalendarService{r: s.repos.Calendars}
 	defaultSnap, _ := calSvc.LoadDefaultSnapshot(ctx, from, to)
@@ -224,11 +232,11 @@ func (s *CRPService) Run(ctx context.Context, req CRPRequest) ([]domain.Capacity
 			opsCache[m.ItemID] = ops
 		}
 
-		startDay := TruncateDay(req.StartDate)
+		startDay := BusinessDate(req.StartDate)
 		// 最終工程の作業区カレンダーで完了日を稼働日に丸める
 		// (シンプルに作業区毎のカレンダーで個別判定する方式)
 		// 工程を後ろから順に埋めていく
-		dueDay := TruncateDay(m.Period)
+		dueDay := BusinessDate(m.Period)
 		for i := len(ops) - 1; i >= 0; i-- {
 			op := ops[i]
 			snap := snapshotsByWC[op.WorkCenterID]

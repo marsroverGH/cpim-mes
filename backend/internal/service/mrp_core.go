@@ -26,7 +26,7 @@ func plannedOrderReleaseDate(receiptDate time.Time, leadTimeDays int, plannedRec
 	if leadTimeDays < 0 {
 		leadTimeDays = 0
 	}
-	return TruncateDay(receiptDate.AddDate(0, 0, -leadTimeDays))
+	return BusinessDate(receiptDate.AddDate(0, 0, -leadTimeDays))
 }
 
 // directComponentRequirement calculates one direct BOM edge only. Lower levels
@@ -45,8 +45,8 @@ func directComponentRequirement(parentPlannedRelease, quantityPer, scrapPct floa
 // dependentRequirementDate converts a past-due release into the MRP start
 // bucket because current on-hand is the opening balance as of that start date.
 func dependentRequirementDate(releaseDate, startDate time.Time) time.Time {
-	releaseDate = TruncateDay(releaseDate)
-	startDate = TruncateDay(startDate)
+	releaseDate = BusinessDate(releaseDate)
+	startDate = BusinessDate(startDate)
 	if releaseDate.Before(startDate) {
 		return startDate
 	}

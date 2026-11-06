@@ -64,6 +64,7 @@ make ci-local
 - **静的ガードは文字列の有無しか見ていない**。ガードが全 PASS でも実テストが落ちていることがある（実際にあった）。
   判定は `go test` と Playwright の実行結果で行う。逆に、ガードが参照している文字列を消すとガードが落ちる。
 - **マイグレーションは追記のみ**。既存ファイル（特に 0041 以前）はバイト単位で不変が前提（ハッシュを docs で記録している）。down マイグレーションは無い。
+- **業務日付**: 日付の比較・集計・「今日」は `service.BusinessDate` / `BusinessToday()` を使う（業務タイムゾーンの暦日を UTC 0 時で表す。DB の `eco_business_timezone()` と一致）。`TruncateDay(time.Now())` はサーバーの TZ に依存するので使わない。日付が絡むテストは `TZ=UTC` と `TZ=Asia/Tokyo` の両方で通すこと。
 - API の日付は RFC3339（`2026-11-11T00:00:00Z`）。`YYYY-MM-DD` は 400 になる。
 - E2E で UI ログインした直後は `await expect(page).toHaveURL(/\/$/)` でリダイレクト完了を待ってから遷移する。
 
