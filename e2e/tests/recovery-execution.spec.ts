@@ -48,7 +48,7 @@ test.describe.serial('0042 Controlled Recovery Plan Execution', () => {
     const orderNo = `WO-REC-EXEC-${suffix}`
     const woRes = await request.post('/api/work-orders', {
       headers: adminHeaders,
-      data: { orderNo, itemId: wheel.id, quantity: 1, startDate: woStart, dueDate: woDue, status: 'PLANNED' }
+      data: { orderNo, itemId: wheel.id, quantity: 1, startDate: `${woStart}T00:00:00Z`, dueDate: `${woDue}T00:00:00Z`, status: 'PLANNED' }
     })
     expect(woRes.status()).toBe(201)
     const wo = await woRes.json()
@@ -206,6 +206,7 @@ test.describe.serial('0042 Controlled Recovery Plan Execution', () => {
     await page.getByLabel('ユーザー名').fill(E2E_ADMIN_USERNAME)
     await page.getByLabel('パスワード').fill(E2E_ADMIN_PASSWORD)
     await page.getByRole('button', { name: 'ログイン' }).click()
+    await expect(page).toHaveURL(/\/$/)
     await page.goto('/recovery-execution')
     await expect(page.getByRole('heading', { name: 'Controlled Recovery Execution' })).toBeVisible()
     await expect(page.getByText('Published recovery evidence')).toBeVisible()

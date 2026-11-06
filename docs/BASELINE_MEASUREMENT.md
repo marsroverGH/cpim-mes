@@ -68,3 +68,23 @@ cd frontend && npm ci && npm run build
 
 `measure_local_stack.sh` は CI の Integration / Playwright ジョブを再現する。他プロジェクトと衝突しないよう
 compose プロジェクト名 `cpim-mes-measure`・ポート `18080` を使い、終了時に `down -v` で破棄する。
+
+## 修正後の再計測（ブランチ `fix/baseline-test-failures`）
+
+| ゲート | 結果 |
+| --- | --- |
+| `go test -race -count=1 ./...` | ✅ 全パッケージ PASS |
+| Playwright（`--retries=0`） | ✅ **26/26 PASS** |
+| Docker 起動・0001→0042 適用・観測性・失敗永続化・リストア訓練 | ✅ PASS |
+| 静的ガード 38 本 | ✅ PASS |
+
+修正内容:
+
+1. `buildinfo_test.go`: 引数と期待値を同じ定数 `migrationLatest` から取るように変更（片側だけ更新される事故を防止）。
+2. `recovery-execution.spec.ts`:
+   - Work Order 作成時の日付を RFC3339（`T00:00:00Z`）で送信。
+   - 日付修正後に判明した 2 つ目の不具合として、UI ログイン直後にリダイレクト完了を待たず `/recovery-execution` へ遷移していたため
+     `/login` に戻されていた。他 spec と同様に `toHaveURL(/\/$/)` で待機するよう修正。
+
+これにより、0042 の Prepare → Preflight → 自己承認拒否（403）→ 独立承認 → Execute → 冪等再実行 → ワイルドカード BLOCKED の
+一連の業務フローが、初めて実環境で検証された。
