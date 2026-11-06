@@ -139,7 +139,7 @@ FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
   AND c.relkind IN ('r','p','v','m','S')
-ORDER BY 1,2;
+ORDER BY 1;
 """
     return psql(db, sql)
 
