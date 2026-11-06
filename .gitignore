@@ -19,3 +19,31 @@ security-reports/
 security-artifacts/
 release-bundle/
 cpim-mes-v0.41.1-security-release-bundle.tar.gz
+
+# --- Added during Claude Code migration ---
+# Local environment files (examples stay tracked)
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Node / build outputs
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Playwright outputs
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Go
+backend/bin/
+*.test
+coverage.out
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
