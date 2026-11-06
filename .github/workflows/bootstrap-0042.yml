@@ -80,7 +80,23 @@ jobs:
           PY
           python3 apply_0042.py
           rm -f apply_0042.py
-          gofmt -w             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("backend/scripts/check_recovery_planning.py")
+          s = p.read_text()
+          old = '''    "41 ordered SQL migrations exist":
+        len(migration_files) == 41,
+'''
+          new = '''    "0041 remains in ordered SQL migration history":
+        len(migration_files) >= 41
+        and any(x.name.startswith("0041_") for x in migration_files),
+'''
+          if old not in s:
+              raise SystemExit("0041 migration-count guard block not found")
+          p.write_text(s.replace(old, new, 1))
+          PY
+          gofmt -w             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go \
+            backend/scripts/check_recovery_planning.py
 
       - name: Verify migration lineage and static guards
         shell: bash
@@ -116,7 +132,8 @@ jobs:
           set -euo pipefail
           git config user.name "CPIM-MES 0042 Automation"
           git config user.email "actions@users.noreply.github.com"
-          git add             backend/migrations/0042_controlled_recovery_plan_execution.sql             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/scripts/check_0042_controlled_recovery_execution.py             docs/0042-controlled-recovery-plan-execution.md             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go
+          git add             backend/migrations/0042_controlled_recovery_plan_execution.sql             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/scripts/check_0042_controlled_recovery_execution.py             docs/0042-controlled-recovery-plan-execution.md             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go \
+            backend/scripts/check_recovery_planning.py
           git diff --cached --check
           git diff --cached --quiet && { echo "ERROR: no 0042 changes staged" >&2; exit 1; }
           git commit -m "feat: add controlled recovery plan execution migration 0042"
