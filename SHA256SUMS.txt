@@ -2,7 +2,7 @@
 88322eb49c2194d51872f30fd212b44a232a571b187febba552ea8c9558194ec  ./.env.production.example
 c7ce445380a0f1bdb3442374791f89bd569935c30517a6801776df9618552076  ./.github/workflows/ci.yml
 e78510c4cc5a421d867f57b8d5d085a32245ce122796b2ece1f380fc037bb6e9  ./.github/workflows/generate-lockfiles.yml
-1c1dd7b2cdafc2986b44da4fccb8d4026ea98047358f0a2fc998bc0597518040  ./.github/workflows/release-candidate.yml
+f0d7bbee902d4198dc5997176c50bbe96992fa8208cd346d9472f10d4055f97f  ./.github/workflows/release-candidate.yml
 9f46bcfed7f0e80800c9b1909b37bd4a6c9f5126b643c3e71dc6402ccbee7fd5  ./.github/workflows/security.yml
 22700e335e4648fe607d4faec800b2a5434c9e39cf07174e6eb048b3cda67e6a  ./.gitignore
 5b9d0e73029969ae9000117cb877f17bb9841c1279bfe8024e294acfcf017800  ./.nvmrc
@@ -334,7 +334,7 @@ e28e6a34ba9445a4b9f5bbd7ebd2b25cffaf29072b70daf07335520609fee5cd  ./e2e/tests/pr
 03a0000f2a39af14f5aa15072472eb0e1bc1acdc809b7af440be1ca012f1e278  ./e2e/tests/recovery-planning.spec.ts
 9d833606c11a8a91583a69b54b4e0a34582666d4f07cfd911d774a8a9b29bcf5  ./e2e/tests/sales-orders.spec.ts
 14e41fc585762adf12cae2184a76c0f023f72ace26e84c724149b382ae366f4e  ./e2e/tests/supplier-scheduling.spec.ts
-4d79e3a1b8c24d8118287402f48041a1a2600409d57dc833291612e6babe92f3  ./e2e/tests/user-administration.spec.ts
+5318886e0d0d81b67ba967cfb1af3898394e39dc875cd0199e0e8c2083a767f2  ./e2e/tests/user-administration.spec.ts
 a9b000e99901725b3814f71ee5a605e1745c31186b0c5c1f6c5dd6cc8d4aa45e  ./e2e/tests/version-build-metadata.spec.ts
 d5f38c41bd19b9463064377aec6953e9657ac9d5777a1d4af1b1256abc8ed503  ./e2e/tsconfig.json
 5985ba75c332d6ce36a2033c285af89089cab26078cbc83d6c903103ed61ecb0  ./frontend/.dockerignore
