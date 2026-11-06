@@ -51,6 +51,7 @@ func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
 	srv := &server{s: s, cookies: cookies, allowedOrigins: cfg.AllowedOrigins, loginLimiter: limiter, buildInfo: cfg.BuildInfo, metrics: cfg.Metrics, tracer: cfg.Tracer}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
+	r.Use(exposeRequestID)
 	r.Use(middleware.RealIP)
 	if cfg.Metrics != nil {
 		r.Use(cfg.Metrics.Middleware(cfg.Tracer))
@@ -409,20 +410,6 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
-}
-
-func writeError(w http.ResponseWriter, code int, err error) {
-	// *domain.AppError があれば構造化情報を返す
-	var appErr *domain.AppError
-	if errors.As(err, &appErr) {
-		status := appErr.Status
-		if status == 0 {
-			status = code
-		}
-		writeJSON(w, status, appErr)
-		return
-	}
-	writeJSON(w, code, map[string]string{"error": err.Error()})
 }
 
 func parseUUID(r *http.Request, name string) (uuid.UUID, error) {

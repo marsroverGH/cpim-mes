@@ -39,6 +39,8 @@ d5495818c9b520009a443531254e495903be4ccb1f5b9c891cd0bf724237b0a6  ./backend/inte
 7022ced4b3b8813b94de045cf87b41acd000054fe61218f8498d6d3323305811  ./backend/internal/api/capacity.go
 6a3d8075c5fd510c3844165de569c31d49fbd035da18b6871e128008e4fc6423  ./backend/internal/api/control_tower.go
 f4a05f1f2f4af34b4bd564f1975730cd51605e8f0cee2d5f604f3b63c8b0699e  ./backend/internal/api/dispatch_rescheduling.go
+2f0c0e2cc566c499e70003086631292b9cd1b8810bc80ba8588e1d766451a798  ./backend/internal/api/errors.go
+649040156d9a0a482965149806414f7046853d1de3887cda89785ae5b4e2f6cf  ./backend/internal/api/errors_test.go
 2bf9e945ccba0bb944831464a47a2ede545dcac88e069337e65c13531668d3b1  ./backend/internal/api/forecasting.go
 013b114e7c6f36debaa4f88c69fb0936c98f029c3181484cd502f7a4c09e77e8  ./backend/internal/api/inventory_policy.go
 86e83184c1c58d5b93bec8144fa060dfdc97aea2dd9eb831c5767a4572bffff1  ./backend/internal/api/login_rate_limit.go
@@ -54,7 +56,7 @@ a943f68698baef013cc9eb315af78413e39bb0c2f2f3a28efa08c44d5704e9b7  ./backend/inte
 2c197258b2b6f9d2a0919bc6d4f3aa90d1d72522f13243d9973e1e2493d27b74  ./backend/internal/api/rbac_test.go
 8a12476a0037171ca949e7f23b6776cd35de3ab520886c3b682c29e420884d6b  ./backend/internal/api/recovery_execution.go
 67faa2fdd32ce2f55af773999145022def49c8420117f553d38417a9ad0f8c2d  ./backend/internal/api/recovery_planning.go
-045c2410a4e0d1079afc03f9c231d2a21e8433489983b25fc20ea46d311670c5  ./backend/internal/api/router.go
+22daddb0b40a8da1bd95af677945565ea5d861eb701ff54987b4685aa01bdce4  ./backend/internal/api/router.go
 648964307f47571fa20a9757ae8c3dbc3acde482ff65f90f046b06851b50297f  ./backend/internal/api/router_config_test.go
 fcacbe4e0586a755c230c67ce453aa7f8d6f9231ac6d54c49dc8596381850d2e  ./backend/internal/api/sales_orders.go
 192e10035dd23c6236852d32a85900fd449bc2c3a3c165457ed14d3c0ca1e643  ./backend/internal/api/sop_eco_agent.go
