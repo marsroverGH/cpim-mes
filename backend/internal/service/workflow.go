@@ -187,14 +187,29 @@ type ReleaseResult struct {
 }
 
 func (s *WorkflowService) ReleaseWorkOrder(ctx context.Context, woID uuid.UUID) (*ReleaseResult, error) {
-	// IMPORTANT: every read that participates in the reservation decision is
-	// performed inside this transaction.  Reading WO status or inventory before
-	// BEGIN would leave a classic check-then-act race.
 	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback() //nolint:errcheck
+
+	result, err := s.releaseWorkOrderTx(ctx, tx, woID)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// releaseWorkOrderTx contains the canonical release workflow for callers that
+// already own a transaction (for example Controlled Recovery Plan Execution).
+// The caller is responsible for commit/rollback.
+func (s *WorkflowService) releaseWorkOrderTx(ctx context.Context, tx *sqlx.Tx, woID uuid.UUID) (*ReleaseResult, error) {
+	// IMPORTANT: every read that participates in the reservation decision is
+	// performed inside this transaction. Reading WO status or inventory outside
+	// the caller-owned transaction would leave a check-then-act race.
 
 	// 1) Serialize releases for the same work order.
 	// The second concurrent caller waits here, then re-reads the committed
@@ -411,10 +426,6 @@ func (s *WorkflowService) ReleaseWorkOrder(ctx context.Context, woID uuid.UUID) 
 		ON CONFLICT (wo_operation_id,work_center_id) DO NOTHING
 	`, woID); err != nil {
 		return nil, fmt.Errorf("snapshot wo operation alternatives: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
 	}
 
 	return &ReleaseResult{

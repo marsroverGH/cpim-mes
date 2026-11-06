@@ -12,9 +12,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET_RELEASE = "v0.41.1"
-EXPECTED_MIGRATION = 41
-EXPECTED_E2E = 25
+TARGET_RELEASE = "v0.42.0"
+EXPECTED_MIGRATION = 42
+EXPECTED_E2E = 26
 
 
 def sha256(path: Path) -> str:
@@ -66,7 +66,7 @@ def deterministic_tar_gz(output: Path, entries: list[tuple[str, bytes, int]]) ->
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Build verified CPIM-MES v0.41.1 Release Candidate evidence bundle")
+    p = argparse.ArgumentParser(description="Build verified CPIM-MES v0.42.0 Release Candidate evidence bundle")
     p.add_argument("--clean-room-result", type=Path, required=True)
     p.add_argument("--security-bundle", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
@@ -75,8 +75,8 @@ def main() -> int:
     p.add_argument("--candidate", required=True)
     a = p.parse_args()
 
-    if not re.fullmatch(r"v0\.41\.1-rc\.\d+", a.candidate):
-        raise SystemExit("ERROR: --candidate must match v0.41.1-rc.N")
+    if not re.fullmatch(r"v0\.42\.0-rc\.\d+", a.candidate):
+        raise SystemExit("ERROR: --candidate must match v0.42.0-rc.N")
     if a.commit != "local" and not re.fullmatch(r"[0-9a-fA-F]{40}", a.commit):
         raise SystemExit("ERROR: --commit must be 40-hex or local")
     try:
@@ -93,7 +93,7 @@ def main() -> int:
         "targetRelease": TARGET_RELEASE,
         "migrationCount": EXPECTED_MIGRATION,
         "migrationLatest": EXPECTED_MIGRATION,
-        "migration0042Created": False,
+        "migration0042Created": True,
         "playwrightTests": EXPECTED_E2E,
     }
     for key, expected in required_result.items():
@@ -145,11 +145,11 @@ def main() -> int:
         "buildTime": dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "migrationCount": EXPECTED_MIGRATION,
         "migrationLatest": EXPECTED_MIGRATION,
-        "migration0042Created": False,
+        "migration0042Created": True,
         "playwrightTests": EXPECTED_E2E,
         "sourceArchive": {"name": source_archive.name, "sha256": sha256(source_archive)},
         "securityEvidenceArchive": {"name": security_archive.name, "sha256": sha256(security_archive)},
-        "promotionRule": "Promote to v0.41.1 GA only after this Release Candidate bundle verifies successfully and no code/content changes are introduced.",
+        "promotionRule": "Promote to v0.42.0 GA only after this Release Candidate bundle verifies successfully and no code/content changes are introduced.",
     }
     (out / "RELEASE-CANDIDATE-METADATA.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
 

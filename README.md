@@ -455,7 +455,7 @@ Recovery Planning simulation now commits the `RUNNING` run header before the pur
 
 ## v0.41.1 Step 9 — Version / Build Metadata
 
-Step 9 adds a public `GET /version` endpoint with release version, Git commit, UTC build time, and the Migration Manager's validated latest migration. Production Docker builds inject version/commit/build-time into both backend and frontend images, Nginx proxies `/version`, and CI verifies the running production topology reports `v0.41.1`, the exact GitHub SHA, a real build timestamp, and `migrationLatest: 41`. See `docs/VERSION_BUILD_METADATA.md`.
+Step 9 adds a public `GET /version` endpoint with release version, Git commit, UTC build time, and the Migration Manager's validated latest migration. Production Docker builds inject version/commit/build-time into both backend and frontend images, Nginx proxies `/version`, and CI verifies the running production topology reports the current release version, the exact GitHub SHA, a real build timestamp, and the current migration latest. See `docs/VERSION_BUILD_METADATA.md`.
 
 
 ## v0.41.1 Step 10 — Observability
@@ -480,4 +480,23 @@ Release-blocking security gates run in `.github/workflows/security.yml`: reachab
 
 ## v0.41.1 Step 13 — Final Clean-room Release Candidate Gate
 
-The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0041` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **25 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.41.1-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
+The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0042` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **26 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.42.0-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
+
+## 0042 Controlled Recovery Plan Execution
+
+v0.42.0 adds the explicit operational boundary that was deliberately deferred from 0041. A `PUBLISHED` Recovery Scenario is still only approved planning evidence; it must be separately prepared, preflighted, approved by a different administrator, and explicitly executed before operational data changes.
+
+Key controls:
+
+- `PREPARED -> PREFLIGHT_PASSED/PREFLIGHT_BLOCKED -> APPROVED -> EXECUTING -> SUCCEEDED/FAILED/PARTIAL_FAILED`
+- Planner/Admin may prepare and preflight; approval and execution are Admin-only
+- Approver must differ from preparer
+- `targetRef="*"` is simulation-only and cannot execute
+- Publication/run/action hashes are snapshotted
+- Operational state is re-hashed immediately before action execution
+- Each operational mutation and its execution result evidence commit in the same serializable transaction
+- `EXPEDITE_PO`, `RESCHEDULE_WO`, `RELEASE_WO`, `ALTERNATE_WORK_CENTER`, and `ADD_OVERTIME_CAPACITY` have action-specific preflight rules
+- Recovery overtime is date-scoped evidence consumed by Finite CRP and Detailed Scheduling; Work Center master capacity is not overwritten
+- A later failure produces durable `PARTIAL_FAILED` evidence; already committed successful actions are not generically auto-reversed
+
+See [`docs/0042-controlled-recovery-plan-execution.md`](./docs/0042-controlled-recovery-plan-execution.md).

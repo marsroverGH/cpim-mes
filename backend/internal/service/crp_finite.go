@@ -65,6 +65,7 @@ type finiteAllocator struct {
 	end        time.Time
 	workCenter map[uuid.UUID]domain.WorkCenter
 	calendars  map[uuid.UUID]*CalendarSnapshot
+	overtime   map[string]int
 	days       map[string]*capacityDay
 }
 
@@ -107,6 +108,20 @@ func (a *finiteAllocator) dayState(wcID uuid.UUID, day time.Time) *capacityDay {
 			rawCapacity *= clockMinutes / reference
 		}
 	}
+	if a.overtime != nil {
+		extra := float64(a.overtime[dayStateKey(wcID, day)])
+		clockMinutes += extra
+		rawCapacity += extra
+	}
+	shift := float64(wc.ShiftStartMinute)
+	if shift < 0 || shift > 1439 {
+		shift = 480
+	}
+	maxClock := 1440 - shift
+	if clockMinutes > maxClock {
+		rawCapacity -= clockMinutes - maxClock
+		clockMinutes = maxClock
+	}
 	machines := wc.MachineCount
 	if machines <= 0 {
 		machines = 1
@@ -125,10 +140,6 @@ func (a *finiteAllocator) dayState(wcID uuid.UUID, day time.Time) *capacityDay {
 	rate := 0.0
 	if clockMinutes > 0 && effectiveLoad > 0 {
 		rate = effectiveLoad / clockMinutes
-	}
-	shift := float64(wc.ShiftStartMinute)
-	if shift < 0 || shift > 1439 {
-		shift = 480
 	}
 	st := &capacityDay{
 		day: day, clockMinutes: clockMinutes, effectiveLoad: effectiveLoad,
@@ -264,7 +275,11 @@ func (s *CRPService) FiniteSchedule(ctx context.Context, req CRPFiniteRequest, a
 		}
 		calByWC[wc.ID] = defaultSnap
 	}
-	alloc := &finiteAllocator{start: startDay, end: endDay, workCenter: wcByID, calendars: calByWC, days: map[string]*capacityDay{}}
+	overtime, err := loadRecoveryOvertime(ctx, s.db, startDay, endDay)
+	if err != nil {
+		return nil, err
+	}
+	alloc := &finiteAllocator{start: startDay, end: endDay, workCenter: wcByID, calendars: calByWC, overtime: overtime, days: map[string]*capacityDay{}}
 
 	// Firm released/in-progress WOs reserve capacity first.
 	workOrders, err := s.repos.WorkOrders.List(ctx)
@@ -627,7 +642,11 @@ func (s *CRPService) GetFiniteRun(ctx context.Context, id uuid.UUID) (*domain.CR
 		}
 		calByWC[w.ID] = defaultSnap
 	}
-	allocator := &finiteAllocator{start: run.StartDate, end: run.EndDate, workCenter: wcByID, calendars: calByWC, days: map[string]*capacityDay{}}
+	overtime, err := loadRecoveryOvertime(ctx, s.db, run.StartDate, run.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	allocator := &finiteAllocator{start: run.StartDate, end: run.EndDate, workCenter: wcByID, calendars: calByWC, overtime: overtime, days: map[string]*capacityDay{}}
 	for k, used := range loadMap {
 		st := allocator.dayState(k.wc, k.day)
 		wc := wcByID[k.wc]

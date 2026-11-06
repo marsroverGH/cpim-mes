@@ -10,9 +10,9 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-EXPECTED_TARGET = "v0.41.1"
-EXPECTED_MIGRATION = 41
-EXPECTED_E2E = 25
+EXPECTED_TARGET = "v0.42.0"
+EXPECTED_MIGRATION = 42
+EXPECTED_E2E = 26
 
 
 def fail(msg: str) -> None:
@@ -118,13 +118,13 @@ def main() -> int:
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     candidate = metadata.get("candidateVersion")
-    if not isinstance(candidate, str) or not re.fullmatch(r"v0\.41\.1-rc\.\d+", candidate):
+    if not isinstance(candidate, str) or not re.fullmatch(r"v0\.42\.0-rc\.\d+", candidate):
         fail("invalid candidateVersion")
     if metadata.get("targetRelease") != EXPECTED_TARGET:
         fail("targetRelease mismatch")
     if metadata.get("migrationCount") != EXPECTED_MIGRATION or metadata.get("migrationLatest") != EXPECTED_MIGRATION:
         fail("migration metadata mismatch")
-    if metadata.get("migration0042Created") is not False or metadata.get("playwrightTests") != EXPECTED_E2E:
+    if metadata.get("migration0042Created") is not True or metadata.get("playwrightTests") != EXPECTED_E2E:
         fail("RC invariant mismatch")
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
@@ -170,7 +170,7 @@ def main() -> int:
         # verifier is expected to run from the repository; fall back to this script's repository.
         verifier = Path(__file__).resolve().parent / "verify_release_bundle.py"
     verify_security_archive(security, verifier)
-    print(f"Release Candidate verification: PASS ({candidate}, migrations=41/0041, e2e=25)")
+    print(f"Release Candidate verification: PASS ({candidate}, migrations=42/0042, e2e=26)")
     return 0
 
 

@@ -1,4 +1,4 @@
-# Security CI / Supply Chain — v0.41.1 Step 12
+# Security CI / Supply Chain — v0.42.0 Step 12
 
 ## Purpose
 
@@ -121,11 +121,11 @@ RELEASE-BUNDLE-SHA256SUMS.txt
 `SECURITY-METADATA.json` binds the evidence to:
 
 ```text
-releaseVersion = v0.41.1
+releaseVersion = v0.42.0
 gitCommit      = exact 40-hex commit
 buildTime      = UTC RFC3339
-migrationLatest = 41
-migration0042Created = false
+migrationLatest = 42
+migration0042Created = true
 ```
 
 `verify_release_bundle.py` rejects:

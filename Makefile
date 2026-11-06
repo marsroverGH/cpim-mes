@@ -1,4 +1,4 @@
-.PHONY: lock check-runtime check-locks check-production-config check-demo-credentials check-production-frontend check-cookie-auth check-login-security check-user-admin check-recovery-failure-audit check-version-metadata check-observability check-backup-dr check-security-supply-chain check-release-candidate verify-source-checksums security-gate final-clean-room backup restore-drill backend-test frontend-build e2e ci-local
+.PHONY: lock check-runtime check-locks check-production-config check-demo-credentials check-production-frontend check-cookie-auth check-login-security check-user-admin check-recovery-failure-audit check-controlled-recovery-execution check-version-metadata check-observability check-backup-dr check-security-supply-chain check-release-candidate verify-source-checksums security-gate final-clean-room backup restore-drill backend-test frontend-build e2e ci-local
 
 lock:
 	./scripts/generate-lockfiles.sh
@@ -29,6 +29,9 @@ check-user-admin:
 
 check-recovery-failure-audit:
 	python3 backend/scripts/check_recovery_failed_persistence.py
+
+check-controlled-recovery-execution:
+	python3 backend/scripts/check_controlled_recovery_execution.py
 
 check-version-metadata:
 	python3 backend/scripts/check_version_build_metadata.py
@@ -94,6 +97,7 @@ ci-local: check-locks
 	python3 backend/scripts/check_login_rate_limit_auth_audit.py
 	python3 backend/scripts/check_user_administration.py
 	python3 backend/scripts/check_recovery_failed_persistence.py
+	python3 backend/scripts/check_controlled_recovery_execution.py
 	python3 backend/scripts/check_version_build_metadata.py
 	python3 backend/scripts/check_observability.py
 	python3 backend/scripts/check_backup_restore_dr.py

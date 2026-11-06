@@ -13,10 +13,10 @@ import (
 
 func TestVersionIsPublicAndNoStore(t *testing.T) {
 	want := buildinfo.Info{
-		Version:         "v0.41.1",
+		Version:         "v0.42.0",
 		Commit:          "0123456789abcdef",
 		BuildTime:       "2026-11-05T12:34:56Z",
-		MigrationLatest: 41,
+		MigrationLatest: 42,
 	}
 	h := NewRouter(&service.Services{}, RouterConfig{BuildInfo: want})
 	req := httptest.NewRequest(http.MethodGet, "/version", nil)

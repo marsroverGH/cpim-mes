@@ -6,7 +6,7 @@ import "strings"
 // immutable release metadata with -ldflags -X without adding runtime config.
 // Source defaults remain useful for local `go run` / unit tests.
 var (
-	Version   = "v0.41.1-dev"
+	Version   = "v0.42.0-dev"
 	Commit    = "unknown"
 	BuildTime = "unknown"
 )
@@ -23,7 +23,7 @@ type Info struct {
 
 func Current(migrationLatest int) Info {
 	return Info{
-		Version:         valueOr(Version, "v0.41.1-dev"),
+		Version:         valueOr(Version, "v0.42.0-dev"),
 		Commit:          valueOr(Commit, "unknown"),
 		BuildTime:       valueOr(BuildTime, "unknown"),
 		MigrationLatest: migrationLatest,

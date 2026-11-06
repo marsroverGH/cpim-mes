@@ -200,15 +200,15 @@ checks = {
     "migration manager tests expect 41":
         allin(
             manager_test,
-            "len(migs) != 41",
-            "expected 41 migrations",
+            "len(migs) != 42",
+            "expected 42 migrations",
         ),
 
     "migration guard expects 41 ordered migrations":
         allin(
             manager_guard,
-            "41 ordered SQL migrations exist",
-            "range(1,42)",
+            "42 ordered SQL migrations exist",
+            "range(1,43)",
         ),
 
     # Domain

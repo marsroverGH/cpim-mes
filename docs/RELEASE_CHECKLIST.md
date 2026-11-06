@@ -1,11 +1,11 @@
-# v0.41.1 Release Candidate / GA Checklist
+# v0.42.0 Release Candidate / GA Checklist
 
 ## Source freeze
 
 - [ ] Working tree clean at the candidate commit.
 - [ ] `SHA256SUMS.txt` verifies every distributed source file.
-- [ ] Target is `v0.41.1`; candidate matches `v0.41.1-rc.N`.
-- [ ] Migration files are exactly `0001` through `0041`; `0042` is absent.
+- [ ] Target is `v0.42.0`; candidate matches `v0.42.0-rc.N`.
+- [ ] Migration files are exactly `0001` through `0042`; `0042` is Controlled Recovery Plan Execution.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.
 
 ## Runtime / build
@@ -16,7 +16,7 @@
 - [ ] PostgreSQL 16.15.
 - [ ] `go mod verify`, `go vet`, `go test -race` PASS.
 - [ ] Frontend `npm ci`, typecheck, build PASS.
-- [ ] `/version` reports the candidate commit/build time and `migrationLatest=41`.
+- [ ] `/version` reports the candidate commit/build time and `migrationLatest=42`.
 
 ## Production topology / authentication
 
@@ -37,7 +37,7 @@
 - [ ] 0041 guard PASS.
 - [ ] Recovery Simulation/Publish remains side-effect free.
 - [ ] Forced recovery failure persists FAILED evidence and retry semantics.
-- [ ] All 25 Playwright tests PASS against production Nginx topology.
+- [ ] All 26 Playwright tests PASS against production Nginx topology.
 
 ## Observability / DR
 
@@ -63,4 +63,4 @@
 - [ ] `.github/workflows/release-candidate.yml` is green for the exact candidate commit.
 - [ ] Verified RC bundle retained with its SHA-256 manifest.
 - [ ] No source/config/documentation change after final RC verification.
-- [ ] Tag/promote the exact verified commit as `v0.41.1`.
+- [ ] Tag/promote the exact verified commit as `v0.42.0`.

@@ -211,6 +211,13 @@ func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
 			secured.With(requirePermission(PermRecoverySimulationRun)).Post("/recovery-scenarios/{id}/simulate", srv.simulateRecoveryScenario)
 			secured.Get("/recovery-scenario-comparison", srv.compareRecoveryScenarios)
 			secured.With(requirePermission(PermRecoveryPublish)).Post("/recovery-scenarios/{id}/publish", srv.publishRecoveryScenario)
+			secured.Get("/recovery-executions", srv.listRecoveryExecutions)
+			secured.Get("/recovery-executions/{id}", srv.getRecoveryExecution)
+			secured.With(requirePermission(PermRecoveryExecutionPrepare)).Post("/recovery-scenarios/{id}/executions", srv.prepareRecoveryExecution)
+			secured.With(requirePermission(PermRecoveryExecutionPrepare)).Post("/recovery-executions/{id}/preflight", srv.preflightRecoveryExecution)
+			secured.With(requirePermission(PermRecoveryExecutionApprove)).Post("/recovery-executions/{id}/approve", srv.approveRecoveryExecution)
+			secured.With(requirePermission(PermRecoveryExecutionExecute)).Post("/recovery-executions/{id}/execute", srv.executeRecoveryExecution)
+			secured.With(requirePermission(PermRecoveryExecutionApprove)).Post("/recovery-executions/{id}/cancel", srv.cancelRecoveryExecution)
 
 			secured.With(requirePermission(PermMRPRun)).Post("/mrp/run", srv.runMRP)
 

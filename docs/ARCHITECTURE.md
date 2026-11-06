@@ -182,7 +182,7 @@ items 1───< purchase_orders
 - ✅ エラーハンドリング: domain.AppError による統一構造化レスポンス
 - ✅ ユニットテスト: 主要ロジックに table-driven test (mathutil/abc/mrp/workflow/calendar)
 - ✅ CRP: 工程毎の seq_no で 1日ずつ後方展開、作業カレンダーで休日スキップ
-- ✅ 認可: Backend `requirePermission(...)` による細粒度RBACを実装済み。51個のpermissionをadmin/planner/operator/viewerへ割り当て、115本の業務/admin mutation routeをBackendで強制保護。logoutとself-service password changeのみ認証済みself-service例外
+- ✅ 認可: Backend `requirePermission(...)` による細粒度RBACを実装済み。54個のpermissionをadmin/planner/operator/viewerへ割り当て、120本の業務/admin mutation routeをBackendで強制保護。logoutとself-service password changeのみ認証済みself-service例外
 - ABC分析は直近12か月の ISSUE 数量 × Standard Cost（年間使用金額）で分類し、Cycle Count頻度にも連動
 - 需要予測: SMA / 指数平滑 / **Holt-Winters加法モデル** (level + trend + seasonal) を実装済み
 - マルチテナント、トランザクション分離レベル詳細指定は最小限

@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CHECKSUMS = ROOT / "SHA256SUMS.txt"
 EXCLUDED_DIRS = {".git", ".tools", ".secrets", ".release-candidate-evidence", "security-reports", "security-artifacts", "release-bundle", "release-candidate-bundle", "backups", "node_modules", "dist", "playwright-report", "test-results", "__pycache__"}
-EXCLUDED_FILES = {"SHA256SUMS.txt", "cpim-mes-v0.41.1-security-release-bundle.tar.gz"}
+EXCLUDED_FILES = {"SHA256SUMS.txt", "cpim-mes-v0.42.0-security-release-bundle.tar.gz"}
 
 
 def digest(path: Path) -> str:

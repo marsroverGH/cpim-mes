@@ -108,6 +108,24 @@ func sameSupplierScheduleEvent(existing domain.SupplierScheduleEvent, poID uuid.
 }
 
 func (s *SupplierSchedulingService) RecordEvent(ctx context.Context, poID uuid.UUID, in SupplierScheduleEventInput, actor SalesOrderActor) (*domain.SupplierScheduleEvent, error) {
+	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	row, err := s.recordEventTx(ctx, tx, poID, in, actor)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return row, nil
+}
+
+// recordEventTx is the canonical supplier scheduling mutation for callers that
+// already own a serializable transaction.
+func (s *SupplierSchedulingService) recordEventTx(ctx context.Context, tx *sqlx.Tx, poID uuid.UUID, in SupplierScheduleEventInput, actor SalesOrderActor) (*domain.SupplierScheduleEvent, error) {
 	if err := actor.validate(); err != nil {
 		return nil, err
 	}
@@ -151,11 +169,6 @@ func (s *SupplierSchedulingService) RecordEvent(ctx context.Context, poID uuid.U
 	supplierReference := strings.TrimSpace(in.SupplierReference)
 	notes := strings.TrimSpace(in.Notes)
 
-	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
-	if err != nil {
-		return nil, err
-	}
-	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "supplier-schedule:"+eventID.String()); err != nil {
 		return nil, err
 	}
@@ -218,9 +231,6 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 RETURNING *`, row.ID, row.PurchaseOrderID, row.RevisionNo, row.EventType, row.Quantity,
 		row.ConfirmedDeliveryDate, row.ASNNo, row.ExpectedArrivalDate, row.SupplierReference,
 		row.Notes, row.ActorUserID, row.ActorUsername); err != nil {
-		return nil, err
-	}
-	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return &row, nil

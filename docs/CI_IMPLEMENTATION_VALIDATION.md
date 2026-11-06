@@ -1,6 +1,6 @@
 # Dependency Lock / CI / Release-Gate Validation
 
-This document reflects the **v0.41.1 Release Candidate** state. Earlier pre-lockfile bootstrap notes are obsolete.
+This document reflects the **v0.42.0 Release Candidate** state. Earlier pre-lockfile bootstrap notes are obsolete.
 
 ## Locked dependency state
 
@@ -42,7 +42,7 @@ npm      11.19.0
 8. forced 0041 FAILED-run persistence;
 9. live logical backup/restore drill.
 
-GitHub-maintained Actions in the v0.41.1 RC workflows are exact-release pinned rather than floating major aliases. Checkout credentials are not persisted where a workflow executes repository code.
+GitHub-maintained Actions in the v0.42.0 RC workflows are exact-release pinned rather than floating major aliases. Checkout credentials are not persisted where a workflow executes repository code.
 
 ## Security CI
 
@@ -58,7 +58,7 @@ A scanner/network/tool failure is a **failure**, not a skipped release condition
 
 ## Final clean-room Release Candidate gate
 
-`.github/workflows/release-candidate.yml` is the promotion gate for `v0.41.1-rc.N`. It intentionally performs the critical checks again in one clean-room run rather than inferring release readiness from separate earlier jobs.
+`.github/workflows/release-candidate.yml` is the promotion gate for `v0.42.0-rc.N`. It intentionally performs the critical checks again in one clean-room run rather than inferring release readiness from separate earlier jobs.
 
 The workflow runs `scripts/final_clean_room_release_gate.sh`, which requires:
 
@@ -72,19 +72,19 @@ dependency vulnerability gates
 production image build
 Trivy + SPDX SBOMs
 empty Docker volume
-Migration 0001 -> 0041
-schema_migrations count=41, min=1, max=41, gap-free
+Migration 0001 -> 0042
+schema_migrations count=42, min=1, max=42, gap-free
 DB + backend host-private / frontend-only public topology
 /version build identity
 private /metrics and public 404 boundary
 forced 0041 FAILED-run persistence
-all 25 Playwright tests
+all 26 Playwright tests
 live pg_dump/pg_restore drill
 security release-bundle verification
 Release Candidate source/evidence bundle verification
 ```
 
-Migration `0042` must remain absent.
+Migration `0042` must be present as Controlled Recovery Plan Execution.
 
 ## Local generation-environment limitation
 

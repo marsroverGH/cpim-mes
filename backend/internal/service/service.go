@@ -29,6 +29,7 @@ type Services struct {
 	Pegging               *PeggingService
 	ControlTower          *ControlTowerService
 	RecoveryPlanning      *RecoveryPlanningService
+	RecoveryExecution     *RecoveryExecutionService
 	SupplierScheduling    *SupplierSchedulingService
 	InventoryPolicy       *InventoryPolicyService
 	Maintenance           *MaintenanceService
@@ -91,6 +92,8 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 	controlTower := NewControlTowerService(db)
 	recoveryPlanning := NewRecoveryPlanningService(db)
 	supplierScheduling := &SupplierSchedulingService{db: db}
+	workflow := NewWorkflowService(db, r, ledger)
+	recoveryExecution := NewRecoveryExecutionService(db, workflow, supplierScheduling)
 	scheduleExecution := &ScheduleExecutionService{db: db, crp: crp}
 	shopFloor := &ShopFloorService{db: db, r: r.ShopFloor, rescheduler: scheduleExecution}
 	maintenance.rescheduler = scheduleExecution
@@ -110,6 +113,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Pegging:               pegging,
 		ControlTower:          controlTower,
 		RecoveryPlanning:      recoveryPlanning,
+		RecoveryExecution:     recoveryExecution,
 		SupplierScheduling:    supplierScheduling,
 		InventoryPolicy:       inventoryPolicy,
 		Maintenance:           maintenance,
@@ -128,7 +132,7 @@ func NewServices(db *sqlx.DB, r *repository.Repositories, cfg ServicesConfig) *S
 		Audit:                 &AuditService{r: r.Audit},
 		Forecast:              &ForecastService{db: db, repos: r},
 		CycleCount:            &CycleCountService{repos: r, abc: abc, ledger: ledger},
-		Workflow:              NewWorkflowService(db, r, ledger),
+		Workflow:              workflow,
 		Calendar:              &CalendarService{r: r.Calendars},
 		ATP:                   atp,
 		Quality:               &QualityService{db: db, repos: r},
