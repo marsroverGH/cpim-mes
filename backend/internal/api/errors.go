@@ -30,6 +30,9 @@ func exposeRequestID(next http.Handler) http.Handler {
 //   - *domain.AppError: its public Code/Message/Details (Cause is never serialized).
 //   - Business rule rejections raised by PL/pgSQL (RAISE EXCEPTION): the
 //     developer-authored message only, without SQLSTATE or Go wrapping text.
+//     If the handler passed a 5xx, the status becomes 422 (403 for 42501,
+//     409 for 23503) because the request itself was rejected.
+//   - Serialization failures / deadlocks (40001, 40P01): 409 with a retry hint.
 //   - Any other database error, and any 5xx: a generic message plus the
 //     request ID; the full error goes to the server log.
 //   - Other 4xx errors (request decoding, parameter validation): err.Error().
@@ -53,11 +56,20 @@ func writeError(w http.ResponseWriter, code int, err error) {
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
+		if pgErr.Code == "40001" || pgErr.Code == "40P01" {
+			// Transient concurrency conflict that survived the service-level
+			// retries: the client may safely retry the request.
+			writeJSON(w, http.StatusConflict, sanitizedBody(w, http.StatusConflict, "concurrent update conflict; please retry", err))
+			return
+		}
 		if isRaisedBusinessError(pgErr) {
-			if code >= 500 {
-				logAPIError(w, code, err)
+			status := code
+			if status >= 500 {
+				// Handlers often pass 500 for any service error; a business
+				// rule rejected by the database is a client-visible outcome.
+				status = businessErrorStatus(pgErr)
 			}
-			writeJSON(w, code, map[string]string{"error": pgErr.Message})
+			writeJSON(w, status, map[string]string{"error": pgErr.Message})
 			return
 		}
 		writeJSON(w, code, sanitizedBody(w, code, publicDBMessage(code, pgErr), err))
@@ -102,12 +114,20 @@ func isRaisedBusinessError(e *pgconn.PgError) bool {
 	return false
 }
 
+// businessErrorStatus maps a RAISEd business rule rejection to the HTTP status
+// used when the handler did not choose a client error itself.
+func businessErrorStatus(e *pgconn.PgError) int {
+	switch e.Code {
+	case "42501":
+		return http.StatusForbidden
+	case "23503":
+		return http.StatusConflict
+	}
+	return http.StatusUnprocessableEntity
+}
+
 func publicDBMessage(code int, e *pgconn.PgError) string {
 	if code >= 500 {
-		switch e.Code {
-		case "40001", "40P01":
-			return "concurrent update conflict; please retry"
-		}
 		return "internal server error"
 	}
 	switch {
@@ -121,8 +141,6 @@ func publicDBMessage(code int, e *pgconn.PgError) string {
 		return "the request violates a data integrity rule"
 	case strings.HasPrefix(e.Code, "22"):
 		return "invalid input value"
-	case e.Code == "40001", e.Code == "40P01":
-		return "concurrent update conflict; please retry"
 	}
 	return "the request could not be processed"
 }
