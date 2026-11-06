@@ -43,8 +43,12 @@ allowed_dml = {
     Path("backend/internal/service/bom.go"),
     Path("backend/internal/service/eco.go"),
 }
+# Test files are exempt: database integration tests write raw BOM rows on
+# purpose to prove that the PL/pgSQL cycle/self-reference guards reject them.
 for path in (root / "backend/internal").rglob("*.go"):
     rel = path.relative_to(root)
+    if path.name.endswith("_test.go"):
+        continue
     text = path.read_text()
     if any(token in text for token in ("INSERT INTO bom_components", "DELETE FROM bom_components", "UPDATE bom_components")):
         if rel not in allowed_dml:
