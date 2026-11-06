@@ -28,6 +28,11 @@ cd frontend && npm ci && npm run build
 make ci-local
 ```
 
+- **DB を使うテスト**: `CPIM_TEST_DATABASE_URL` に使い捨て PostgreSQL 16 の管理者 URL を設定すると有効になる（未設定ならスキップ）。
+  各テストはマイグレーション済みテンプレートを複製した専用 DB を使う（`backend/internal/testdb`）。ローカルでは例えば:
+  `docker run -d --name cpim-mes-testdb -e POSTGRES_USER=cpim -e POSTGRES_PASSWORD=testpw -p 127.0.0.1:55499:5432 postgres:16.15-alpine3.24` →
+  `CPIM_TEST_DATABASE_URL='postgres://cpim:testpw@127.0.0.1:55499/postgres?sslmode=disable' go test -race ./...`。CI の Backend ジョブも同じ方式。
+- 既知の未修正バグは `docs/TEST_FINDINGS.md`。テストは `KNOWN BUG` として skip しており、直すと自動で検証が有効になる。
 - 依存 lock を意図的に更新するときだけ `make lock`。通常は `-mod=readonly` / `npm ci` を使う。
 - `scripts/test_release_candidate_unit.py` は Python 3.12+ 必須（ローカルが 3.9 だと実行不可。CI では動く）。
 
@@ -64,10 +69,8 @@ make ci-local
 
 ## 既知の課題（未対応）
 
-移行時の解析で見つかった主な改善点。着手するときは個別に相談のうえ進める。
+移行時の解析とテスト拡充で見つかった主な改善点（テストで見つかった不具合の一覧は `docs/TEST_FINDINGS.md`）。着手するときは個別に相談のうえ進める。
 
-- シリアライザブル競合（SQLSTATE 40001）のリトライ無し
-- `writeError` が内部エラー文言 `err.Error()` をそのまま返す
+- `docs/TEST_FINDINGS.md` の不具合（作業指示の完了・進捗報告・監査ログ一覧・S&OP 有効化が動かない、タイムゾーン依存の計画計算 など）
 - 数量計算が float
 - 在庫台帳が全履歴を再走査する
-- カバレッジが低い（service 15.5%、api 12.5%、repository/domain 0%）
