@@ -1,0 +1,100 @@
+name: Bootstrap 0042 Controlled Recovery Execution
+
+on:
+  push:
+    branches:
+      - bootstrap/0042-controlled-recovery-upload
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-0042-controlled-recovery
+  cancel-in-progress: false
+
+jobs:
+  apply-verify-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FEATURE_BRANCH: feature/0042-controlled-recovery-plan-execution
+      BASE_GA_SHA: f7c6491c8493e57e532fa57df1d0d7d3f3d44110
+      BUNDLE_SHA256: 7fffd93c1d4b071c0a248f9fe16aab76032f01aa3e7a2955cc64034383bb9d4e
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.26.10'
+          cache: false
+
+      - name: Reconstruct and verify 0042 bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .0042-upload/chunk-*.txt > /tmp/0042-core.b64
+          base64 --decode /tmp/0042-core.b64 > /tmp/0042-core.tar.xz
+          echo "$BUNDLE_SHA256  /tmp/0042-core.tar.xz" | sha256sum -c -
+          tar -tJf /tmp/0042-core.tar.xz
+
+      - name: Checkout exact GA-derived feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$FEATURE_BRANCH" main --tags
+          git checkout -B "$FEATURE_BRANCH" "origin/$FEATURE_BRANCH"
+          git merge-base --is-ancestor "$BASE_GA_SHA" HEAD
+          test "$(git merge-base "$BASE_GA_SHA" HEAD)" = "$BASE_GA_SHA"
+
+      - name: Apply 0042 controlled execution vertical slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xJf /tmp/0042-core.tar.xz -C .
+          python3 apply_0042.py
+          rm -f apply_0042.py
+          gofmt -w             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go
+
+      - name: Verify migration lineage and static guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(find backend/migrations -maxdepth 1 -name '*.sql' | wc -l)" -eq 42
+          test -f backend/migrations/0042_controlled_recovery_plan_execution.sql
+          echo "325c558c86bd247439e7e7ea765c02b3e2e9bd718a82831aef89960f09ecdf18  backend/migrations/0041_scenario_based_recovery_planning_what_if_simulation.sql" | sha256sum -c -
+          python3 backend/scripts/check_0041_recovery_planning.py
+          python3 backend/scripts/check_0042_controlled_recovery_execution.py
+
+      - name: Go verification
+        working-directory: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          go mod verify
+          go vet -mod=readonly ./...
+          go test -mod=readonly -race -count=1 ./...
+
+      - name: Run all backend static guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in backend/scripts/check_*.py; do
+            echo "==> $f"
+            python3 "$f"
+          done
+
+      - name: Commit verified 0042 core
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "CPIM-MES 0042 Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add             backend/migrations/0042_controlled_recovery_plan_execution.sql             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/scripts/check_0042_controlled_recovery_execution.py             docs/0042-controlled-recovery-plan-execution.md             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go
+          git diff --cached --check
+          git diff --cached --quiet && { echo "ERROR: no 0042 changes staged" >&2; exit 1; }
+          git commit -m "feat: add controlled recovery plan execution migration 0042"
+          git push origin "HEAD:refs/heads/$FEATURE_BRANCH"
+          echo "0042 core commit=$(git rev-parse HEAD)"
