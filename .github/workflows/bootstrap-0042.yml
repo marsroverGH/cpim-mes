@@ -59,26 +59,11 @@ jobs:
           tar -xJf /tmp/0042-core.tar.xz -C .
           python3 - <<'PY'
           from pathlib import Path
+          import base64
           p = Path("backend/internal/service/detailed_scheduling.go")
           s = p.read_text()
-          old = """type DetailedScheduleRequest struct {
-	HorizonDays      int
-	StartDate        time.Time
-	NotBefore        time.Time
-	SimulateMRP      bool
-	CandidateOnly    bool
-	ActivationReason string
-}
-"""
-          expected = """type DetailedScheduleRequest struct {
-	HorizonDays      int       `json:"horizonDays"`
-	StartDate        time.Time `json:"startDate"`
-	NotBefore        time.Time `json:"notBefore,omitempty"`
-	SimulateMRP      bool      `json:"simulateMRP"`
-	CandidateOnly    bool      `json:"candidateOnly,omitempty"`
-	ActivationReason string    `json:"activationReason,omitempty"`
-}
-"""
+          old = base64.b64decode("dHlwZSBEZXRhaWxlZFNjaGVkdWxlUmVxdWVzdCBzdHJ1Y3QgewoJSG9yaXpvbkRheXMgICAgICBpbnQKCVN0YXJ0RGF0ZSAgICAgICAgdGltZS5UaW1lCglOb3RCZWZvcmUgICAgICAgIHRpbWUuVGltZQoJU2ltdWxhdGVNUlAgICAgICBib29sCglDYW5kaWRhdGVPbmx5ICAgIGJvb2wKCUFjdGl2YXRpb25SZWFzb24gc3RyaW5nCn0K").decode()
+          expected = base64.b64decode("dHlwZSBEZXRhaWxlZFNjaGVkdWxlUmVxdWVzdCBzdHJ1Y3QgewoJSG9yaXpvbkRheXMgICAgICBpbnQgICAgICAgYGpzb246Imhvcml6b25EYXlzImAKCVN0YXJ0RGF0ZSAgICAgICAgdGltZS5UaW1lIGBqc29uOiJzdGFydERhdGUiYAoJTm90QmVmb3JlICAgICAgICB0aW1lLlRpbWUgYGpzb246Im5vdEJlZm9yZSxvbWl0ZW1wdHkiYAoJU2ltdWxhdGVNUlAgICAgICBib29sICAgICAgYGpzb246InNpbXVsYXRlTVJQImAKCUNhbmRpZGF0ZU9ubHkgICAgYm9vbCAgICAgIGBqc29uOiJjYW5kaWRhdGVPbmx5LG9taXRlbXB0eSJgCglBY3RpdmF0aW9uUmVhc29uIHN0cmluZyAgICBganNvbjoiYWN0aXZhdGlvblJlYXNvbixvbWl0ZW1wdHkiYAp9Cg==").decode()
           if old not in s:
               raise SystemExit("GA DetailedScheduleRequest block not found")
           p.write_text(s.replace(old, expected, 1))
