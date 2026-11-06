@@ -47,3 +47,6 @@ coverage.out
 .DS_Store
 .idea/
 .vscode/
+
+# Local measurement logs (scripts/measure_local_stack.sh)
+.measure/
