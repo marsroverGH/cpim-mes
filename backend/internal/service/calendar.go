@@ -52,14 +52,14 @@ func (s *CalendarService) DeleteException(ctx context.Context, id uuid.UUID) err
 // CalendarSnapshot — 期間内のカレンダーを高速参照するためのスナップショット
 type CalendarSnapshot struct {
 	Calendar   domain.WorkCalendar
-	Exceptions map[time.Time]domain.CalendarException // key: TruncateDay(date)
+	Exceptions map[time.Time]domain.CalendarException // key: calendarDay(date)
 }
 
 // MinutesAvailable — 指定日に作業可能な分数を返す。
 //  1. 例外があればそれを優先 (HOLIDAY → 0, WORKDAY → exception.Minutes)
 //  2. 例外なしなら標準週次パターンの該当曜日を使用
 func (cs CalendarSnapshot) MinutesAvailable(d time.Time) int {
-	day := TruncateDay(d)
+	day := calendarDay(d)
 	if ex, ok := cs.Exceptions[day]; ok {
 		if ex.Kind == "HOLIDAY" {
 			return 0
@@ -77,7 +77,7 @@ func (cs CalendarSnapshot) IsWorkDay(d time.Time) bool {
 // PreviousWorkDay — d 以前で最初に稼働日となる日を返す。
 // d 自体が稼働日ならそのまま返す。連続休日の場合は最大 maxLook 日まで遡る。
 func (cs CalendarSnapshot) PreviousWorkDay(d time.Time, maxLook int) time.Time {
-	cur := TruncateDay(d)
+	cur := calendarDay(d)
 	for i := 0; i <= maxLook; i++ {
 		if cs.IsWorkDay(cur) {
 			return cur
@@ -85,7 +85,7 @@ func (cs CalendarSnapshot) PreviousWorkDay(d time.Time, maxLook int) time.Time {
 		cur = cur.AddDate(0, 0, -1)
 	}
 	// 全て休日だった場合は元の日を返す (CRP は当日にクランプ)
-	return TruncateDay(d)
+	return calendarDay(d)
 }
 
 // LoadSnapshot — DB からカレンダー本体と例外を読み出してスナップショット化
@@ -100,7 +100,7 @@ func (s *CalendarService) LoadSnapshot(ctx context.Context, calID uuid.UUID, fro
 	}
 	m := make(map[time.Time]domain.CalendarException, len(exs))
 	for _, e := range exs {
-		m[TruncateDay(e.ExceptionDate)] = e
+		m[calendarDay(e.ExceptionDate)] = e
 	}
 	return &CalendarSnapshot{Calendar: *cal, Exceptions: m}, nil
 }
@@ -112,4 +112,16 @@ func (s *CalendarService) LoadDefaultSnapshot(ctx context.Context, from, to time
 		return nil, err
 	}
 	return s.LoadSnapshot(ctx, cal.ID, from, to)
+}
+
+// calendarDay is the map key for a calendar day: a date value (midnight in its
+// own location, e.g. a DATE column or a BusinessDate) keeps its label; an
+// instant is floored in UTC like the scheduler (see schedDay). Keys are always
+// 00:00 UTC so exceptions read from PostgreSQL match lookups from any caller.
+func calendarDay(t time.Time) time.Time {
+	if h, m, s := t.Clock(); h == 0 && m == 0 && s == 0 && t.Nanosecond() == 0 {
+		y, mo, d := t.Date()
+		return time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
+	}
+	return TruncateDay(t.UTC())
 }

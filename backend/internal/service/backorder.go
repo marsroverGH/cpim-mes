@@ -162,7 +162,7 @@ VALUES(:id,:run_id,:sales_order_line_id,:sequence_no,:quantity,:confirmed_date,:
 }
 
 func (s *BackorderService) candidates(ctx context.Context, horizon int, filterItemID *uuid.UUID) ([]bopCandidate, error) {
-	start := TruncateDay(time.Now())
+	start := BusinessToday()
 	end := start.AddDate(0, 0, horizon-1)
 	query := `
 SELECT so.id AS sales_order_id,so.order_no AS sales_order_no,l.id AS sales_order_line_id,l.line_no,
@@ -227,7 +227,7 @@ func (s *BackorderService) calculate(ctx context.Context, horizon int, filterIte
 		lineIDs = append(lineIDs, r.SalesOrderLineID)
 		items[r.ItemID] = struct{}{}
 	}
-	start := TruncateDay(time.Now())
+	start := BusinessToday()
 	horizonEnd := start.AddDate(0, 0, horizon-1)
 	runtime := map[uuid.UUID]*allocationRuntime{}
 	for itemID := range items {

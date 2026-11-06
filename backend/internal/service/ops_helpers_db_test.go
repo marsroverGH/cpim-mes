@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
@@ -137,7 +136,7 @@ func opsRouting(t *testing.T, f *dbFixture, itemID uuid.UUID, nOps int) *domain.
 // opsWO creates a PLANNED work order.
 func opsWO(t *testing.T, f *dbFixture, itemID uuid.UUID, qty float64) *domain.WorkOrder {
 	t.Helper()
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	w := &domain.WorkOrder{
 		OrderNo: opsCode("WO"), ItemID: itemID, Quantity: qty,
 		StartDate: now, DueDate: now.AddDate(0, 0, 7),
@@ -153,7 +152,7 @@ func opsPO(t *testing.T, f *dbFixture, itemID uuid.UUID, supplier string, qty fl
 	t.Helper()
 	p := &domain.PurchaseOrder{
 		PONo: opsCode("PO"), ItemID: itemID, Supplier: supplier, Quantity: qty,
-		DueDate: TruncateDay(time.Now()).AddDate(0, 0, 5),
+		DueDate: BusinessToday().AddDate(0, 0, 5),
 	}
 	if err := f.Svc.Purchases.Create(f.Ctx, p); err != nil {
 		t.Fatalf("create PO: %v", err)

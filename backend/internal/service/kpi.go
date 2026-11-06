@@ -17,7 +17,7 @@ type KPIService struct {
 // Compute — KPI Dashboard を1回のAPI呼び出しで集計
 func (s *KPIService) Compute(ctx context.Context) (*domain.KPIDashboard, error) {
 	now := time.Now()
-	today := TruncateDay(now)
+	today := BusinessDate(now)
 	thirtyDaysAgo := today.AddDate(0, 0, -30)
 
 	dash := &domain.KPIDashboard{GeneratedAt: now}

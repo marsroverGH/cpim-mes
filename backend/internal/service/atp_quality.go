@@ -116,7 +116,7 @@ func (s *ATPService) Run(ctx context.Context, itemID uuid.UUID, horizonDays, buc
 	}
 
 	// 集計範囲
-	now := TruncateDay(time.Now())
+	now := BusinessToday()
 	end := now.AddDate(0, 0, horizonDays)
 
 	// バケット枠を生成

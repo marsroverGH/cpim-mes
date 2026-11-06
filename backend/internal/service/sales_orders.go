@@ -206,7 +206,7 @@ func (s *SalesOrderService) Create(ctx context.Context, in SalesOrderCreateInput
 		return nil, err
 	}
 	if orderDate == nil {
-		t := TruncateDay(time.Now())
+		t := BusinessToday()
 		orderDate = &t
 	}
 	requested, err := parseISODate(in.RequestedDate, true)

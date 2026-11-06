@@ -15,7 +15,7 @@ func TestBOPPriorityRank(t *testing.T) {
 }
 
 func TestBackorderDecision(t *testing.T) {
-	today := TruncateDay(time.Now())
+	today := BusinessToday()
 	tomorrow := today.AddDate(0, 0, 1)
 	yesterday := today.AddDate(0, 0, -1)
 	tests := []struct {
@@ -46,7 +46,7 @@ func TestCanonicalBackorderHashDetectsChange(t *testing.T) {
 	orderID := uuid.New()
 	itemID := uuid.New()
 	customerID := uuid.New()
-	d := TruncateDay(time.Now()).AddDate(0, 0, 7)
+	d := BusinessToday().AddDate(0, 0, 7)
 	lines := []domain.BackorderRunLine{{SalesOrderID: orderID, SalesOrderLineID: lineID, ItemID: itemID, CustomerID: customerID, RankNo: 1, OpenQty: 10, ATPQty: 10, ProposedPromisedDate: &d, Decision: "UNCHANGED", ConstraintType: "NONE"}}
 	confs := []domain.BackorderRunConfirmation{{SalesOrderLineID: lineID, SequenceNo: 1, Quantity: 10, ConfirmedDate: d, Source: "ATP"}}
 	a := canonicalBackorderHash(90, nil, lines, confs)

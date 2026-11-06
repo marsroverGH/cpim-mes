@@ -127,7 +127,7 @@ func (s *OrderPromisingService) calculate(ctx context.Context, detail *domain.Sa
 	materialUsage := map[uuid.UUID]float64{}
 	lines := []domain.OrderPromiseLineResult{}
 	confs := []domain.OrderPromiseConfirmation{}
-	start := TruncateDay(time.Now())
+	start := BusinessToday()
 	horizonEnd := start.AddDate(0, 0, horizon-1)
 	capacityNotBefore := start
 

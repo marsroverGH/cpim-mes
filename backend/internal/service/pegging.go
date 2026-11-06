@@ -300,10 +300,9 @@ func (g *graphBuilder) exception(order peggingOrder, line *peggingLine, typ, sev
 	})
 }
 
-func dateOnly(t time.Time) time.Time {
-	y, m, d := t.Date()
-	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
-}
+// dateOnly is the business calendar day of t (see BusinessDate), so impact
+// days do not depend on the server's TZ or on the location a value came back in.
+func dateOnly(t time.Time) time.Time { return BusinessDate(t) }
 
 func daysLate(actual, required time.Time) int {
 	d := int(math.Ceil(dateOnly(actual).Sub(dateOnly(required)).Hours() / 24))

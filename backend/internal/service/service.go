@@ -345,7 +345,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 	if req.HorizonDays <= 0 {
 		req.HorizonDays = 28
 	}
-	startDay := TruncateDay(req.StartDate)
+	startDay := BusinessDate(req.StartDate)
 	endDay := startDay.AddDate(0, 0, req.HorizonDays-1)
 
 	// LLC is a correctness prerequisite for one-pass level-by-level planning.
@@ -397,7 +397,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		if m.Planned <= 0 {
 			continue
 		}
-		day := TruncateDay(m.Period)
+		day := BusinessDate(m.Period)
 		if day.Before(startDay) || day.After(endDay) {
 			continue
 		}
@@ -449,7 +449,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		if remaining <= 0 {
 			continue
 		}
-		day := TruncateDay(wo.DueDate)
+		day := BusinessDate(wo.DueDate)
 		if !day.After(endDay) {
 			if day.Before(startDay) {
 				day = startDay
@@ -461,7 +461,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		// dependent demand for its direct components. If the parent scheduled
 		// receipt fully nets the MPS, there may be no new planned release, so
 		// this direct-child explosion is required to avoid losing component demand.
-		componentDay := TruncateDay(wo.StartDate)
+		componentDay := BusinessDate(wo.StartDate)
 		if componentDay.Before(startDay) {
 			componentDay = startDay
 		}

@@ -297,7 +297,7 @@ func TestOpsLotServiceAndAudit(t *testing.T) {
 	item := opsItem(t, f, opsCode("RM"), domain.ItemTypeRawMaterial)
 
 	opsWantErr(t, f.Svc.Lots.Create(f.Ctx, &domain.Lot{ItemID: item.ID}), domain.ErrCodeBadRequest, "> 0")
-	exp := TruncateDay(time.Now()).AddDate(0, 6, 0)
+	exp := BusinessToday().AddDate(0, 6, 0)
 	lot := &domain.Lot{ItemID: item.ID, LotNo: "LS-1", Quantity: 8, Supplier: "ACME", SourceDoc: "ASN-9", ExpiryDate: &exp}
 	if err := f.Svc.Lots.Create(f.Ctx, lot); err != nil {
 		t.Fatalf("lot create: %v", err)
