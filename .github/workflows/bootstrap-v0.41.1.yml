@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.14 and promote GA
+name: Finalize v0.41.1-rc.15 and promote GA
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: promote-v0.41.1-rc.14
+  group: promote-v0.41.1-rc.15
   cancel-in-progress: false
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
-      RC_BRANCH: release/v0.41.1-rc.14
+      RC_BRANCH: release/v0.41.1-rc.15
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
@@ -35,7 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           ! git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1
-      - name: Freeze RC14 metadata and verify backend
+      - name: Freeze RC15 metadata and verify backend
         shell: bash
         run: |
           set -euo pipefail
@@ -49,7 +49,7 @@ jobs:
               except UnicodeDecodeError: continue
               ns=s
               for old in ["v0.41.1-rc.10","v0.41.1-rc.11","v0.41.1-rc.12"]:
-                  ns=ns.replace(old,"v0.41.1-rc.14")
+                  ns=ns.replace(old,"v0.41.1-rc.15")
               if ns!=s: p.write_text(ns,encoding="utf-8")
           PY
           cd backend
@@ -74,7 +74,7 @@ jobs:
           python3 backend/scripts/check_user_administration.py
           python3 backend/scripts/check_security_supply_chain.py
           python3 scripts/test_release_candidate_unit.py
-      - name: Commit RC14 freeze
+      - name: Commit RC15 freeze
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +82,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "release: freeze v0.41.1-rc.14"
+            git commit -m "release: freeze v0.41.1-rc.15"
             git push origin "HEAD:refs/heads/$RC_BRANCH"
           fi
           echo "RC_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
@@ -109,7 +109,7 @@ jobs:
             s="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
             status="$(jq -r .status <<<"$s")"; conclusion="$(jq -r '.conclusion // ""' <<<"$s")"; head="$(jq -r .headSha <<<"$s")"; url="$(jq -r .url <<<"$s")"
             test "$head" = "$RC_SHA"
-            echo "RC14 gate status=$status conclusion=$conclusion url=$url"
+            echo "RC15 gate status=$status conclusion=$conclusion url=$url"
             if [ "$status" = completed ]; then
               test "$conclusion" = success || { gh run view "$RC_RUN_ID" --log-failed || true; exit 1; }
               echo "RC_RUN_URL=$url" >> "$GITHUB_ENV"; exit 0
@@ -117,7 +117,7 @@ jobs:
             sleep 15
           done
           exit 1
-      - name: Promote verified RC14 to main and v0.41.1
+      - name: Promote verified RC15 to main and v0.41.1
         shell: bash
         run: |
           set -euo pipefail
