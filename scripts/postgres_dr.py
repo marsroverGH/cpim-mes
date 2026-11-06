@@ -134,7 +134,7 @@ ORDER BY tablename
 
 def database_object_inventory(db: str) -> str:
     sql = """
-SELECT n.nspname || '.' || c.relname || '|' || c.relkind
+SELECT n.nspname || '.' || c.relname || '|' || c.relkind::text
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
