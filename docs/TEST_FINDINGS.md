@@ -4,14 +4,14 @@
 **どれも未修正**。テスト側は正しい挙動を記述しており、不具合に当たると `KNOWN BUG` として `t.Skip` / ログ出力する。
 修正すると自動的に検証が有効になる（`go test -v ./... | grep -i "known bug"` で現在の該当箇所を一覧できる）。
 
-## 機能が動かない（優先度：高）
+## 修正済み
 
-| # | 内容 | 場所 | 影響 |
-| --- | --- | --- | --- |
-| 1 | 作業指示の完了が必ず失敗する。`completed_at=CASE WHEN $2='COMPLETED' THEN $3 ELSE NULL END` が text 型と推論され SQLSTATE 42804 | `backend/internal/service/workflow.go:957-966` | `POST /api/work-orders/{id}/complete` が常に 400（ロールバックは正常）。E2E はこの経路を通らないため未検出だった |
-| 2 | 進捗報告が必ず失敗する。`$1` を numeric と `$1 > 0` で併用し SQLSTATE 42P08 | `backend/internal/repository/repository.go:437-446` | `POST /api/work-orders/{id}/progress` が常に 500 |
-| 3 | 監査ログ一覧が取れなくなる。NULL の `payload`（本文の無い DELETE 等で記録）を `json.RawMessage` に Scan できない | `backend/internal/repository/traceability.go:99-114` | 該当行が 1 件でもあると `GET /api/audit-log` が 500 |
-| 4 | S&OP 製品構成バージョンを有効化・一覧できない。DRAFT 行の `activated_by` が NULL で `string` に Scan できない | `backend/internal/service/sop.go:68, 157` | S&OP の配分機能が使えない |
+| 内容 | 修正 |
+| --- | --- |
+| 作業指示の完了が必ず失敗（`completed_at` の CASE が text 型推論、42804） | `workflow.go`: `$2::text` / `$3::timestamptz` を明示。あわせて、完了の再送（冪等リトライ）で結果を読み直す `CompletionLine` に `db` タグが無く失敗していた隠れ不具合も修正 |
+| 進捗報告が必ず失敗（`$1` の型不一致、42P08） | `repository.go`: `$1::numeric` を明示 |
+| 監査ログ一覧が NULL payload で失敗 | `traceability.go`: NULL を空の payload として読む（API では `payload` を省略） |
+| S&OP 製品構成バージョンの有効化・一覧が失敗（DRAFT の `activated_by` が NULL） | `sop.go`: 列を明示し `COALESCE(activated_by,'')` で読む |
 
 ## 計算結果が誤る（優先度：高〜中）
 

@@ -97,7 +97,8 @@ type AuditFilter struct {
 
 func (r *AuditRepo) List(ctx context.Context, f AuditFilter) ([]domain.AuditLogEntry, error) {
 	q := `SELECT id, username, user_role, action, resource, resource_id,
-                 http_status, ip_address, occurred_at, payload
+                 http_status, ip_address, occurred_at,
+                 COALESCE(convert_to(payload::text, 'UTF8'), ''::bytea) AS payload -- NULL for body-less requests
             FROM audit_log
            WHERE ($1 = '' OR username = $1)
              AND ($2 = '' OR resource = $2)

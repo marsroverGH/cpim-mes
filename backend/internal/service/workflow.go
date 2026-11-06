@@ -682,11 +682,11 @@ func (s *WorkflowService) ReceivePurchase(
 // --------------------------------------------------------------------
 
 type CompletionLine struct {
-	ChildID   uuid.UUID `json:"childId"`
-	ChildCode string    `json:"childCode"`
-	Quantity  float64   `json:"quantity"`
-	LotID     uuid.UUID `json:"lotId"`
-	LotNo     string    `json:"lotNo"`
+	ChildID   uuid.UUID `db:"child_id"   json:"childId"`
+	ChildCode string    `db:"child_code" json:"childCode"`
+	Quantity  float64   `db:"quantity"   json:"quantity"`
+	LotID     uuid.UUID `db:"lot_id"     json:"lotId"`
+	LotNo     string    `db:"lot_no"     json:"lotNo"`
 }
 
 type CompletionResult struct {
@@ -959,7 +959,7 @@ func (s *WorkflowService) CompleteWorkOrder(
 		   SET completed_qty=$1,
 		       reported_progress_qty=GREATEST(reported_progress_qty, $1),
 		       status=$2,
-		       completed_at=CASE WHEN $2='COMPLETED' THEN $3 ELSE NULL END,
+		       completed_at=CASE WHEN $2::text='COMPLETED' THEN $3::timestamptz ELSE NULL END,
 		       produced_lot_id=$4
 		 WHERE id=$5
 	`, newCompleted, newStatus, now, parentLotID, woID); err != nil {

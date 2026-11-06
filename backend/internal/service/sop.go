@@ -65,8 +65,13 @@ func (s *SOPService) DeletePlan(ctx context.Context, id uuid.UUID) error {
 	return s.repos.SOP.DeletePlan(ctx, id)
 }
 
+// sopMixVersionColumns lists sop_product_mix_versions explicitly because
+// activated_by is NULL until a DRAFT is activated and the model field is a string.
+const sopMixVersionColumns = `id,group_id,version,name,status,created_at,created_by_user_id,created_by,
+ activated_at,activated_by_user_id,COALESCE(activated_by,'') AS activated_by`
+
 func (s *SOPService) ListProductMixVersions(ctx context.Context, groupID *uuid.UUID) ([]domain.SOPProductMixVersion, error) {
-	q := `SELECT * FROM sop_product_mix_versions`
+	q := `SELECT ` + sopMixVersionColumns + ` FROM sop_product_mix_versions`
 	args := []any{}
 	if groupID != nil && *groupID != uuid.Nil {
 		q += ` WHERE group_id=$1`
@@ -156,7 +161,7 @@ func (s *SOPService) ActivateProductMixVersion(ctx context.Context, id uuid.UUID
 	}
 	defer tx.Rollback()
 	var mix domain.SOPProductMixVersion
-	if err := tx.GetContext(ctx, &mix, `SELECT * FROM sop_product_mix_versions WHERE id=$1 FOR UPDATE`, id); err != nil {
+	if err := tx.GetContext(ctx, &mix, `SELECT `+sopMixVersionColumns+` FROM sop_product_mix_versions WHERE id=$1 FOR UPDATE`, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return domain.NewNotFound("product mix version")
 		}
@@ -250,7 +255,7 @@ func (s *SOPService) loadPlanMix(ctx context.Context, q sopQueryer, planID, mixI
 		}
 		return plan, mix, nil, err
 	}
-	if err := q.GetContext(ctx, &mix, `SELECT * FROM sop_product_mix_versions WHERE id=$1`+suffix, mixID); err != nil {
+	if err := q.GetContext(ctx, &mix, `SELECT `+sopMixVersionColumns+` FROM sop_product_mix_versions WHERE id=$1`+suffix, mixID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return plan, mix, nil, domain.NewNotFound("product mix version")
 		}
