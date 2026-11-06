@@ -34,7 +34,9 @@ Trivy and Syft are downloaded from their upstream GitHub release assets. Before 
 
 ## Repository source checksum gate
 
-Security CI verifies committed `SHA256SUMS.txt` against the clean checkout before downloading security tools. Missing/extra files, checksum mismatch, path traversal, and source-bundle symlinks fail the gate. `SHA256SUMS.txt` itself is excluded to avoid self-reference.
+`SHA256SUMS.txt` is not committed; git commit hashes protect the repository. It is generated at release time by `scripts/generate_source_checksums.py` from the git-tracked files and shipped inside the release / release-candidate bundles, so recipients of a source archive can verify it offline with `scripts/verify_source_checksums.py`.
+
+Before downloading security tools, Security CI generates it with `--require-clean` (fails if any tracked file differs from HEAD) and then verifies it (fails on unexpected untracked files, checksum mismatch, path traversal, or symlinks). Files ignored by git are skipped in a checkout. `SHA256SUMS.txt` itself is excluded to avoid self-reference.
 
 ## Security gates
 

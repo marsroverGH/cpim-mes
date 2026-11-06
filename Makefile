@@ -57,6 +57,7 @@ final-clean-room: check-release-candidate
 	./scripts/final_clean_room_release_gate.sh
 
 verify-source-checksums:
+	python3 scripts/generate_source_checksums.py
 	python3 scripts/verify_source_checksums.py
 
 security-gate: check-security-supply-chain verify-source-checksums

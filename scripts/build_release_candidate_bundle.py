@@ -7,6 +7,8 @@ import hashlib
 import io
 import json
 import re
+import subprocess
+import sys
 import tarfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -26,6 +28,8 @@ def sha256(path: Path) -> str:
 
 
 def parse_source_files() -> list[Path]:
+    # SHA256SUMS.txt is generated at release time from the git-tracked files.
+    subprocess.run([sys.executable, str(ROOT / "scripts/generate_source_checksums.py")], cwd=ROOT, check=True)
     checksum = ROOT / "SHA256SUMS.txt"
     if not checksum.is_file():
         raise SystemExit("ERROR: SHA256SUMS.txt missing")

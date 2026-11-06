@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -20,8 +21,26 @@ def digest(path: Path) -> str:
     return h.hexdigest()
 
 
+def git_ignored() -> tuple[set[str], tuple[str, ...]]:
+    """Files/dirs git ignores in a checkout (none in an extracted source archive)."""
+    if not (ROOT / ".git").exists():
+        return set(), ()
+    out = subprocess.run(
+        ["git", "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z"],
+        cwd=ROOT, check=True, stdout=subprocess.PIPE,
+    ).stdout.decode("utf-8")
+    names = [n for n in out.split("\0") if n]
+    return {n for n in names if not n.endswith("/")}, tuple(n for n in names if n.endswith("/"))
+
+
+IGNORED_FILES, IGNORED_DIRS = git_ignored()
+
+
 def included(path: Path) -> bool:
     rel = path.relative_to(ROOT)
+    posix = rel.as_posix()
+    if posix in IGNORED_FILES or posix.startswith(IGNORED_DIRS):
+        return False
     if path.name in EXCLUDED_FILES:
         return False
     if any(part in EXCLUDED_DIRS for part in rel.parts):

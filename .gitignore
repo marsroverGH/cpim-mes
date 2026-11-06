@@ -50,3 +50,6 @@ coverage.out
 
 # Local measurement logs (scripts/measure_local_stack.sh)
 .measure/
+
+# Generated at release time by scripts/generate_source_checksums.py
+SHA256SUMS.txt

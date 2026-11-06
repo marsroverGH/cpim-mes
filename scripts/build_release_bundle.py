@@ -7,6 +7,8 @@ import json
 import os
 import re
 import shutil
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -88,6 +90,8 @@ def main() -> int:
         shutil.rmtree(out)
     out.mkdir(parents=True, mode=0o755)
 
+    # SHA256SUMS.txt is generated at release time from the git-tracked files.
+    subprocess.run([sys.executable, str(ROOT / "scripts/generate_source_checksums.py")], cwd=ROOT, check=True)
     for repo_file in ("RELEASE-METADATA.txt", "SHA256SUMS.txt"):
         src = ROOT / repo_file
         require_file(src)

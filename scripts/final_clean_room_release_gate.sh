@@ -49,6 +49,7 @@ mkdir -p "$EVIDENCE_DIR" "$SECURITY_REPORT_DIR" "$SECURITY_ARTIFACT_DIR" .secret
 rm -f .secrets/bootstrap-admin-password
 
 printf '%s\n' "==> Step 13 source/static gate"
+python3 scripts/generate_source_checksums.py --require-clean
 python3 scripts/verify_source_checksums.py
 python3 scripts/check_runtime_versions.py
 python3 scripts/check_dependency_locks.py
