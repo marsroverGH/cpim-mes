@@ -151,7 +151,14 @@ func (s *RecoveryExecutionService) Get(ctx context.Context, id uuid.UUID) (*doma
 	return &domain.RecoveryPlanExecutionDetail{Execution: e, Actions: actions}, nil
 }
 
+// Prepare retries the whole operation on serialization failures / deadlocks.
 func (s *RecoveryExecutionService) Prepare(ctx context.Context, scenarioID uuid.UUID, in RecoveryExecutionPrepareInput, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
+	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
+		return s.prepareOnce(ctx, scenarioID, in, actor)
+	})
+}
+
+func (s *RecoveryExecutionService) prepareOnce(ctx context.Context, scenarioID uuid.UUID, in RecoveryExecutionPrepareInput, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	if err := validateRecoveryExecutionPrepareActor(actor); err != nil {
 		return nil, err
 	}
@@ -589,7 +596,14 @@ func (s *RecoveryExecutionService) preflightActionTx(ctx context.Context, tx *sq
 	}
 }
 
+// Preflight retries the whole operation on serialization failures / deadlocks.
 func (s *RecoveryExecutionService) Preflight(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
+	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
+		return s.preflightOnce(ctx, id, actor)
+	})
+}
+
+func (s *RecoveryExecutionService) preflightOnce(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	if err := validateRecoveryExecutionPrepareActor(actor); err != nil {
 		return nil, err
 	}
@@ -667,7 +681,14 @@ func (s *RecoveryExecutionService) Preflight(ctx context.Context, id uuid.UUID, 
 	return s.Get(ctx, id)
 }
 
+// Approve retries the whole operation on serialization failures / deadlocks.
 func (s *RecoveryExecutionService) Approve(ctx context.Context, id uuid.UUID, in RecoveryExecutionApprovalInput, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
+	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
+		return s.approveOnce(ctx, id, in, actor)
+	})
+}
+
+func (s *RecoveryExecutionService) approveOnce(ctx context.Context, id uuid.UUID, in RecoveryExecutionApprovalInput, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	if err := validateRecoveryExecutionAdmin(actor); err != nil {
 		return nil, err
 	}
@@ -1030,7 +1051,14 @@ func (s *RecoveryExecutionService) finalizeExecutionSuccess(ctx context.Context,
 	return tx.Commit()
 }
 
+// Execute retries the whole operation on serialization failures / deadlocks.
 func (s *RecoveryExecutionService) Execute(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
+	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
+		return s.executeOnce(ctx, id, actor)
+	})
+}
+
+func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	if err := validateRecoveryExecutionAdmin(actor); err != nil {
 		return nil, err
 	}
@@ -1139,6 +1167,12 @@ func (s *RecoveryExecutionService) Execute(ctx context.Context, id uuid.UUID, ac
 			}
 			if status == "SUCCEEDED" {
 				continue
+			}
+			if status == "PENDING" && IsRetryableTxError(err) {
+				// A serialization failure / deadlock rolled the action back; it
+				// is not a business failure. Keep the parent EXECUTING so the
+				// retry (or a later Execute) resumes from this action.
+				return nil, err
 			}
 			if status != "PENDING" && status != "FAILED" {
 				return nil, fmt.Errorf("recovery action execution error (%v); unexpected durable status %s", err, status)

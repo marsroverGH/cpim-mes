@@ -74,14 +74,37 @@ func TestWriteErrorHidesDatabaseErrorsOn500(t *testing.T) {
 }
 
 func TestWriteErrorKeepsRaisedBusinessRuleMessage(t *testing.T) {
-	for _, code := range []string{"P0001", "23514", "23503", "42501"} {
-		pgErr := &pgconn.PgError{Code: code, Message: "work order is not RELEASED"}
-		for _, status := range []int{400, 500} {
-			rec, body := callWriteError(t, status, fmt.Errorf("release: %w", pgErr))
-			if rec.Code != status || body["error"] != "work order is not RELEASED" {
-				t.Fatalf("code %s status %d: unexpected response %d %v", code, status, rec.Code, body)
+	cases := []struct {
+		code       string
+		handler    int
+		wantStatus int
+	}{
+		{"P0001", 400, 400},
+		{"23514", 400, 400},
+		{"P0001", 500, 422},
+		{"23514", 500, 422},
+		{"23503", 500, 409},
+		{"42501", 500, 403},
+	}
+	for _, tc := range cases {
+		pgErr := &pgconn.PgError{Code: tc.code, Message: "work order is not RELEASED"}
+		rec, body := callWriteError(t, tc.handler, fmt.Errorf("release: %w", pgErr))
+		if rec.Code != tc.wantStatus || body["error"] != "work order is not RELEASED" {
+			t.Fatalf("code %s handler %d: unexpected response %d %v", tc.code, tc.handler, rec.Code, body)
+		}
+		assertNoLeak(t, rec, "SQLSTATE", "release:")
+	}
+}
+
+func TestWriteErrorMapsConcurrencyConflictsTo409(t *testing.T) {
+	for _, code := range []string{"40001", "40P01"} {
+		for _, handler := range []int{400, 500} {
+			pgErr := &pgconn.PgError{Code: code, Message: "could not serialize access due to read/write dependencies among transactions"}
+			rec, body := callWriteError(t, handler, fmt.Errorf("approve: %w", pgErr))
+			if rec.Code != 409 || body["error"] != "concurrent update conflict; please retry" || body["requestId"] == nil {
+				t.Fatalf("code %s handler %d: unexpected response %d %v", code, handler, rec.Code, body)
 			}
-			assertNoLeak(t, rec, "SQLSTATE", "release:")
+			assertNoLeak(t, rec, "serialize", "approve:")
 		}
 	}
 }
