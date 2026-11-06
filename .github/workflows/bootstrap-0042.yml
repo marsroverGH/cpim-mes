@@ -57,6 +57,32 @@ jobs:
         run: |
           set -euo pipefail
           tar -xJf /tmp/0042-core.tar.xz -C .
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("backend/internal/service/detailed_scheduling.go")
+          s = p.read_text()
+          old = """type DetailedScheduleRequest struct {
+	HorizonDays      int
+	StartDate        time.Time
+	NotBefore        time.Time
+	SimulateMRP      bool
+	CandidateOnly    bool
+	ActivationReason string
+}
+"""
+          expected = """type DetailedScheduleRequest struct {
+	HorizonDays      int       `json:"horizonDays"`
+	StartDate        time.Time `json:"startDate"`
+	NotBefore        time.Time `json:"notBefore,omitempty"`
+	SimulateMRP      bool      `json:"simulateMRP"`
+	CandidateOnly    bool      `json:"candidateOnly,omitempty"`
+	ActivationReason string    `json:"activationReason,omitempty"`
+}
+"""
+          if old not in s:
+              raise SystemExit("GA DetailedScheduleRequest block not found")
+          p.write_text(s.replace(old, expected, 1))
+          PY
           python3 apply_0042.py
           rm -f apply_0042.py
           gofmt -w             backend/internal/domain/recovery_execution.go             backend/internal/service/recovery_execution.go             backend/internal/service/recovery_execution_test.go             backend/internal/api/recovery_execution.go             backend/internal/service/service.go             backend/internal/service/dispatch_rescheduling.go             backend/internal/service/detailed_scheduling.go             backend/internal/api/rbac.go             backend/internal/api/router.go
