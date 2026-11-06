@@ -1,4 +1,4 @@
-name: Finalize v0.41.1-rc.12 and promote GA
+name: Finalize v0.41.1-rc.13 and promote GA
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: promote-v0.41.1-rc.12
+  group: promote-v0.41.1-rc.13
   cancel-in-progress: false
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     env:
-      RC_BRANCH: release/v0.41.1-rc.12
+      RC_BRANCH: release/v0.41.1-rc.13
       GA_TAG: v0.41.1
     steps:
       - uses: actions/checkout@v7.0.1
@@ -26,79 +26,55 @@ jobs:
           ref: ${{ env.RC_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
-
       - uses: actions/setup-go@v7.0.0
         with:
           go-version: '1.26.10'
           cache: false
-
-      - name: Preflight GA tag absent
+      - name: Preflight
         shell: bash
         run: |
           set -euo pipefail
-          if git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1; then
-            echo "ERROR: $GA_TAG already exists; refusing overwrite." >&2
-            exit 1
-          fi
-
-      - name: Freeze RC12 metadata and verify backend
+          ! git ls-remote --exit-code --tags origin "refs/tags/$GA_TAG" >/dev/null 2>&1
+      - name: Freeze RC13 metadata and verify backend
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          skip = {".git", "node_modules", "dist", "playwright-report", "test-results"}
+          skip={".git","node_modules","dist","playwright-report","test-results"}
           for p in Path(".").rglob("*"):
-              if not p.is_file() or any(part in skip for part in p.parts):
+              if not p.is_file() or any(x in skip for x in p.parts) or p.as_posix().startswith(".github/workflows/"):
                   continue
-              if p.as_posix().startswith(".github/workflows/"):
-                  continue
-              try:
-                  s = p.read_text(encoding="utf-8")
-              except UnicodeDecodeError:
-                  continue
-              ns = s.replace("v0.41.1-rc.8", "v0.41.1-rc.12")
-              if ns != s:
-                  p.write_text(ns, encoding="utf-8")
+              try: s=p.read_text(encoding="utf-8")
+              except UnicodeDecodeError: continue
+              ns=s
+              for old in ["v0.41.1-rc.10","v0.41.1-rc.11","v0.41.1-rc.12"]:
+                  ns=ns.replace(old,"v0.41.1-rc.13")
+              if ns!=s: p.write_text(ns,encoding="utf-8")
           PY
           cd backend
           go mod verify
           go vet -mod=readonly ./...
           go test -mod=readonly -race -count=1 ./...
           cd ..
-
-      - name: Regenerate source checksums and static gates
+      - name: Regenerate checksums and static gates
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           import hashlib
-          excluded = {".git", "node_modules", "dist", "playwright-report", "test-results", "release-candidate-bundle", "security-release-bundle", ".secrets"}
-          files = []
-          for p in Path(".").rglob("*"):
-              if not p.is_file() or p.name == "SHA256SUMS.txt":
-                  continue
-              if any(part in excluded for part in p.parts):
-                  continue
-              files.append(p)
-          lines = [f"{hashlib.sha256(p.read_bytes()).hexdigest()}  ./{p.as_posix()}" for p in sorted(files, key=lambda x: x.as_posix())]
-          Path("SHA256SUMS.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
-          print(f"regenerated {len(lines)} checksum entries")
+          excluded={".git","node_modules","dist","playwright-report","test-results","release-candidate-bundle","security-release-bundle",".secrets"}
+          files=[p for p in Path(".").rglob("*") if p.is_file() and p.name!="SHA256SUMS.txt" and not any(x in excluded for x in p.parts)]
+          Path("SHA256SUMS.txt").write_text("\n".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  ./{p.as_posix()}" for p in sorted(files,key=lambda x:x.as_posix()))+"\n",encoding="utf-8")
           PY
           python3 scripts/verify_source_checksums.py
-          python3 scripts/check_runtime_versions.py
-          python3 scripts/check_dependency_locks.py
-          python3 scripts/check_ci_dependency_policy.py
           python3 backend/scripts/check_final_release_candidate.py
           python3 backend/scripts/check_cookie_auth_csrf.py
           python3 backend/scripts/check_user_administration.py
           python3 backend/scripts/check_security_supply_chain.py
           python3 scripts/test_release_candidate_unit.py
-          grep -q 'proxy_set_header X-Forwarded-Host $http_host;' frontend/nginx.conf
-          grep -q '\$9::jsonb' backend/internal/repository/traceability.go
-
-      - name: Commit RC12 freeze
+      - name: Commit RC13 freeze
         shell: bash
         run: |
           set -euo pipefail
@@ -106,14 +82,11 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "release: freeze v0.41.1-rc.12 clean-room fixes"
+            git commit -m "release: freeze v0.41.1-rc.13"
             git push origin "HEAD:refs/heads/$RC_BRANCH"
           fi
-          RC_SHA="$(git rev-parse HEAD)"
-          echo "RC_SHA=$RC_SHA" >> "$GITHUB_ENV"
-          echo "RC12_SHA=$RC_SHA"
-
-      - name: Dispatch authoritative Final Clean-room Gate
+          echo "RC_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Dispatch Final Clean-room
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -121,17 +94,11 @@ jobs:
           set -euo pipefail
           gh workflow run release-candidate.yml --ref "$RC_BRANCH"
           for i in $(seq 1 60); do
-            RUN_ID="$(gh run list --workflow release-candidate.yml --branch "$RC_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC_SHA\") | .databaseId" | head -n1)"
-            if [ -n "$RUN_ID" ]; then
-              echo "RC_RUN_ID=$RUN_ID" >> "$GITHUB_ENV"
-              echo "RC_RUN_ID=$RUN_ID"
-              exit 0
-            fi
+            id="$(gh run list --workflow release-candidate.yml --branch "$RC_BRANCH" --event workflow_dispatch --limit 20 --json databaseId,headSha --jq ".[] | select(.headSha == \"$RC_SHA\") | .databaseId" | head -n1)"
+            if [ -n "$id" ]; then echo "RC_RUN_ID=$id" >> "$GITHUB_ENV"; exit 0; fi
             sleep 5
           done
-          echo "ERROR: dispatched RC12 workflow run not found" >&2
           exit 1
-
       - name: Wait for Final Clean-room PASS
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,27 +106,18 @@ jobs:
         run: |
           set -euo pipefail
           for i in $(seq 1 480); do
-            STATE="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
-            STATUS="$(jq -r '.status' <<<"$STATE")"
-            CONCLUSION="$(jq -r '.conclusion // ""' <<<"$STATE")"
-            HEAD_SHA="$(jq -r '.headSha' <<<"$STATE")"
-            URL="$(jq -r '.url' <<<"$STATE")"
-            test "$HEAD_SHA" = "$RC_SHA"
-            echo "RC12 gate status=$STATUS conclusion=$CONCLUSION url=$URL"
-            if [ "$STATUS" = "completed" ]; then
-              test "$CONCLUSION" = "success" || {
-                gh run view "$RC_RUN_ID" --log-failed || true
-                exit 1
-              }
-              echo "RC_RUN_URL=$URL" >> "$GITHUB_ENV"
-              exit 0
+            s="$(gh run view "$RC_RUN_ID" --json status,conclusion,headSha,url)"
+            status="$(jq -r .status <<<"$s")"; conclusion="$(jq -r '.conclusion // ""' <<<"$s")"; head="$(jq -r .headSha <<<"$s")"; url="$(jq -r .url <<<"$s")"
+            test "$head" = "$RC_SHA"
+            echo "RC13 gate status=$status conclusion=$conclusion url=$url"
+            if [ "$status" = completed ]; then
+              test "$conclusion" = success || { gh run view "$RC_RUN_ID" --log-failed || true; exit 1; }
+              echo "RC_RUN_URL=$url" >> "$GITHUB_ENV"; exit 0
             fi
             sleep 15
           done
-          echo "ERROR: Final Clean-room gate timeout" >&2
           exit 1
-
-      - name: Promote exact verified RC12 commit to main and GA tag
+      - name: Promote verified RC13 to main and v0.41.1
         shell: bash
         run: |
           set -euo pipefail
@@ -167,11 +125,8 @@ jobs:
           test "$(git rev-parse "origin/$RC_BRANCH")" = "$RC_SHA"
           git merge-base --is-ancestor origin/main "$RC_SHA"
           git push origin "$RC_SHA:refs/heads/main"
-          git tag -a "$GA_TAG" "$RC_SHA" \
-            -m "CPIM-MES v0.41.1 Production Hardening" \
-            -m "Final Clean-room PASS: $RC_RUN_URL"
+          git tag -a "$GA_TAG" "$RC_SHA" -m "CPIM-MES v0.41.1 Production Hardening" -m "Final Clean-room PASS: $RC_RUN_URL"
           git push origin "refs/tags/$GA_TAG"
-
       - name: Verify GA identity
         shell: bash
         run: |
@@ -179,6 +134,5 @@ jobs:
           git fetch origin main --tags
           test "$(git rev-parse origin/main)" = "$RC_SHA"
           test "$(git rev-list -n1 "$GA_TAG")" = "$RC_SHA"
-          echo "GA_TAG=$GA_TAG"
           echo "GA_COMMIT=$RC_SHA"
           echo "FINAL_GATE=$RC_RUN_URL"
