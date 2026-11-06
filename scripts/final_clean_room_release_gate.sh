@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-RELEASE_VERSION="${RELEASE_VERSION:-v0.41.1}"
-RC_VERSION="${RC_VERSION:-v0.41.1-rc.9}"
+RELEASE_VERSION="${RELEASE_VERSION:-v0.42.0}"
+RC_VERSION="${RC_VERSION:-v0.42.0-rc.1}"
 VCS_REF="${VCS_REF:-${GITHUB_SHA:-local}}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-rc-db-$(openssl rand -hex 16)}"
@@ -135,18 +135,18 @@ fi
 printf '%s\n' "==> Production topology host-port boundary"
 python3 scripts/validate_production_topology.py < <("${COMPOSE[@]}" config --format json)
 
-printf '%s\n' "==> Empty DB migration ledger 0001 -> 0041"
+printf '%s\n' "==> Empty DB migration ledger 0001 -> 0042"
 ledger="$("${COMPOSE[@]}" exec -T db psql -U cpim -d cpim -Atqc \
   "SELECT count(*)::text || ':' || min(version)::text || ':' || max(version)::text || ':' || string_agg(version::text, ',' ORDER BY version) FROM schema_migrations;")"
-expected_sequence="$(seq -s, 1 41)"
-[[ "$ledger" == "41:1:41:${expected_sequence}" ]] || fail "unexpected migration ledger: $ledger"
+expected_sequence="$(seq -s, 1 42)"
+[[ "$ledger" == "42:1:42:${expected_sequence}" ]] || fail "unexpected migration ledger: $ledger"
 
 printf '%s\n' "==> Running build identity"
 python3 scripts/verify_running_version.py \
   --url "$E2E_BASE_URL/version" \
   --version "$RELEASE_VERSION" \
   --commit "$VCS_REF" \
-  --migration-latest 41
+  --migration-latest 42
 
 printf '%s\n' "==> Private observability boundary"
 "${COMPOSE[@]}" exec -T backend wget -qO- http://127.0.0.1:8080/metrics > "$EVIDENCE_DIR/metrics.txt"
@@ -188,7 +188,7 @@ python3 scripts/verify_release_bundle.py "$SECURITY_BUNDLE_DIR"
 
 printf '%s\n' "==> Final clean-room evidence"
 e2e_count="$(grep -R -E '^\s*test\(' e2e/tests --include='*.spec.ts' | wc -l | tr -d ' ')"
-[[ "$e2e_count" == "25" ]] || fail "expected 25 Playwright tests, found $e2e_count"
+[[ "$e2e_count" == "26" ]] || fail "expected 26 Playwright tests, found $e2e_count"
 python3 - "$EVIDENCE_DIR/FINAL-CLEAN-ROOM-RESULT.json" <<'PY'
 import json, os, sys
 from pathlib import Path
@@ -200,10 +200,10 @@ data = {
   "gitCommit": os.environ["VCS_REF"],
   "buildTime": os.environ["BUILD_TIME"],
   "status": "PASS",
-  "migrationCount": 41,
-  "migrationLatest": 41,
-  "migration0042Created": False,
-  "playwrightTests": 25,
+  "migrationCount": 42,
+  "migrationLatest": 42,
+  "migration0042Created": True,
+  "playwrightTests": 26,
   "productionTopology": {
     "databaseHostPublished": False,
     "backendHostPublished": False,
@@ -217,7 +217,7 @@ data = {
     "frontendTypecheckBuild": "PASS",
     "dependencySecurity": "PASS",
     "containerSecurityAndSBOM": "PASS",
-    "emptyDatabaseMigration0001Through0041": "PASS",
+    "emptyDatabaseMigration0001Through0042": "PASS",
     "versionBuildMetadata": "PASS",
     "observabilityBoundary": "PASS",
     "recoveryFailedRunPersistence": "PASS",
@@ -240,4 +240,4 @@ python3 scripts/build_release_candidate_bundle.py \
 python3 scripts/verify_release_candidate_bundle.py "$RC_BUNDLE_DIR"
 
 printf '%s\n' "FINAL CLEAN-ROOM GATE: PASS"
-printf '  candidate=%s target=%s commit=%s migrations=41/0041 e2e=25\n' "$RC_VERSION" "$RELEASE_VERSION" "$VCS_REF"
+printf '  candidate=%s target=%s commit=%s migrations=42/0042 e2e=26\n' "$RC_VERSION" "$RELEASE_VERSION" "$VCS_REF"

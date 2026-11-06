@@ -2382,3 +2382,84 @@ type RecoveryScenarioComparison struct {
 	PublicationID          *uuid.UUID `db:"publication_id"            json:"publicationId,omitempty"`
 	ComparisonRank         int64      `db:"comparison_rank"           json:"comparisonRank"`
 }
+
+// RecoveryPlanExecution is the explicit operational execution boundary for a
+// published 0041 recovery plan. Simulation/Publish evidence remains immutable;
+// this record tracks controlled preparation, preflight, approval and execution.
+type RecoveryPlanExecution struct {
+	ID                   uuid.UUID  `db:"id"                     json:"id"`
+	ScenarioID           uuid.UUID  `db:"scenario_id"            json:"scenarioId"`
+	PublicationID        uuid.UUID  `db:"publication_id"         json:"publicationId"`
+	RunID                uuid.UUID  `db:"run_id"                 json:"runId"`
+	IdempotencyKey       string     `db:"idempotency_key"        json:"idempotencyKey"`
+	Status               string     `db:"status"                 json:"status"`
+	PublicationHash      string     `db:"publication_hash"       json:"publicationHash"`
+	RunResultHash        string     `db:"run_result_hash"        json:"runResultHash"`
+	ActionSetHash        string     `db:"action_set_hash"        json:"actionSetHash"`
+	PreflightHash        *string    `db:"preflight_hash"         json:"preflightHash,omitempty"`
+	ApprovalHash         *string    `db:"approval_hash"          json:"approvalHash,omitempty"`
+	ExecutionResultHash  *string    `db:"execution_result_hash"  json:"executionResultHash,omitempty"`
+	PrepareComment       string     `db:"prepare_comment"        json:"prepareComment"`
+	ApprovalComment      string     `db:"approval_comment"       json:"approvalComment"`
+	FailureReason        string     `db:"failure_reason"         json:"failureReason"`
+	ActionCount          int        `db:"action_count"           json:"actionCount"`
+	SucceededActionCount int        `db:"succeeded_action_count" json:"succeededActionCount"`
+	FailedActionCount    int        `db:"failed_action_count"    json:"failedActionCount"`
+	PreparedByUserID     uuid.UUID  `db:"prepared_by_user_id"    json:"preparedByUserId"`
+	PreparedByUsername   string     `db:"prepared_by_username"   json:"preparedByUsername"`
+	PreparedAt           time.Time  `db:"prepared_at"            json:"preparedAt"`
+	PreflightedAt        *time.Time `db:"preflighted_at"         json:"preflightedAt,omitempty"`
+	ApprovedByUserID     *uuid.UUID `db:"approved_by_user_id"    json:"approvedByUserId,omitempty"`
+	ApprovedByUsername   *string    `db:"approved_by_username"   json:"approvedByUsername,omitempty"`
+	ApprovedAt           *time.Time `db:"approved_at"            json:"approvedAt,omitempty"`
+	ExecutedByUserID     *uuid.UUID `db:"executed_by_user_id"    json:"executedByUserId,omitempty"`
+	ExecutedByUsername   *string    `db:"executed_by_username"   json:"executedByUsername,omitempty"`
+	StartedAt            *time.Time `db:"started_at"             json:"startedAt,omitempty"`
+	CompletedAt          *time.Time `db:"completed_at"           json:"completedAt,omitempty"`
+	CreatedAt            time.Time  `db:"created_at"             json:"createdAt"`
+	UpdatedAt            time.Time  `db:"updated_at"             json:"updatedAt"`
+}
+
+type RecoveryPlanExecutionAction struct {
+	ID                 uuid.UUID       `db:"id"                   json:"id"`
+	ExecutionID        uuid.UUID       `db:"execution_id"         json:"executionId"`
+	ScenarioActionID   uuid.UUID       `db:"scenario_action_id"   json:"scenarioActionId"`
+	SequenceNo         int             `db:"sequence_no"          json:"sequenceNo"`
+	ActionType         string          `db:"action_type"          json:"actionType"`
+	TargetType         string          `db:"target_type"          json:"targetType"`
+	TargetRef          string          `db:"target_ref"           json:"targetRef"`
+	Parameters         json.RawMessage `db:"parameters"           json:"parameters"`
+	EstimatedCost      float64         `db:"estimated_cost"       json:"estimatedCost"`
+	Note               string          `db:"note"                 json:"note"`
+	ActionSnapshotHash string          `db:"action_snapshot_hash" json:"actionSnapshotHash"`
+	PreflightStatus    string          `db:"preflight_status"     json:"preflightStatus"`
+	ExecutionStatus    string          `db:"execution_status"     json:"executionStatus"`
+	PreflightState     json.RawMessage `db:"preflight_state"      json:"preflightState"`
+	PreflightStateHash *string         `db:"preflight_state_hash" json:"preflightStateHash,omitempty"`
+	BeforeState        json.RawMessage `db:"before_state"         json:"beforeState"`
+	AfterState         json.RawMessage `db:"after_state"          json:"afterState"`
+	OperationalRef     string          `db:"operational_ref"      json:"operationalRef"`
+	ResultHash         *string         `db:"result_hash"          json:"resultHash,omitempty"`
+	ErrorText          string          `db:"error_text"           json:"errorText"`
+	StartedAt          *time.Time      `db:"started_at"           json:"startedAt,omitempty"`
+	CompletedAt        *time.Time      `db:"completed_at"         json:"completedAt,omitempty"`
+	CreatedAt          time.Time       `db:"created_at"           json:"createdAt"`
+	UpdatedAt          time.Time       `db:"updated_at"           json:"updatedAt"`
+}
+
+type RecoveryCapacityOverride struct {
+	ID                uuid.UUID `db:"id"                  json:"id"`
+	ExecutionActionID uuid.UUID `db:"execution_action_id" json:"executionActionId"`
+	ExecutionID       uuid.UUID `db:"execution_id"        json:"executionId"`
+	WorkCenterID      uuid.UUID `db:"work_center_id"      json:"workCenterId"`
+	EffectiveDate     time.Time `db:"effective_date"      json:"effectiveDate"`
+	OvertimeMinutes   int       `db:"overtime_minutes"    json:"overtimeMinutes"`
+	CreatedByUserID   uuid.UUID `db:"created_by_user_id"  json:"createdByUserId"`
+	CreatedByUsername string    `db:"created_by_username" json:"createdByUsername"`
+	CreatedAt         time.Time `db:"created_at"          json:"createdAt"`
+}
+
+type RecoveryPlanExecutionDetail struct {
+	Execution RecoveryPlanExecution         `json:"execution"`
+	Actions   []RecoveryPlanExecutionAction `json:"actions"`
+}

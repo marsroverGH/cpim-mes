@@ -45,6 +45,9 @@ const (
 	PermRecoveryScenarioManage   Permission = "planning.recovery_scenario.manage"
 	PermRecoverySimulationRun    Permission = "planning.recovery_scenario.simulate"
 	PermRecoveryPublish          Permission = "planning.recovery_scenario.publish"
+	PermRecoveryExecutionPrepare Permission = "planning.recovery_execution.prepare"
+	PermRecoveryExecutionApprove Permission = "planning.recovery_execution.approve"
+	PermRecoveryExecutionExecute Permission = "planning.recovery_execution.execute"
 	PermMRPRun                   Permission = "planning.mrp.run"
 	PermCapacityMaster           Permission = "capacity.master.write"
 	PermRoutingMaster            Permission = "routing.master.write"
@@ -113,6 +116,7 @@ var rolePermissions = map[domain.Role]map[Permission]struct{}{
 		PermRecoveryScenarioManage:   {},
 		PermRecoverySimulationRun:    {},
 		PermRecoveryPublish:          {},
+		PermRecoveryExecutionPrepare: {},
 		PermMRPRun:                   {},
 		PermCRPRun:                   {},
 		PermForecastRun:              {},
@@ -146,7 +150,7 @@ func roleHasPermission(role domain.Role, permission Permission) bool {
 func permissionsForRole(role domain.Role) []Permission {
 	all := []Permission{
 		PermItemMasterWrite, PermBOMWrite, PermDemandWrite, PermMPSWrite,
-		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermDispatchManage, PermDynamicReschedule, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage, PermControlTowerRefresh, PermControlTowerManage, PermRecoveryScenarioManage, PermRecoverySimulationRun, PermRecoveryPublish,
+		PermInventoryAdjust, PermWOPlan, PermWOExecute, PermPOPlan, PermPOReceive, PermSupplierScheduleManage, PermSupplierReliabilityRun, PermInventoryPolicyManage, PermInventoryPolicyRun, PermMaintenanceManage, PermProductionPerformanceRun, PermCapacityFeedbackManage, PermDispatchManage, PermDynamicReschedule, PermSalesOrderManage, PermSalesOrderShip, PermSalesOrderPromise, PermBackorderRun, PermProductAllocation, PermPeggingRun, PermExceptionManage, PermControlTowerRefresh, PermControlTowerManage, PermRecoveryScenarioManage, PermRecoverySimulationRun, PermRecoveryPublish, PermRecoveryExecutionPrepare, PermRecoveryExecutionApprove, PermRecoveryExecutionExecute,
 		PermMRPRun, PermCapacityMaster, PermRoutingMaster, PermCRPRun, PermForecastRun,
 		PermCycleCountPlan, PermCycleCountRecord, PermCalendarWrite, PermQualityRecord,
 		PermSupplierQualityManage, PermNCRCreate, PermNCRDisposition, PermShopFloorExecute, PermItemGroupWrite, PermSOPWrite, PermRCCPWrite,

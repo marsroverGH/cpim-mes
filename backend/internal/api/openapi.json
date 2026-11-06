@@ -3,7 +3,7 @@
   "info": {
     "title": "CPIM-MES API",
     "description": "CPIM準拠の生産管理システムのREST API仕様。BrowserはHttpOnly session Cookie + CSRF保護、CLI/APIは明示的なBearer JWTを利用します。",
-    "version": "1.0.0",
+    "version": "0.42.0",
     "contact": {
       "name": "CPIM-MES"
     }
@@ -9533,6 +9533,242 @@
           },
           "403": {
             "description": "Missing admin.users.manage"
+          }
+        }
+      }
+    },
+    "/recovery-executions": {
+      "get": {
+        "summary": "List controlled recovery executions",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery executions"
+          }
+        }
+      }
+    },
+    "/recovery-executions/{id}": {
+      "get": {
+        "summary": "Get controlled recovery execution detail",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution detail"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/recovery-scenarios/{id}/executions": {
+      "post": {
+        "summary": "Prepare a controlled execution from published recovery evidence",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "idempotencyKey"
+                ],
+                "properties": {
+                  "idempotencyKey": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Prepared execution"
+          },
+          "409": {
+            "description": "Scenario not executable"
+          }
+        }
+      }
+    },
+    "/recovery-executions/{id}/preflight": {
+      "post": {
+        "summary": "Preflight all controlled recovery actions",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution detail"
+          },
+          "409": {
+            "description": "Lifecycle or drift conflict"
+          }
+        }
+      }
+    },
+    "/recovery-executions/{id}/approve": {
+      "post": {
+        "summary": "Approve controlled recovery execution",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution detail"
+          },
+          "409": {
+            "description": "Lifecycle or drift conflict"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recovery-executions/{id}/execute": {
+      "post": {
+        "summary": "Execute approved recovery plan against operational data",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution detail"
+          },
+          "409": {
+            "description": "Lifecycle or drift conflict"
+          }
+        }
+      }
+    },
+    "/recovery-executions/{id}/cancel": {
+      "post": {
+        "summary": "Cancel controlled recovery execution",
+        "tags": [
+          "Recovery Planning"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Execution detail"
+          },
+          "409": {
+            "description": "Lifecycle or drift conflict"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       }

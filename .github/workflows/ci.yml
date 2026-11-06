@@ -16,7 +16,7 @@ env:
   GO_VERSION: '1.26.10'
   NODE_VERSION: '24.20.0'
   NPM_VERSION: '11.19.0'
-  RELEASE_VERSION: 'v0.41.1'
+  RELEASE_VERSION: 'v0.42.0'
 
 jobs:
   dependency-locks:
@@ -127,6 +127,7 @@ jobs:
           python3 backend/scripts/check_realtime_dispatch_rescheduling.py
           python3 backend/scripts/check_production_control_tower.py
           python3 backend/scripts/check_recovery_planning.py
+          python3 backend/scripts/check_controlled_recovery_execution.py
           python3 backend/scripts/check_migration_manager.py
           python3 backend/scripts/check_production_config.py
           python3 backend/scripts/check_demo_credentials_removed.py

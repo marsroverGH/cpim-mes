@@ -58,7 +58,7 @@ check("restore does not mutate app DATABASE_URL", "DATABASE_URL" not in core)
 check("restore drill creates fresh backup when omitted", "generated = archive is None" in core and "create_backup(archive)" in core)
 check("restore drill uses ephemeral target", "cpim_restore_drill_" in core)
 check("restore drill compares migration state", "restored_state != source_state" in core)
-check("restore drill requires 41/0041", "EXPECTED_MIGRATION_LATEST = 41" in core and "release gate requires migration count/latest" in core)
+check("restore drill requires 42/0042", "EXPECTED_MIGRATION_LATEST = 42" in core and "release gate requires migration count/latest" in core)
 check("restore drill compares full migration ledger", "migration_ledger(target) != source_ledger" in core)
 check("restore drill compares public object inventory", "database_object_inventory(target) != source_inventory" in core)
 check("restore drill compares all public table row counts", "restored_counts != source_counts" in core)
@@ -90,7 +90,7 @@ check("DR covers recovery signal", "recovery.signal" in dr_doc)
 check("DR covers recovery target time", "recovery_target_time" in dr_doc)
 check("DR requires new recovery instance", "new PostgreSQL instance/data directory" in dr_doc)
 check("DR preserves damaged/current DB", "Preserve the damaged/current database" in dr_doc)
-check("DR validates migrations 41/0041", "schema_migrations count = 41" in dr_doc and "schema_migrations latest = 0041" in dr_doc)
+check("DR validates migrations 42/0042", "schema_migrations count = 42" in dr_doc and "schema_migrations latest = 0042" in dr_doc)
 check("DR includes application validation", "/healthz" in dr_doc and "/version" in dr_doc)
 check("DR includes restore drill evidence", "measured restore time" in dr_doc)
 
@@ -108,9 +108,9 @@ check("production DB remains without published ports", "ports:" not in prod.spli
 check("base DB remains without published ports", "ports:" not in base.split("  backend:", 1)[0])
 
 migrations = sorted((ROOT / "backend/migrations").glob("[0-9][0-9][0-9][0-9]_*.sql"))
-check("migration count remains 41", len(migrations) == 41)
-check("latest migration remains 0041", bool(migrations) and migrations[-1].name.startswith("0041_"))
-check("migration 0042 absent", not any(p.name.startswith("0042_") for p in migrations))
+check("migration count is 42", len(migrations) == 42)
+check("latest migration is 0042", bool(migrations) and migrations[-1].name.startswith("0042_"))
+check("migration 0042 present", any(p.name.startswith("0042_") for p in migrations))
 
 failed = [name for name, ok in checks if not ok]
 for name, ok in checks:

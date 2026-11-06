@@ -21,7 +21,7 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_COMPOSE_FILES = ["docker-compose.yml", "docker-compose.prod.yml"]
 DB_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
-EXPECTED_MIGRATION_LATEST = 41
+EXPECTED_MIGRATION_LATEST = 42
 
 
 class DRError(RuntimeError):

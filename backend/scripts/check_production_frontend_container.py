@@ -108,9 +108,9 @@ check("production frontend documentation exists", "Production Frontend Container
 check("documentation states DB and Backend are not host-published", "DB and Backend are not host-published" in doc)
 migrations = sorted((ROOT / "backend/migrations").glob("*.sql"))
 versions = [int(m.name[:4]) for m in migrations if re.match(r"^\d{4}_", m.name)]
-check("migration count remains 41", len(versions) == 41, f"count={len(versions)}")
-check("latest migration remains 0041", bool(versions) and max(versions) == 41, f"latest={max(versions) if versions else 'none'}")
-check("migration 0042 absent", not any(v >= 42 for v in versions))
+check("migration count is 42", len(versions) == 42, f"count={len(versions)}")
+check("latest migration is 0042", bool(versions) and max(versions) == 42, f"latest={max(versions) if versions else 'none'}")
+check("migration 0042 present", any(v == 42 for v in versions) and not any(v > 42 for v in versions))
 
 failed = [item for item in checks if not item[1]]
 for name, ok, detail in checks:

@@ -90,6 +90,7 @@ type maintenanceBlock struct {
 type detailedWCState struct {
 	wc          domain.WorkCenter
 	calendar    *CalendarSnapshot
+	overtime    map[string]int
 	end         time.Time
 	lanes       []*machineLaneState
 	labor       []laborReservation
@@ -134,6 +135,11 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 	start := TruncateDay(req.StartDate)
 	end := start.AddDate(0, 0, req.HorizonDays-1)
 
+	overtime, err := loadRecoveryOvertime(ctx, s.db, start, end)
+	if err != nil {
+		return nil, err
+	}
+
 	items, err := s.repos.Items.List(ctx)
 	if err != nil {
 		return nil, err
@@ -172,7 +178,7 @@ func (s *CRPService) DetailedSchedule(ctx context.Context, req DetailedScheduleR
 		if snap == nil {
 			snap = defaultSnap
 		}
-		st := &detailedWCState{wc: wc, calendar: snap, end: end.Add(24*time.Hour - time.Nanosecond)}
+		st := &detailedWCState{wc: wc, calendar: snap, overtime: overtime, end: end.Add(24*time.Hour - time.Nanosecond)}
 		for lane := 1; lane <= wc.MachineCount; lane++ {
 			st.lanes = append(st.lanes, &machineLaneState{lane: lane, availableAt: start})
 		}
@@ -851,6 +857,16 @@ func (st *detailedWCState) workingWindow(t time.Time) (time.Time, time.Time, boo
 		if st.calendar != nil {
 			mins = float64(st.calendar.MinutesAvailable(day))
 		}
+		if st.overtime != nil {
+			mins += float64(st.overtime[dayStateKey(st.wc.ID, day)])
+		}
+		shiftCap := 1440 - st.wc.ShiftStartMinute
+		if st.wc.ShiftStartMinute < 0 || st.wc.ShiftStartMinute > 1439 {
+			shiftCap = 960
+		}
+		if mins > float64(shiftCap) {
+			mins = float64(shiftCap)
+		}
 		if mins > 0 {
 			shift := st.wc.ShiftStartMinute
 			if shift < 0 || shift > 1439 {
@@ -1034,6 +1050,16 @@ func buildDetailedLoadRows(segs []domain.DetailedScheduleSegment, wcs map[uuid.U
 		}
 		if st := states[key.wc]; st != nil && st.calendar != nil {
 			mins = float64(st.calendar.MinutesAvailable(key.day))
+		}
+		if st := states[key.wc]; st != nil && st.overtime != nil {
+			mins += float64(st.overtime[dayStateKey(key.wc, key.day)])
+		}
+		shiftCap := 1440 - wc.ShiftStartMinute
+		if wc.ShiftStartMinute < 0 || wc.ShiftStartMinute > 1439 {
+			shiftCap = 960
+		}
+		if mins > float64(shiftCap) {
+			mins = float64(shiftCap)
 		}
 		avail := mins * float64(maxInt(wc.MachineCount, 1))
 		if st := states[key.wc]; st != nil {

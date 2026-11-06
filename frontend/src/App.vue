@@ -75,6 +75,7 @@ const allLinks: NavLink[] = [
   { to: '/pegging-exceptions', title: 'Pegging / Exceptions', icon: 'mdi-family-tree' },
   { to: '/production-control-tower', title: 'Production Control Tower', icon: 'mdi-view-dashboard-variant-outline' },
   { to: '/recovery-planning', title: 'Recovery Planning', icon: 'mdi-flask-outline' },
+  { to: '/recovery-execution', title: 'Recovery Execution', icon: 'mdi-playlist-check' },
   { to: '/forecast',        title: '需要予測',        icon: 'mdi-chart-line' },
   { to: '/sop',             title: 'S&OP 月次計画',   icon: 'mdi-chart-timeline' },
   { to: '/rccp',            title: 'RCCP',            icon: 'mdi-chart-gantt' },

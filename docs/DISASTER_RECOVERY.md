@@ -1,6 +1,6 @@
 # Disaster Recovery / PITR Runbook
 
-This runbook covers CPIM-MES v0.41.1 recovery planning. It complements `BACKUP_RESTORE.md`.
+This runbook covers CPIM-MES v0.42.0 recovery planning. It complements `BACKUP_RESTORE.md`.
 
 ## 1. Recovery objectives are business decisions
 
@@ -97,11 +97,11 @@ Use a **new PostgreSQL instance/data directory**. Never experiment on the only c
 16. Resume writes only after approval.
 ```
 
-For this release, a valid recovered CPIM-MES v0.41.1 database must have:
+For this release, a valid recovered CPIM-MES v0.42.0 database must have:
 
 ```text
-schema_migrations count = 41
-schema_migrations latest = 0041
+schema_migrations count = 42
+schema_migrations latest = 0042
 ```
 
 The normal startup Migration Manager remains a safety gate: checksum mismatch, a history gap, or an unknown newer DB version must block API startup.
@@ -116,7 +116,7 @@ Then:
 1. Run restore validation / restore drill checks.
 2. Keep the old production DB untouched.
 3. Point a non-production backend at the candidate.
-4. Verify /version reports migrationLatest=41.
+4. Verify /version reports migrationLatest=42.
 5. Perform critical business smoke tests.
 6. Change production DATABASE_URL only after approval.
 7. Preserve the pre-cutover database until incident closure.
@@ -139,7 +139,7 @@ Application:
 
 ```text
 [ ] Backend /healthz passes
-[ ] GET /version returns expected release/commit and migrationLatest=41
+[ ] GET /version returns expected release/commit and migrationLatest=42
 [ ] Admin authentication works
 [ ] RBAC works
 [ ] Inventory read path works
