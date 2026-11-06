@@ -437,9 +437,9 @@ func (r *WorkOrderRepo) SetProducedLot(ctx context.Context, woID, lotID uuid.UUI
 func (r *WorkOrderRepo) UpdateProgress(ctx context.Context, id uuid.UUID, reportedQty float64) error {
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE work_orders
-		   SET reported_progress_qty = $1,
+		   SET reported_progress_qty = $1::numeric,
 		       status = CASE
-		         WHEN $1 > 0 AND status = 'RELEASED' THEN 'IN_PROGRESS'
+		         WHEN $1::numeric > 0 AND status = 'RELEASED' THEN 'IN_PROGRESS'
 		         ELSE status
 		       END
 		 WHERE id = $2
