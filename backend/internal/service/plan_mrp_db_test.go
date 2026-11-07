@@ -290,16 +290,18 @@ func TestPlanThinServicesGuardrails(t *testing.T) {
 		t.Fatalf("WO status after rejected transition = %+v, %v", w, err)
 	}
 
-	if _, err := f.DB.Exec(`INSERT INTO supplier_quality_profiles(supplier_name,status) VALUES('PLT-BAD','BLOCKED')`); err != nil {
-		t.Skipf("cannot seed blocked supplier profile: %v", err)
+	sq := f.user(t, "plt-sq-planner", domain.RolePlanner)
+	if _, err := f.DB.Exec(`INSERT INTO supplier_quality_profiles(supplier_name,status,updated_by_user_id) VALUES('PLT-BAD','BLOCKED',$1)`, sq.ID); err != nil {
+		t.Fatalf("seed blocked supplier profile: %v", err)
 	}
 	err = f.Svc.Purchases.Create(f.Ctx, &domain.PurchaseOrder{PONo: "PLT-PO", ItemID: it.ID, Supplier: " PLT-BAD ", Quantity: 1, DueDate: planDay(2027, 4, 1)})
 	planErrCode(t, "PO to blocked supplier", err, domain.ErrCodeConflict)
 	planErrCode(t, "nil PO", f.Svc.Purchases.Create(f.Ctx, nil), domain.ErrCodeBadRequest)
 
 	// Logical reservations bypass the lot ledger; physical receipts go through it.
+	// RESERVE quantities are positive (inventory_txns_quantity_semantics).
 	planReceive(t, f, it.ID, 12)
-	if err := f.Svc.Inventory.Post(f.Ctx, &domain.InventoryTxn{ItemID: it.ID, Quantity: -2, TxnType: "RESERVE", RefDoc: "PLT"}); err != nil {
+	if err := f.Svc.Inventory.Post(f.Ctx, &domain.InventoryTxn{ItemID: it.ID, Quantity: 2, TxnType: "RESERVE", RefDoc: "PLT"}); err != nil {
 		t.Fatalf("reserve: %v", err)
 	}
 	bal, err := f.Svc.Inventory.Balance(f.Ctx)
@@ -378,15 +380,12 @@ func TestPlanBOMExplodeAndThinReads(t *testing.T) {
 	if err := f.Svc.WorkOrders.Create(f.Ctx, &wo); err != nil {
 		t.Fatal(err)
 	}
-	// Known bug (also reported by the API agent): repository WorkOrderRepo.UpdateProgress
-	// reuses $1 as both numeric column value and in "$1 > 0" -> SQLSTATE 42P08.
+	// Regression: UpdateProgress used to fail with SQLSTATE 42P08 on every call.
 	if err := f.Svc.WorkOrders.UpdateProgress(f.Ctx, wo.ID, 2); err != nil {
-		t.Logf("KNOWN BUG (repository.go WorkOrderRepo.UpdateProgress): %v", err)
-	} else {
-		w, err := f.Svc.WorkOrders.Get(f.Ctx, wo.ID)
-		if err != nil || w.Status != "IN_PROGRESS" || w.ReportedProgressQty != 2 || w.CompletedQty != 0 {
-			t.Fatalf("progress = %+v, %v (progress must not complete quantity)", w, err)
-		}
+		t.Fatalf("update progress: %v", err)
+	}
+	if w, err := f.Svc.WorkOrders.Get(f.Ctx, wo.ID); err != nil || w.Status != "IN_PROGRESS" || w.ReportedProgressQty != 2 || w.CompletedQty != 0 {
+		t.Fatalf("progress = %+v, %v (progress must not complete quantity)", w, err)
 	}
 	if wos, err := f.Svc.WorkOrders.List(f.Ctx); err != nil || len(wos) != 1 {
 		t.Fatalf("WO list = %d, %v", len(wos), err)
@@ -412,8 +411,8 @@ func TestPlanBOMExplodeAndThinReads(t *testing.T) {
 // MRP bucket keys are time.Time values carrying their Location. MPS/PO dates come
 // from PostgreSQL DATE columns as UTC midnight, while the start bucket (and the
 // horizon end) are derived from req.StartDate in its own Location (time.Now() =
-// time.Local when omitted). With a non-UTC start the same calendar day becomes two
-// buckets and an MPS on the last horizon day is dropped. Skips while the known bug exists.
+// time.Local when omitted). Regression: with a non-UTC start the same calendar day
+// used to become two buckets and an MPS on the last horizon day was dropped.
 func TestPlanMRPNonUTCStartDateBuckets(t *testing.T) {
 	t.Parallel()
 	f := newDBFixture(t)
@@ -435,6 +434,7 @@ func TestPlanMRPNonUTCStartDateBuckets(t *testing.T) {
 		for _, r := range got {
 			days = append(days, r.Period.String())
 		}
-		t.Skipf("KNOWN BUG (service.go MRPService.run bucketKey/time zone): %d buckets %v, planned total %.2f (want 2 buckets, 18)", len(got), days, total)
+		// Regression: buckets used to split by the server time zone.
+		t.Fatalf("MRP buckets: %d %v, planned total %.2f (want 2 buckets, 18)", len(got), days, total)
 	}
 }

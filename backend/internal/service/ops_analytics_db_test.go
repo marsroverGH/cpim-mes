@@ -379,12 +379,9 @@ func TestOpsKPIAndActionMessages(t *testing.T) {
 			}
 			return
 		}
-		r, ok := kinds["RELEASE"]
-		if _, off := time.Now().Zone(); ok && off > 0 && opsNear(r.Quantity, 4) {
-			t.Skipf("KNOWN BUG action_messages.go GenerateNettedMRPActions: today=BusinessToday() is local midnight "+
-				"but MRP periods read from DATE columns are UTC midnight, so with TZ offset %+ds a requirement due today "+
-				"(%s) is reported as %s/%s instead of EXPEDITE/CRITICAL", off, r.NeedDate.Format(time.RFC3339), r.Kind, r.Severity)
-		}
+		// Regression: with a positive server TZ offset a requirement due today
+		// used to be reported as RELEASE because "today" and the MRP periods
+		// were midnights in different zones.
 		t.Fatalf("no expedite action for today's requirement: %+v", kinds)
 	})
 }

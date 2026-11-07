@@ -1,7 +1,6 @@
 package service
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -180,10 +179,9 @@ func planSOPNullActivatedByWorkaround(t *testing.T, f *dbFixture) {
 	}
 }
 
-// Known bug: activating a freshly created DRAFT product mix fails with
-// "converting NULL to string is unsupported" (sop.go ActivateProductMixVersion scans
-// SELECT * into a struct whose ActivatedBy is string). Skips while the bug exists and
-// becomes a real regression test once it is fixed.
+// Regression: activating a freshly created DRAFT product mix used to fail with
+// "converting NULL to string is unsupported" (sop.go scanned the NULL
+// activated_by into a string).
 func TestPlanSOPActivateDraftMixScan(t *testing.T) {
 	t.Parallel()
 	f := newDBFixture(t)
@@ -198,13 +196,11 @@ func TestPlanSOPActivateDraftMixScan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.Svc.SOP.ListProductMixVersions(f.Ctx, &grp.ID); err != nil {
-		t.Logf("KNOWN BUG: ListProductMixVersions with a DRAFT row fails: %v", err)
+	// Regression: a DRAFT row (NULL activated_by) used to break both calls.
+	if drafts, err := f.Svc.SOP.ListProductMixVersions(f.Ctx, &grp.ID); err != nil || len(drafts) != 1 || drafts[0].Status != "DRAFT" {
+		t.Fatalf("list with a DRAFT mix = %+v, %v", drafts, err)
 	}
 	if err := f.Svc.SOP.ActivateProductMixVersion(f.Ctx, mix.ID, actor); err != nil {
-		if strings.Contains(err.Error(), "converting NULL to string") {
-			t.Skipf("KNOWN BUG (sop.go ActivateProductMixVersion): %v", err)
-		}
 		t.Fatalf("activate DRAFT mix: %v", err)
 	}
 	vs, err := f.Svc.SOP.ListProductMixVersions(f.Ctx, &grp.ID)

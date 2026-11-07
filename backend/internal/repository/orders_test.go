@@ -9,7 +9,6 @@ import (
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 func TestWorkOrderLifecycle(t *testing.T) {
@@ -86,10 +85,9 @@ func TestWorkOrderLifecycle(t *testing.T) {
 	}
 }
 
-// TestWorkOrderUpdateProgress documents the intended semantics of
-// WorkOrderRepo.UpdateProgress. The production query currently reuses $1 as
-// both numeric and integer, which PostgreSQL rejects with SQLSTATE 42P08; the
-// test skips on that known defect so it starts asserting once it is fixed.
+// TestWorkOrderUpdateProgress checks the semantics of
+// WorkOrderRepo.UpdateProgress (regression: the query used to fail with
+// SQLSTATE 42P08 on every call).
 func TestWorkOrderUpdateProgress(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
@@ -101,12 +99,7 @@ func TestWorkOrderUpdateProgress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := wos.UpdateProgress(f.ctx, wo.ID, 3)
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "42P08" {
-		t.Skipf("known bug: WorkOrderRepo.UpdateProgress fails with %v", err)
-	}
-	if err != nil {
+	if err := wos.UpdateProgress(f.ctx, wo.ID, 3); err != nil {
 		t.Fatal(err)
 	}
 	// Progress on a PLANNED order does not change status.

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
-	"strings"
 	"testing"
 	"time"
 
@@ -230,9 +229,8 @@ func TestAuditLogInsertAndFilter(t *testing.T) {
 }
 
 // TestAuditListWithNullPayload covers entries recorded without a body (e.g.
-// DELETE requests): Insert stores them with a NULL payload. AuditRepo.List
-// currently cannot scan NULL jsonb into json.RawMessage, so the whole listing
-// fails; the test skips on that known defect and asserts once it is fixed.
+// DELETE requests): Insert stores them with a NULL payload, and List must still
+// work (regression: scanning NULL jsonb used to fail the whole listing).
 func TestAuditListWithNullPayload(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
@@ -244,9 +242,6 @@ func TestAuditListWithNullPayload(t *testing.T) {
 		t.Fatalf("empty payload must be stored as SQL NULL (null=%v, err=%v)", isNull, err)
 	}
 	rows, err := f.repos.Audit.List(f.ctx, repository.AuditFilter{Username: "carol"})
-	if err != nil && strings.Contains(err.Error(), "unsupported Scan") {
-		t.Skipf("known bug: AuditRepo.List cannot scan NULL payload: %v", err)
-	}
 	if err != nil || len(rows) != 1 || len(rows[0].Payload) != 0 {
 		t.Fatalf("List with NULL payload: %+v %v", rows, err)
 	}
