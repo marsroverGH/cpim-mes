@@ -8,8 +8,24 @@
 | 段階 | 内容 | 状態 |
 |---|---|---|
 | 第 1 段階 | MRP のロット切り上げの誤差を修正。Go で計算した数量を、保存前に小数 9 桁（`service.QuantityScale`）へそろえる（`service.RoundQty`） | v0.42.1 |
-| 第 2 段階 | 内部計算の decimal 化 | 未着手 |
+| 第 2 段階 | 数量の主要経路の計算を decimal（`github.com/shopspring/decimal`）で行う。domain・API・recovery のハッシュは float64 のまま | v0.43.0 予定 |
 | 第 3 段階 | 主要な数量列の桁固定（マイグレーション） | 未着手 |
+
+## 第 2 段階: decimal で計算する範囲
+
+次の計算は、入力の float64 を decimal に変換して計算し、結果を小数 9 桁に丸めてから float64 に戻す（`backend/internal/service/quantity.go` の `dq` / `fq`）。
+許容誤差（`1e-9`）による比較は、丸めた decimal どうしの比較に置き換えた。
+
+| 経路 | 主な関数 |
+|---|---|
+| MRP の正味計算・ロットまとめ | `netMRPBucket`、`netMRPBucketWithInventoryPolicy`（Min-Max）、`ApplyLotSize`、`RoundUpToMultiple`、`directComponentRequirement`、MRP 実行中の総所要量・予定受入の積み上げ |
+| 在庫台帳・FIFO | `SplitFIFO`、台帳の FIFO 割当、ロット残高の確認、割当合計の確認 |
+| 作業指示 | BOM の必要量（`bomRequiredQty`）、引当の解除量、分割完了（`CalcCompletionBatch`） |
+| PO の受入 | `CalcPurchaseReceiptState`、`PurchaseScheduledRemaining` |
+| 受注 | 引当・引当解除・出荷の数量確認（入力の数量は小数 9 桁に丸める） |
+
+**対象外**（float64 のまま）: domain の構造体と API の JSON、需要予測・統計（EOQ・安全在庫の計算そのもの、OEE など）、スケジューリングの時間（分）、
+recovery 計画のハッシュ（公開済みの証跡のハッシュを変えないため）。EOQ は平方根なので、ロットとしては小数 9 桁に丸めた値を使う。
 
 ## 既存データの確認
 

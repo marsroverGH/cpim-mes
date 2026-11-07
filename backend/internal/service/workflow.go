@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/cpim-mes/backend/internal/repository"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 // ====================================================================
@@ -92,13 +92,19 @@ type BOMSnapshotLine struct {
 func SnapshotRequirements(lines []BOMSnapshotLine, parentQty float64) []ComponentRequirement {
 	out := make([]ComponentRequirement, 0, len(lines))
 	for _, line := range lines {
-		required := RoundQty(parentQty * line.QuantityPer * (1 + line.ScrapPct))
+		required := bomRequiredQty(parentQty, line.QuantityPer, line.ScrapPct)
 		if required <= 0 {
 			continue
 		}
 		out = append(out, ComponentRequirement{ChildID: line.ChildID, Required: required})
 	}
 	return out
+}
+
+// bomRequiredQty is parentQty x quantityPer x (1 + scrapPct), computed in
+// decimal and rounded to QuantityScale places (3 x 0.1 x 1.1 = 0.33 exactly).
+func bomRequiredQty(parentQty, quantityPer, scrapPct float64) float64 {
+	return fq(dq(parentQty).Mul(dq(quantityPer)).Mul(decimal.NewFromInt(1).Add(dq(scrapPct))))
 }
 
 // CalcReservation — 直下構成品所要量と利用可能在庫から予約計画を組み立てる純粋関数
@@ -115,7 +121,7 @@ func CalcReservation(
 			ChildCode:  codes[req.ChildID],
 			Required:   req.Required,
 			Available:  avail,
-			Sufficient: avail >= req.Required,
+			Sufficient: dq(avail).GreaterThanOrEqual(dq(req.Required)),
 		})
 	}
 	return out
@@ -128,7 +134,7 @@ func CalcReservation(
 func DirectBOMRequirements(components []domain.BOMComponent, parentQty float64) []ComponentRequirement {
 	out := make([]ComponentRequirement, 0, len(components))
 	for _, c := range components {
-		required := RoundQty(parentQty * c.Quantity * (1 + c.ScrapPct))
+		required := bomRequiredQty(parentQty, c.Quantity, c.ScrapPct)
 		if required <= 0 {
 			continue
 		}
@@ -146,33 +152,29 @@ func DirectBOMRequirements(components []domain.BOMComponent, parentQty float64) 
 func CalcCompletionBatch(planned, completed float64, requested *float64) (
 	batch, cumulative, remaining float64, status string, err error,
 ) {
-	remainingBefore := planned - completed
-	if planned <= 0 || remainingBefore <= 1e-9 {
+	plannedDec, completedDec := roundQtyDec(dq(planned)), roundQtyDec(dq(completed))
+	remainingBefore := plannedDec.Sub(completedDec)
+	if planned <= 0 || !remainingBefore.IsPositive() {
 		return 0, completed, 0, "", fmt.Errorf("work order has no remaining quantity to complete")
 	}
-	batch = remainingBefore
+	batchDec := remainingBefore
 	if requested != nil {
-		batch = *requested
-		if batch <= 0 {
-			return 0, completed, remainingBefore, "", fmt.Errorf("completion quantity must be > 0")
+		batchDec = roundQtyDec(dq(*requested))
+		if !batchDec.IsPositive() {
+			return 0, completed, fq(remainingBefore), "", fmt.Errorf("completion quantity must be > 0")
 		}
 	}
-	if batch > remainingBefore+1e-9 {
-		return 0, completed, remainingBefore, "", fmt.Errorf(
-			"completion quantity %.2f exceeds remaining WO quantity %.2f", batch, remainingBefore)
+	if batchDec.GreaterThan(remainingBefore) {
+		return 0, completed, fq(remainingBefore), "", fmt.Errorf(
+			"completion quantity %.2f exceeds remaining WO quantity %.2f", fq(batchDec), fq(remainingBefore))
 	}
-	if remainingBefore-batch < 1e-9 {
-		batch = remainingBefore
-	}
-	cumulative = completed + batch
-	remaining = planned - cumulative
+	cumulativeDec := completedDec.Add(batchDec)
+	remainingDec := plannedDec.Sub(cumulativeDec)
 	status = "IN_PROGRESS"
-	if remaining < 1e-9 {
-		remaining = 0
-		cumulative = planned
+	if remainingDec.IsZero() {
 		status = "COMPLETED"
 	}
-	return batch, cumulative, remaining, status, nil
+	return fq(batchDec), fq(cumulativeDec), fq(remainingDec), status, nil
 }
 
 // --------------------------------------------------------------------
@@ -268,7 +270,7 @@ func (s *WorkflowService) releaseWorkOrderTx(ctx context.Context, tx *sqlx.Tx, w
 		line.ID = uuid.New()
 		line.SnapshotID = snapshotID
 		line.LineNo = i + 1
-		line.RequiredQty = RoundQty(wo.Quantity * line.QuantityPer * (1 + line.ScrapPct))
+		line.RequiredQty = bomRequiredQty(wo.Quantity, line.QuantityPer, line.ScrapPct)
 		if line.QuantityPer <= 0 || line.ScrapPct < 0 || line.RequiredQty <= 0 {
 			return nil, domain.NewConflict(fmt.Sprintf(
 				"invalid BOM line for component %s: qty/parent=%.6f scrap=%.6f",
@@ -595,7 +597,7 @@ func (s *WorkflowService) ReceivePurchase(
 		if lotNo != "" && existing.LotNo != lotNo {
 			return nil, domain.NewConflict("receiptId retry lotNo does not match the original receipt")
 		}
-		remaining := po.Quantity - po.ReceivedQty
+		remaining := subQty(po.Quantity, po.ReceivedQty)
 		if remaining < purchaseQtyEpsilon {
 			remaining = 0
 		}
@@ -904,7 +906,7 @@ func (s *WorkflowService) CompleteWorkOrder(
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO inventory_txns (id, item_id, quantity, txn_type, ref_doc, occurred_at)
 			VALUES ($1, $2, $3, 'UNRESERVE', $4, $5)
-		`, uuid.New(), req.ChildID, math.Min(req.Required, reserved), reserveRef, now); err != nil {
+		`, uuid.New(), req.ChildID, fq(decimal.Min(dq(req.Required), dq(reserved))), reserveRef, now); err != nil {
 			return nil, fmt.Errorf("unreserve: %w", err)
 		}
 
@@ -1052,7 +1054,7 @@ func (s *WorkflowService) loadCompletionResultTx(
 	if rec.BOMSnapshotID != nil && *rec.BOMSnapshotID != snapshot.ID {
 		return nil, domain.NewConflict("WO completion references a different BOM snapshot than the work order")
 	}
-	remaining := current.Quantity - current.CompletedQty
+	remaining := subQty(current.Quantity, current.CompletedQty)
 	if remaining < 1e-9 {
 		remaining = 0
 	}

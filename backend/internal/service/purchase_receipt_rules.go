@@ -18,27 +18,26 @@ func CalcPurchaseReceiptState(ordered, alreadyReceived, receiptQty float64) (Pur
 	if ordered <= 0 {
 		return PurchaseReceiptState{}, fmt.Errorf("ordered quantity must be positive")
 	}
-	if alreadyReceived < -purchaseQtyEpsilon || alreadyReceived > ordered+purchaseQtyEpsilon {
+	ord, got, qty := dq(ordered), dq(alreadyReceived), dq(receiptQty)
+	if got.LessThan(qtyEpsilon.Neg()) || got.GreaterThan(ord.Add(qtyEpsilon)) {
 		return PurchaseReceiptState{}, fmt.Errorf("existing received quantity is outside PO quantity")
 	}
-	if receiptQty <= purchaseQtyEpsilon {
+	if qty.LessThanOrEqual(qtyEpsilon) {
 		return PurchaseReceiptState{}, fmt.Errorf("receipt quantity must be positive")
 	}
-	remainingBefore := ordered - alreadyReceived
-	if receiptQty > remainingBefore+purchaseQtyEpsilon {
-		return PurchaseReceiptState{}, fmt.Errorf("receipt quantity %.6g exceeds remaining quantity %.6g", receiptQty, remainingBefore)
+	remainingBefore := ord.Sub(got)
+	if qty.GreaterThan(remainingBefore.Add(qtyEpsilon)) {
+		return PurchaseReceiptState{}, fmt.Errorf("receipt quantity %.6g exceeds remaining quantity %.6g", receiptQty, fq(remainingBefore))
 	}
-	newReceived := alreadyReceived + receiptQty
-	if newReceived > ordered && newReceived <= ordered+purchaseQtyEpsilon {
-		newReceived = ordered
+	newReceived := got.Add(qty)
+	if newReceived.GreaterThan(ord) {
+		newReceived = ord // within the tolerance checked above
 	}
-	remaining := ordered - newReceived
-	if remaining < purchaseQtyEpsilon {
-		remaining = 0
-		newReceived = ordered
-		return PurchaseReceiptState{NewReceived: newReceived, Remaining: 0, Status: "RECEIVED"}, nil
+	remaining := ord.Sub(newReceived)
+	if remaining.LessThan(qtyEpsilon) {
+		return PurchaseReceiptState{NewReceived: fq(ord), Remaining: 0, Status: "RECEIVED"}, nil
 	}
-	return PurchaseReceiptState{NewReceived: newReceived, Remaining: remaining, Status: "PARTIALLY_RECEIVED"}, nil
+	return PurchaseReceiptState{NewReceived: fq(newReceived), Remaining: fq(remaining), Status: "PARTIALLY_RECEIVED"}, nil
 }
 
 // PurchaseScheduledRemaining returns the quantity that is still a firm incoming
@@ -47,9 +46,9 @@ func PurchaseScheduledRemaining(status string, ordered, received float64) float6
 	if status != "OPEN" && status != "PARTIALLY_RECEIVED" {
 		return 0
 	}
-	remaining := ordered - received
-	if remaining <= purchaseQtyEpsilon {
+	remaining := dq(ordered).Sub(dq(received))
+	if remaining.LessThanOrEqual(qtyEpsilon) {
 		return 0
 	}
-	return remaining
+	return fq(remaining)
 }

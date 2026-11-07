@@ -13,6 +13,7 @@ import (
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 // InventoryLedgerService is the single write path for physical inventory.
@@ -252,7 +253,7 @@ func (s *InventoryLedgerService) ensureReceiptLotTx(ctx context.Context, tx *sql
 		if _, err := tx.ExecContext(ctx, `UPDATE lots SET quantity=quantity+$1 WHERE id=$2`, req.Quantity, lot.ID); err != nil {
 			return nil, err
 		}
-		lot.Quantity += req.Quantity
+		lot.Quantity = addQty(lot.Quantity, req.Quantity)
 		return &lot, nil
 	}
 
@@ -272,7 +273,7 @@ func (s *InventoryLedgerService) ensureReceiptLotTx(ctx context.Context, tx *sql
 		if _, err := tx.ExecContext(ctx, `UPDATE lots SET quantity=quantity+$1 WHERE id=$2`, req.Quantity, existing.ID); err != nil {
 			return nil, err
 		}
-		existing.Quantity += req.Quantity
+		existing.Quantity = addQty(existing.Quantity, req.Quantity)
 		return &existing, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -337,25 +338,22 @@ func (s *InventoryLedgerService) allocateNegativeFIFO(ctx context.Context, tx *s
 	}
 	_ = lotIDs
 
-	remaining := -req.Quantity
+	remaining := roundQtyDec(dq(req.Quantity).Neg())
 	allocs := make([]LotAllocationInput, 0, len(balances))
 	mvType := defaultMovementType(req.TxnType, req.MovementType)
 	for _, b := range balances {
-		if remaining <= 1e-9 {
+		if !remaining.IsPositive() {
 			break
 		}
-		use := RoundQty(b.Balance)
-		if use > remaining {
-			use = remaining
-		}
-		if use <= 0 {
+		use := decimal.Min(roundQtyDec(dq(b.Balance)), remaining)
+		if !use.IsPositive() {
 			continue
 		}
-		allocs = append(allocs, LotAllocationInput{LotID: b.ID, Quantity: -use, MovementType: mvType})
-		remaining = RoundQty(remaining - use)
+		allocs = append(allocs, LotAllocationInput{LotID: b.ID, Quantity: fq(use.Neg()), MovementType: mvType})
+		remaining = remaining.Sub(use)
 	}
-	if remaining > 1e-9 {
-		return nil, domain.NewConflict(fmt.Sprintf("insufficient lot stock: short %.2f", remaining))
+	if remaining.IsPositive() {
+		return nil, domain.NewConflict(fmt.Sprintf("insufficient lot stock: short %.2f", fq(remaining)))
 	}
 	return allocs, nil
 }
@@ -396,7 +394,7 @@ func (s *InventoryLedgerService) validateAndLockAllocationsTx(ctx context.Contex
 	if req.Quantity < 0 {
 		needByLot := map[uuid.UUID]float64{}
 		for _, a := range allocs {
-			needByLot[a.LotID] += -a.Quantity
+			needByLot[a.LotID] = subQty(needByLot[a.LotID], a.Quantity)
 		}
 		for id, needed := range needByLot {
 			var balance float64
@@ -405,7 +403,7 @@ func (s *InventoryLedgerService) validateAndLockAllocationsTx(ctx context.Contex
 			`, id); err != nil {
 				return err
 			}
-			if balance+1e-9 < needed {
+			if roundQtyDec(dq(balance)).LessThan(dq(needed)) {
 				return domain.NewConflict(fmt.Sprintf("lot %s has %.2f available but %.2f requested", id, balance, needed))
 			}
 		}
@@ -417,7 +415,7 @@ func validateAllocationSum(req PhysicalInventoryRequest, allocs []LotAllocationI
 	if len(allocs) == 0 {
 		return domain.NewBadRequest("physical inventory transaction requires at least one lot allocation", nil)
 	}
-	sum := 0.0
+	sum := decimal.Zero
 	for _, a := range allocs {
 		if abs(a.Quantity) < 1e-9 {
 			return domain.NewBadRequest("lot allocation quantity must be non-zero", nil)
@@ -425,10 +423,10 @@ func validateAllocationSum(req PhysicalInventoryRequest, allocs []LotAllocationI
 		if (req.Quantity > 0 && a.Quantity <= 0) || (req.Quantity < 0 && a.Quantity >= 0) {
 			return domain.NewBadRequest("lot allocation quantity sign must match inventory transaction", nil)
 		}
-		sum += a.Quantity
+		sum = sum.Add(dq(a.Quantity))
 	}
-	if abs(sum-req.Quantity) > 1e-6 {
-		return domain.NewConflict(fmt.Sprintf("lot allocation sum %.6f does not equal inventory transaction quantity %.6f", sum, req.Quantity))
+	if sum.Sub(dq(req.Quantity)).Abs().GreaterThan(qtyEpsilon) {
+		return domain.NewConflict(fmt.Sprintf("lot allocation sum %.6f does not equal inventory transaction quantity %.6f", fq(sum), req.Quantity))
 	}
 	return nil
 }

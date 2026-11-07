@@ -1,18 +1,23 @@
 package service
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 // netMRPBucket performs one time-phased netting bucket.
 // Safety stock is the required ENDING balance. Scheduled receipts are available
 // before the gross requirement in the same bucket.
 func netMRPBucket(opening, gross, scheduled, safety, lotSize, eoq float64, method LotSizeMethod) (net, plannedReceipt, projected float64) {
-	available := opening + scheduled
-	net = RoundQty(gross + safety - available)
-	if net < 0 {
-		net = 0
+	available := dq(opening).Add(dq(scheduled))
+	netDec := roundQtyDec(dq(gross).Add(dq(safety)).Sub(available))
+	if netDec.IsNegative() {
+		netDec = decimal.Zero
 	}
+	net = fq(netDec)
 	plannedReceipt = ApplyLotSize(net, 0, lotSize, eoq, method)
-	projected = RoundQty(available + plannedReceipt - gross)
+	projected = fq(available.Add(dq(plannedReceipt)).Sub(dq(gross)))
 	return net, plannedReceipt, projected
 }
 
@@ -39,7 +44,7 @@ func directComponentRequirement(parentPlannedRelease, quantityPer, scrapPct floa
 	if scrapPct < 0 {
 		scrapPct = 0
 	}
-	return parentPlannedRelease * quantityPer * (1 + scrapPct)
+	return fq(dq(parentPlannedRelease).Mul(dq(quantityPer)).Mul(decimal.NewFromInt(1).Add(dq(scrapPct))))
 }
 
 // dependentRequirementDate converts a past-due release into the MRP start
