@@ -1,6 +1,6 @@
-# v0.42.0 Final Clean-room Release Gate
+# v0.42.1 Final Clean-room Release Gate
 
-The v0.42.0 release candidate is validated from an empty environment. The gate preserves all v0.41.1 Production Hardening controls while adding Migration 0042 Controlled Recovery Plan Execution.
+The v0.42.1 release candidate is validated from an empty environment. The gate preserves all v0.41.1 Production Hardening controls while adding Migration 0042 Controlled Recovery Plan Execution.
 
 ## Required database state
 
@@ -35,7 +35,7 @@ source checksum verification
   -> Playwright 26/26
   -> live pg_dump/pg_restore drill
   -> security release bundle verification
-  -> v0.42.0 release-candidate bundle verification
+  -> v0.42.1 release-candidate bundle verification
 ```
 
 ## 0042-specific gate

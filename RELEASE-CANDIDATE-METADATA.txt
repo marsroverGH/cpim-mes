@@ -1,9 +1,9 @@
-CPIM-MES v0.42.0 Release Candidate
+CPIM-MES v0.42.1 Release Candidate
 ==================================
 
-Candidate: v0.42.0-rc.1
-Target GA release: v0.42.0
-Baseline: v0.41.1 / f7c6491c8493e57e532fa57df1d0d7d3f3d44110
+Candidate: v0.42.1-rc.1
+Target GA release: v0.42.1
+Baseline: v0.42.0 / f9a7410af54ee03e3aeef21e92d1e1513383e3b5
 Scope: Migration 0042 Controlled Recovery Plan Execution
 Migration range: 0001-0042
 Migration count: 42
@@ -23,4 +23,4 @@ Authoritative promotion gate:
   .github/workflows/release-candidate.yml
   -> scripts/final_clean_room_release_gate.sh
 
-Release notes (including post-import fixes): docs/RELEASE_NOTES_v0.42.0.md
+Release notes: docs/RELEASE_NOTES_v0.42.1.md

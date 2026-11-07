@@ -7,7 +7,7 @@ test.describe('Step 9 version / build metadata', () => {
     expect(response.headers()['cache-control']).toContain('no-store')
 
     const body = await response.json()
-    expect(body.version).toBe(process.env.E2E_EXPECTED_VERSION || 'v0.42.0')
+    expect(body.version).toBe(process.env.E2E_EXPECTED_VERSION || 'v0.42.1')
 
     const expectedCommit = process.env.E2E_EXPECTED_COMMIT
     if (expectedCommit) {

@@ -10,7 +10,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-EXPECTED_TARGET = "v0.42.0"
+EXPECTED_TARGET = "v0.42.1"
 EXPECTED_MIGRATION = 42
 EXPECTED_E2E = 26
 
@@ -118,7 +118,7 @@ def main() -> int:
 
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
     candidate = metadata.get("candidateVersion")
-    if not isinstance(candidate, str) or not re.fullmatch(r"v0\.42\.0-rc\.\d+", candidate):
+    if not isinstance(candidate, str) or not re.fullmatch(r"v0\.42\.1-rc\.\d+", candidate):
         fail("invalid candidateVersion")
     if metadata.get("targetRelease") != EXPECTED_TARGET:
         fail("targetRelease mismatch")
