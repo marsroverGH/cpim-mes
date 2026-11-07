@@ -12,7 +12,7 @@ def check(name,ok,detail=''): checks.append((name,bool(ok),detail))
 
 migs=sorted((root/'backend/migrations').glob('[0-9][0-9][0-9][0-9]_*.sql'))
 vers=[int(p.name[:4]) for p in migs]
-check('migration sequence is exactly 0001..0042', vers==list(range(1,43)), str(vers[-3:]))
+check('migration sequence is exactly 0001..0043', vers==list(range(1,44)), str(vers[-3:]))
 check('0042 migration exists', (root/'backend/migrations/0042_controlled_recovery_plan_execution.sql').exists())
 mig=read('backend/migrations/0042_controlled_recovery_plan_execution.sql')
 for token in [
@@ -89,7 +89,7 @@ for token in ['0042 Controlled Recovery Plan Execution','PREFLIGHT_PASSED','plan
     check('E2E contains '+token, token in e2e)
 
 openapi=json.loads(read('backend/internal/api/openapi.json'))
-check('OpenAPI version 0.42.1', openapi['info']['version']=='0.42.1')
+check('OpenAPI version 0.43.0', openapi['info']['version']=='0.43.0')
 for path in ['/recovery-executions','/recovery-executions/{id}','/recovery-scenarios/{id}/executions','/recovery-executions/{id}/preflight','/recovery-executions/{id}/approve','/recovery-executions/{id}/execute','/recovery-executions/{id}/cancel']:
     check('OpenAPI path '+path, path in openapi['paths'])
 

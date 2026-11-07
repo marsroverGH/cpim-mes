@@ -28,7 +28,7 @@ func TestOpsLedgerQuantitiesHaveNoFloatArtefacts(t *testing.T) {
 		t.Fatalf("release: %v", err)
 	}
 	var reserve string
-	if err := f.DB.GetContext(f.Ctx, &reserve, `SELECT quantity::text FROM inventory_txns WHERE item_id=$1 AND txn_type='RESERVE'`, rm.ID); err != nil {
+	if err := f.DB.GetContext(f.Ctx, &reserve, `SELECT trim_scale(quantity)::text FROM inventory_txns WHERE item_id=$1 AND txn_type='RESERVE'`, rm.ID); err != nil {
 		t.Fatal(err)
 	}
 	if reserve != "0.33" { // 3 x 0.1 x 1.1 = 0.33000000000000007 in float64
@@ -46,7 +46,7 @@ func TestOpsLedgerQuantitiesHaveNoFloatArtefacts(t *testing.T) {
 	// The second completion needs 0.11 but lot A has 0.09 left: FIFO splits it.
 	var issues []string
 	if err := f.DB.SelectContext(f.Ctx, &issues, `
-SELECT lm.quantity::text FROM lot_movements lm JOIN inventory_txns t ON t.id=lm.txn_id
+SELECT trim_scale(lm.quantity)::text FROM lot_movements lm JOIN inventory_txns t ON t.id=lm.txn_id
  WHERE t.item_id=$1 AND t.txn_type='ISSUE' ORDER BY t.occurred_at, lm.lot_id=$2 DESC`, rm.ID, lotA); err != nil {
 		t.Fatal(err)
 	}
@@ -61,9 +61,9 @@ SELECT lm.quantity::text FROM lot_movements lm JOIN inventory_txns t ON t.id=lm.
 	}
 
 	var balA, balB, reserved string
-	_ = f.DB.GetContext(f.Ctx, &balA, `SELECT COALESCE(SUM(quantity),0)::text FROM lot_movements WHERE lot_id=$1`, lotA)
-	_ = f.DB.GetContext(f.Ctx, &balB, `SELECT COALESCE(SUM(quantity),0)::text FROM lot_movements WHERE lot_id=$1`, lotB)
-	_ = f.DB.GetContext(f.Ctx, &reserved, `SELECT reserved::text FROM v_stock_balance WHERE item_id=$1`, rm.ID)
+	_ = f.DB.GetContext(f.Ctx, &balA, `SELECT trim_scale(COALESCE(SUM(quantity),0))::text FROM lot_movements WHERE lot_id=$1`, lotA)
+	_ = f.DB.GetContext(f.Ctx, &balB, `SELECT trim_scale(COALESCE(SUM(quantity),0))::text FROM lot_movements WHERE lot_id=$1`, lotB)
+	_ = f.DB.GetContext(f.Ctx, &reserved, `SELECT trim_scale(reserved)::text FROM v_stock_balance WHERE item_id=$1`, rm.ID)
 	if balA != "0.00" && balA != "0" {
 		t.Fatalf("lot A balance %s, want exactly 0", balA)
 	}

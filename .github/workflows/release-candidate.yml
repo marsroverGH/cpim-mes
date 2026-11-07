@@ -1,4 +1,4 @@
-name: v0.42.1 Release Candidate Gate
+name: v0.43.0 Release Candidate Gate
 
 on:
   workflow_dispatch:
@@ -7,15 +7,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-candidate-v0.42.1
+  group: release-candidate-v0.43.0
   cancel-in-progress: false
 
 env:
   GO_VERSION: '1.26.10'
   NODE_VERSION: '24.20.0'
   NPM_VERSION: '11.19.0'
-  RELEASE_VERSION: 'v0.42.1'
-  RC_VERSION: 'v0.42.1-rc.1'
+  RELEASE_VERSION: 'v0.43.0'
+  RC_VERSION: 'v0.43.0-rc.1'
 
 jobs:
   final-clean-room:
@@ -42,7 +42,7 @@ jobs:
       - name: Prepare immutable RC build metadata
         shell: bash
         run: |
-          test "$RC_VERSION" = "v0.42.1-rc.1"
+          test "$RC_VERSION" = "v0.43.0-rc.1"
           echo "VCS_REF=${GITHUB_SHA}" >> "$GITHUB_ENV"
           echo "BUILD_TIME=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
       - name: Run final clean-room Release Candidate gate

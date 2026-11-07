@@ -1,15 +1,15 @@
-# v0.42.1 Final Clean-room Release Gate
+# v0.43.0 Final Clean-room Release Gate
 
-The v0.42.1 release candidate is validated from an empty environment. The gate preserves all v0.41.1 Production Hardening controls while adding Migration 0042 Controlled Recovery Plan Execution.
+The v0.43.0 release candidate is validated from an empty environment. The gate preserves all v0.41.1 Production Hardening controls while adding Migration 0042 Controlled Recovery Plan Execution.
 
 ## Required database state
 
 ```text
-migration files = exactly 0001 .. 0042
-schema_migrations count = 42
+migration files = exactly 0001 .. 0043
+schema_migrations count = 43
 schema_migrations min = 1
-schema_migrations max = 42
-schema_migrations sequence = 1,2,...,42
+schema_migrations max = 43
+schema_migrations sequence = 1,2,...,43
 ```
 
 Migration 0041 remains the side-effect-free Recovery Planning boundary. Migration 0042 adds a separate controlled operational execution boundary.
@@ -27,15 +27,15 @@ source checksum verification
   -> frontend typecheck/build
   -> E2E locked install
   -> empty PostgreSQL volume
-  -> migration 0001 -> 0042
+  -> migration 0001 -> 0043
   -> production topology validation
-  -> /version migrationLatest=42
+  -> /version migrationLatest=43
   -> private observability boundary
   -> forced 0041 FAILED-run persistence test
   -> Playwright 26/26
   -> live pg_dump/pg_restore drill
   -> security release bundle verification
-  -> v0.42.1 release-candidate bundle verification
+  -> v0.43.0 release-candidate bundle verification
 ```
 
 ## 0042-specific gate

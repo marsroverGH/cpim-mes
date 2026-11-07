@@ -1,6 +1,6 @@
 # Step 9 — Version / Build Metadata
 
-CPIM-MES v0.42.1 Production Hardening Step 9 adds an explicit identity for the running release without changing database schema or planning semantics.
+CPIM-MES v0.43.0 Production Hardening Step 9 adds an explicit identity for the running release without changing database schema or planning semantics.
 
 ## Public endpoint
 
@@ -12,10 +12,10 @@ The endpoint is unauthenticated and returns only non-secret build identity:
 
 ```json
 {
-  "version": "v0.42.1",
+  "version": "v0.43.0",
   "commit": "0123456789abcdef0123456789abcdef01234567",
   "buildTime": "2026-11-05T12:34:56Z",
-  "migrationLatest": 42
+  "migrationLatest": 43
 }
 ```
 
@@ -28,7 +28,7 @@ The endpoint is unauthenticated and returns only non-secret build identity:
 The backend source defaults are development-safe:
 
 ```text
-Version   = v0.42.1-dev
+Version   = v0.43.0-dev
 Commit    = unknown
 BuildTime = unknown
 ```
@@ -70,7 +70,7 @@ Production exposes `/version` through the same public Nginx endpoint as the SPA.
 GitHub Actions injects:
 
 ```text
-RELEASE_VERSION=v0.42.1
+RELEASE_VERSION=v0.43.0
 VCS_REF=$GITHUB_SHA
 BUILD_TIME=<UTC RFC3339 timestamp>
 ```
@@ -82,10 +82,10 @@ The Playwright Step 9 test calls the production Nginx endpoint and verifies:
 - expected release version
 - exact GitHub commit
 - parseable non-`unknown` UTC build time
-- `migrationLatest = 42`
+- `migrationLatest = 43`
 
-For v0.42.1 the static version guard requires Migration latest 0042 while preserving the v0.41.1 build-metadata architecture.
+For v0.43.0 the static version guard requires Migration latest 0043 while preserving the v0.41.1 build-metadata architecture.
 
 ## Local development
 
-`go run` and Vite development builds may report `v0.42.1-dev` / `unknown`. This is deliberate: local source execution is not a release artifact. Container/CI release builds are the authoritative path for immutable build identity.
+`go run` and Vite development builds may report `v0.43.0-dev` / `unknown`. This is deliberate: local source execution is not a release artifact. Container/CI release builds are the authoritative path for immutable build identity.

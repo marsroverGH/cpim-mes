@@ -21,8 +21,8 @@ make=read('Makefile')
 doc=read('docs/0041-scenario-based-recovery-planning.md')
 
 migs=sorted((ROOT/'backend/migrations').glob('*.sql'))
-check('migration count is 42', len(migs)==42)
-check('latest migration is 0042', migs[-1].name.startswith('0042_'))
+check('migration count is 43', len(migs)==43)
+check('latest migration is 0043', migs[-1].name.startswith('0043_'))
 check('migration 0042 exists', any(p.name.startswith('0042_') for p in migs))
 
 # Existing 0041 schema is deliberately reused.

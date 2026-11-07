@@ -3,7 +3,7 @@
   "info": {
     "title": "CPIM-MES API",
     "description": "CPIM準拠の生産管理システムのREST API仕様。BrowserはHttpOnly session Cookie + CSRF保護、CLI/APIは明示的なBearer JWTを利用します。",
-    "version": "0.42.1",
+    "version": "0.43.0",
     "contact": {
       "name": "CPIM-MES"
     }
