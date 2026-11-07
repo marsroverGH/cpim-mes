@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -91,7 +92,7 @@ type BOMSnapshotLine struct {
 func SnapshotRequirements(lines []BOMSnapshotLine, parentQty float64) []ComponentRequirement {
 	out := make([]ComponentRequirement, 0, len(lines))
 	for _, line := range lines {
-		required := parentQty * line.QuantityPer * (1 + line.ScrapPct)
+		required := RoundQty(parentQty * line.QuantityPer * (1 + line.ScrapPct))
 		if required <= 0 {
 			continue
 		}
@@ -127,7 +128,7 @@ func CalcReservation(
 func DirectBOMRequirements(components []domain.BOMComponent, parentQty float64) []ComponentRequirement {
 	out := make([]ComponentRequirement, 0, len(components))
 	for _, c := range components {
-		required := parentQty * c.Quantity * (1 + c.ScrapPct)
+		required := RoundQty(parentQty * c.Quantity * (1 + c.ScrapPct))
 		if required <= 0 {
 			continue
 		}
@@ -267,7 +268,7 @@ func (s *WorkflowService) releaseWorkOrderTx(ctx context.Context, tx *sqlx.Tx, w
 		line.ID = uuid.New()
 		line.SnapshotID = snapshotID
 		line.LineNo = i + 1
-		line.RequiredQty = wo.Quantity * line.QuantityPer * (1 + line.ScrapPct)
+		line.RequiredQty = RoundQty(wo.Quantity * line.QuantityPer * (1 + line.ScrapPct))
 		if line.QuantityPer <= 0 || line.ScrapPct < 0 || line.RequiredQty <= 0 {
 			return nil, domain.NewConflict(fmt.Sprintf(
 				"invalid BOM line for component %s: qty/parent=%.6f scrap=%.6f",
@@ -869,7 +870,10 @@ func (s *WorkflowService) CompleteWorkOrder(
 		`, req.ChildID, reserveRef); err != nil {
 			return nil, err
 		}
-		if reserved+1e-9 < req.Required {
+		// Same 0.000001 tolerance as the database guards: partial completions
+		// recompute their share from the snapshot, so the sum can differ from
+		// the release reservation by rounding.
+		if reserved+0.000001 < req.Required {
 			childCode := snapshotCodes[req.ChildID]
 			if childCode == "" {
 				childCode = req.ChildID.String()
@@ -900,7 +904,7 @@ func (s *WorkflowService) CompleteWorkOrder(
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO inventory_txns (id, item_id, quantity, txn_type, ref_doc, occurred_at)
 			VALUES ($1, $2, $3, 'UNRESERVE', $4, $5)
-		`, uuid.New(), req.ChildID, req.Required, reserveRef, now); err != nil {
+		`, uuid.New(), req.ChildID, math.Min(req.Required, reserved), reserveRef, now); err != nil {
 			return nil, fmt.Errorf("unreserve: %w", err)
 		}
 

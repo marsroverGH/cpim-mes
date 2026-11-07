@@ -103,6 +103,12 @@ func (s *InventoryLedgerService) PostTx(ctx context.Context, tx *sqlx.Tx, req Ph
 	if req.ItemID == uuid.Nil {
 		return nil, domain.NewBadRequest("itemId is required", nil)
 	}
+	// Quantities are often computed by callers (BOM requirement x quantity,
+	// remaining balances); keep the ledger free of binary float artefacts.
+	req.Quantity = RoundQty(req.Quantity)
+	for i := range req.Allocations {
+		req.Allocations[i].Quantity = RoundQty(req.Allocations[i].Quantity)
+	}
 	if abs(req.Quantity) < 1e-9 {
 		return nil, domain.NewBadRequest("inventory quantity must be non-zero", nil)
 	}
@@ -338,7 +344,7 @@ func (s *InventoryLedgerService) allocateNegativeFIFO(ctx context.Context, tx *s
 		if remaining <= 1e-9 {
 			break
 		}
-		use := b.Balance
+		use := RoundQty(b.Balance)
 		if use > remaining {
 			use = remaining
 		}
@@ -346,7 +352,7 @@ func (s *InventoryLedgerService) allocateNegativeFIFO(ctx context.Context, tx *s
 			continue
 		}
 		allocs = append(allocs, LotAllocationInput{LotID: b.ID, Quantity: -use, MovementType: mvType})
-		remaining -= use
+		remaining = RoundQty(remaining - use)
 	}
 	if remaining > 1e-9 {
 		return nil, domain.NewConflict(fmt.Sprintf("insufficient lot stock: short %.2f", remaining))

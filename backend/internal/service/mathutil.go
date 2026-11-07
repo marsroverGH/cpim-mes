@@ -9,16 +9,39 @@ import (
 // 純粋関数 - 単体テスト容易化のため切り出し
 // ====================================================================
 
+// QuantityScale is the number of decimal places kept for quantities computed
+// in Go before they are written to the database (the ledger columns are
+// unconstrained numeric and would otherwise store binary float artefacts such
+// as 0.30000000000000004). Nine places removes the ~1e-16 artefacts, keeps
+// any realistic input exact, and keeps accumulated rounding (for example over
+// many partial completions) far below the 0.000001 tolerance the database
+// guards use.
+const QuantityScale = 9
+
+// lotMultipleTolerance absorbs float noise when deciding whether a quantity
+// is already an exact multiple of a lot size (1.0-0.7 = 0.30000000000000004
+// must count as 3 lots of 0.1, not 4).
+const lotMultipleTolerance = 1e-9
+
+// RoundQty rounds a computed quantity to QuantityScale decimal places (half away
+// from zero, like PostgreSQL numeric rounding).
+func RoundQty(x float64) float64 {
+	p := math.Pow10(QuantityScale)
+	return math.Round(x*p) / p
+}
+
 // RoundUpToMultiple — x をロットサイズ m の倍数に切り上げ
 func RoundUpToMultiple(x, m float64) float64 {
 	if m <= 0 {
 		return x
 	}
 	n := x / m
-	if n == float64(int64(n)) {
-		return x
+	if r := math.Round(n); math.Abs(n-r) <= lotMultipleTolerance*math.Max(1, math.Abs(r)) {
+		n = r
+	} else {
+		n = math.Ceil(n)
 	}
-	return float64(int64(n)+1) * m
+	return RoundQty(n * m)
 }
 
 // TruncateDay — タイムスタンプを日単位に切り捨て (タイムゾーンは引数を踏襲)
@@ -164,7 +187,9 @@ func ApplyLotSize(netReq, safety, lotSize, eoq float64, method LotSizeMethod) fl
 	if netReq <= 0 && safety <= 0 {
 		return 0
 	}
-	target := netReq + safety
+	// net requirements are differences of float quantities; keep planned
+	// receipts free of binary artefacts (1.0-0.7 = 0.30000000000000004).
+	target := RoundQty(netReq + safety)
 	if target <= 0 {
 		return 0
 	}

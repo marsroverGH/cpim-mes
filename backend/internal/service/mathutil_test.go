@@ -378,3 +378,47 @@ func TestHoltWinters_LinearTrendSeasonality(t *testing.T) {
 		t.Errorf("forecast %v out of expected range [12, 20]", future[0])
 	}
 }
+
+// Regression: float noise in a net requirement (1.0-0.7 = 0.30000000000000004)
+// used to add one lot (0.4 instead of 0.3) and planned receipts carried binary
+// artefacts into the database.
+func TestLotSizingIgnoresFloatNoise(t *testing.T) {
+	a, b := 1.0, 0.7 // runtime values: a-b = 0.30000000000000004
+	tenth, sum := 0.1, 0.0
+	for i := 0; i < 10; i++ {
+		sum += tenth // 0.9999999999999999
+	}
+	big, small := 3.3, 1.1
+	cases := []struct {
+		name string
+		x, m float64
+		want float64
+	}{
+		{"noise above an exact multiple", a - b, 0.1, 0.3},
+		{"noise below an exact multiple", sum, 1, 1},
+		{"decimal lot", big - small, 1.1, 2.2},
+		{"genuine remainder still rounds up", 0.31, 0.1, 0.4},
+		{"large quantities", 1_000_000.0000000002, 1000, 1_000_000},
+	}
+	for _, c := range cases {
+		if got := RoundUpToMultiple(c.x, c.m); got != c.want {
+			t.Errorf("%s: RoundUpToMultiple(%v, %v) = %v, want %v", c.name, c.x, c.m, got, c.want)
+		}
+	}
+	net, planned, projected := netMRPBucket(b, a, 0, 0, 0.1, 0, LotMethodFOQ)
+	if net != 0.3 || planned != 0.3 || math.Abs(projected) > 1e-12 {
+		t.Fatalf("netMRPBucket(opening 0.7, gross 1.0, FOQ 0.1) = net %v planned %v projected %v; want 0.3/0.3/0", net, planned, projected)
+	}
+	if got := ApplyLotSize(a-b, 0, 0, 0, LotMethodLFL); got != 0.3 {
+		t.Fatalf("LFL planned receipt = %v, want 0.3", got)
+	}
+}
+
+func TestRoundQty(t *testing.T) {
+	a, b := 1.0, 0.7
+	for in, want := range map[float64]float64{a - b: 0.3, 0.1234567894: 0.123456789, -(a - b): -0.3, 2.5: 2.5, 0: 0} {
+		if got := RoundQty(in); got != want {
+			t.Errorf("RoundQty(%v) = %v, want %v", in, got, want)
+		}
+	}
+}

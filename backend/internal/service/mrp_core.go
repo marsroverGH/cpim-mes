@@ -7,12 +7,12 @@ import "time"
 // before the gross requirement in the same bucket.
 func netMRPBucket(opening, gross, scheduled, safety, lotSize, eoq float64, method LotSizeMethod) (net, plannedReceipt, projected float64) {
 	available := opening + scheduled
-	net = gross + safety - available
+	net = RoundQty(gross + safety - available)
 	if net < 0 {
 		net = 0
 	}
 	plannedReceipt = ApplyLotSize(net, 0, lotSize, eoq, method)
-	projected = available + plannedReceipt - gross
+	projected = RoundQty(available + plannedReceipt - gross)
 	return net, plannedReceipt, projected
 }
 
