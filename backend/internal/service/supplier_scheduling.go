@@ -107,15 +107,20 @@ func sameSupplierScheduleEvent(existing domain.SupplierScheduleEvent, poID uuid.
 		existing.ActorUsername == actor.Username
 }
 
-// RecordEvent retries the whole transaction on serialization failures / deadlocks.
+// RecordEvent serialises writers of one PO with a session-level advisory lock
+// taken before the transaction starts (so a waiter does not inherit a stale
+// snapshot and fail with 40001), and still retries the whole transaction on
+// serialization failures / deadlocks caused by other writers of the same rows.
 func (s *SupplierSchedulingService) RecordEvent(ctx context.Context, poID uuid.UUID, in SupplierScheduleEventInput, actor SalesOrderActor) (*domain.SupplierScheduleEvent, error) {
-	return retrySerializable(ctx, func() (*domain.SupplierScheduleEvent, error) {
-		return s.recordEventOnce(ctx, poID, in, actor)
+	return withSessionAdvisoryLock(ctx, s.db, sessionLockKey("supplier-schedule-po", poID), func(conn *sqlx.Conn) (*domain.SupplierScheduleEvent, error) {
+		return retrySerializable(ctx, func() (*domain.SupplierScheduleEvent, error) {
+			return s.recordEventOnce(ctx, conn, poID, in, actor)
+		})
 	})
 }
 
-func (s *SupplierSchedulingService) recordEventOnce(ctx context.Context, poID uuid.UUID, in SupplierScheduleEventInput, actor SalesOrderActor) (*domain.SupplierScheduleEvent, error) {
-	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+func (s *SupplierSchedulingService) recordEventOnce(ctx context.Context, conn txConn, poID uuid.UUID, in SupplierScheduleEventInput, actor SalesOrderActor) (*domain.SupplierScheduleEvent, error) {
+	tx, err := conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return nil, err
 	}

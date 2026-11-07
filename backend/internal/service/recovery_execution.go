@@ -848,8 +848,8 @@ func insertRecoveryRescheduleSignal(ctx context.Context, tx *sqlx.Tx, trigger, s
 	return err
 }
 
-func (s *RecoveryExecutionService) executeOne(ctx context.Context, e domain.RecoveryPlanExecution, a domain.RecoveryPlanExecutionAction, actor RecoveryPlanningActor) error {
-	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+func (s *RecoveryExecutionService) executeOne(ctx context.Context, conn txConn, e domain.RecoveryPlanExecution, a domain.RecoveryPlanExecutionAction, actor RecoveryPlanningActor) error {
+	tx, err := conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
 		return err
 	}
@@ -1060,10 +1060,10 @@ func recoveryExecutionResultHashTx(ctx context.Context, tx *sqlx.Tx, e domain.Re
 	})
 }
 
-func (s *RecoveryExecutionService) markExecutionFailure(ctx context.Context, e domain.RecoveryPlanExecution, a domain.RecoveryPlanExecutionAction, cause error) error {
+func (s *RecoveryExecutionService) markExecutionFailure(ctx context.Context, conn txConn, e domain.RecoveryPlanExecution, a domain.RecoveryPlanExecutionAction, cause error) error {
 	dctx, cancel := recoveryExecutionDetachedContext(ctx)
 	defer cancel()
-	tx, err := s.db.BeginTxx(dctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := conn.BeginTxx(dctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return err
 	}
@@ -1100,10 +1100,10 @@ func (s *RecoveryExecutionService) markExecutionFailure(ctx context.Context, e d
 	return tx.Commit()
 }
 
-func (s *RecoveryExecutionService) finalizeExecutionSuccess(ctx context.Context, id uuid.UUID) error {
+func (s *RecoveryExecutionService) finalizeExecutionSuccess(ctx context.Context, conn txConn, id uuid.UUID) error {
 	dctx, cancel := recoveryExecutionDetachedContext(ctx)
 	defer cancel()
-	tx, err := s.db.BeginTxx(dctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	tx, err := conn.BeginTxx(dctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
 		return err
 	}
@@ -1139,45 +1139,73 @@ func (s *RecoveryExecutionService) finalizeExecutionSuccess(ctx context.Context,
 	return tx.Commit()
 }
 
-// Execute retries the whole operation on serialization failures / deadlocks.
+// Execute runs one execution at a time: concurrent callers for the same
+// execution (double clicks, client retries, several operators) queue on a
+// session-level advisory lock taken before any transaction starts. Without it
+// the start gate of one caller (execution row FOR UPDATE, then the action
+// rows) and the action transaction of another (action row, then a key-share
+// lock on the execution row through the foreign key of the rows it inserts)
+// lock in opposite orders and deadlock. A queued caller starts with a fresh
+// snapshot and simply observes the finished execution. The whole operation is
+// still retried on serialization failures / deadlocks caused by other writers
+// of the same operational rows.
+//
+// The detail is read after the lock is released so that the lock holder never
+// needs a second pool connection.
 func (s *RecoveryExecutionService) Execute(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
-	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
-		return s.executeOnce(ctx, id, actor)
-	})
-}
-
-func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	if err := validateRecoveryExecutionAdmin(actor); err != nil {
 		return nil, err
 	}
+	withDetail, err := withSessionAdvisoryLock(ctx, s.db, sessionLockKey("recovery-execution-run", id), func(conn *sqlx.Conn) (bool, error) {
+		return retrySerializable(ctx, func() (bool, error) {
+			return s.executeOnce(ctx, conn, id, actor)
+		})
+	})
+	if !withDetail {
+		return nil, err
+	}
+	detail, getErr := s.Get(context.WithoutCancel(ctx), id)
+	if err != nil {
+		return detail, err
+	}
+	if getErr != nil {
+		return nil, getErr
+	}
+	return detail, nil
+}
+
+// executeOnce performs one attempt of Execute on conn. withDetail reports
+// whether the caller should return the execution detail (alongside err, which
+// is then a business failure of an action).
+func (s *RecoveryExecutionService) executeOnce(ctx context.Context, conn txConn, id uuid.UUID, actor RecoveryPlanningActor) (withDetail bool, err error) {
 
 	// Tx A is a durable execution-start gate. APPROVED executions revalidate every
 	// approved preflight snapshot before becoming EXECUTING. An already EXECUTING
 	// execution is resumable after a process/request failure; each still-PENDING
 	// action revalidates its own state again in executeOne.
-	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	tx, err := conn.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
 	if err != nil {
-		return nil, err
+		return false, err
 	}
 	defer tx.Rollback() //nolint:errcheck
 	var e domain.RecoveryPlanExecution
 	if err := tx.GetContext(ctx, &e, `SELECT * FROM recovery_plan_executions WHERE id=$1 FOR UPDATE`, id); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, domain.NewNotFound("Recovery Execution")
+			return false, domain.NewNotFound("Recovery Execution")
 		}
-		return nil, err
+		return false, err
 	}
 	if e.Status == "SUCCEEDED" || e.Status == "FAILED" || e.Status == "PARTIAL_FAILED" || e.Status == "CANCELLED" {
 		_ = tx.Commit()
-		return s.Get(ctx, id)
+		return true, nil
 	}
 	if e.Status != "APPROVED" && e.Status != "EXECUTING" {
-		return nil, domain.NewConflict("recovery execution must be APPROVED before execute")
+		return false, domain.NewConflict("recovery execution must be APPROVED before execute")
 	}
 
 	var actions []domain.RecoveryPlanExecutionAction
 	if err := tx.SelectContext(ctx, &actions, `SELECT * FROM recovery_plan_execution_actions WHERE execution_id=$1 ORDER BY sequence_no,id FOR UPDATE`, id); err != nil {
-		return nil, err
+		return false, err
 	}
 
 	// If terminal action evidence exists while the parent is still EXECUTING
@@ -1193,7 +1221,7 @@ func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID
 			case "FAILED":
 				failed++
 			case "RUNNING":
-				return nil, domain.NewConflict("persisted RUNNING recovery action requires operator investigation")
+				return false, domain.NewConflict("persisted RUNNING recovery action requires operator investigation")
 			}
 		}
 		if failed > 0 {
@@ -1203,40 +1231,40 @@ func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID
 			}
 			resultHash, err := recoveryExecutionResultHashTx(ctx, tx, e, status)
 			if err != nil {
-				return nil, err
+				return false, err
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE recovery_plan_executions SET status=$2,succeeded_action_count=$3,failed_action_count=$4,execution_result_hash=$5,completed_at=COALESCE(completed_at,now()),failure_reason=CASE WHEN failure_reason='' THEN 'reconciled persisted failed action evidence' ELSE failure_reason END WHERE id=$1`, id, status, succeeded, failed, resultHash); err != nil {
-				return nil, err
+				return false, err
 			}
 			if err := tx.Commit(); err != nil {
-				return nil, err
+				return false, err
 			}
-			return s.Get(ctx, id)
+			return true, nil
 		}
 	}
 
 	if e.Status == "APPROVED" {
 		for _, a := range actions {
 			if a.ExecutionStatus != "PENDING" {
-				return nil, domain.NewConflict("approved recovery execution contains non-pending action evidence")
+				return false, domain.NewConflict("approved recovery execution contains non-pending action evidence")
 			}
 		}
 		sims, err := s.simulateActionStatesTx(ctx, tx, e, actions, actor)
 		if err != nil {
-			return nil, err
+			return false, err
 		}
 		for i, a := range actions {
 			h, reason := sims[i].Hash, sims[i].Reason
 			if reason != "" || a.PreflightStateHash == nil || h != *a.PreflightStateHash {
-				return nil, domain.NewConflict("operational state drift detected; prepare a new recovery execution")
+				return false, domain.NewConflict("operational state drift detected; prepare a new recovery execution")
 			}
 		}
 		if _, err := tx.ExecContext(ctx, `UPDATE recovery_plan_executions SET status='EXECUTING',executed_by_user_id=$2,executed_by_username=$3,started_at=now(),failure_reason='' WHERE id=$1`, id, actor.UserID, strings.TrimSpace(actor.Username)); err != nil {
-			return nil, err
+			return false, err
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		return nil, err
+		return false, err
 	}
 	e.Status = "EXECUTING"
 
@@ -1245,16 +1273,16 @@ func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID
 			continue
 		}
 		if a.ExecutionStatus != "PENDING" {
-			return nil, domain.NewConflict("recovery execution contains a non-resumable action state")
+			return false, domain.NewConflict("recovery execution contains a non-resumable action state")
 		}
-		if err := s.executeOne(ctx, e, a, actor); err != nil {
+		if err := s.executeOne(ctx, conn, e, a, actor); err != nil {
 			// COMMIT may return an ambiguous transport error even if PostgreSQL
 			// committed. Re-read durable action evidence before declaring failure.
 			status, statusErr := s.persistentExecutionActionStatus(ctx, e.ID, a.ID)
 			if statusErr != nil {
 				// Leave the parent EXECUTING. A later Execute retry is safe and can
 				// determine whether this action committed or remained PENDING.
-				return nil, fmt.Errorf("recovery action execution error (%v); durable status could not be confirmed: %w", err, statusErr)
+				return false, fmt.Errorf("recovery action execution error (%v); durable status could not be confirmed: %w", err, statusErr)
 			}
 			if status == "SUCCEEDED" {
 				continue
@@ -1263,28 +1291,24 @@ func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID
 				// A serialization failure / deadlock rolled the action back; it
 				// is not a business failure. Keep the parent EXECUTING so the
 				// retry (or a later Execute) resumes from this action.
-				return nil, err
+				return false, err
 			}
 			if status != "PENDING" && status != "FAILED" {
-				return nil, fmt.Errorf("recovery action execution error (%v); unexpected durable status %s", err, status)
+				return false, fmt.Errorf("recovery action execution error (%v); unexpected durable status %s", err, status)
 			}
-			if finalizeErr := s.markExecutionFailure(ctx, e, a, err); finalizeErr != nil {
-				return nil, fmt.Errorf("recovery action failed: %v; failure evidence finalization also failed: %w", err, finalizeErr)
+			if finalizeErr := s.markExecutionFailure(ctx, conn, e, a, err); finalizeErr != nil {
+				return false, fmt.Errorf("recovery action failed: %v; failure evidence finalization also failed: %w", err, finalizeErr)
 			}
-			detail, _ := s.Get(context.WithoutCancel(ctx), id)
-			if detail != nil {
-				return detail, err
-			}
-			return nil, err
+			return true, err
 		}
 	}
 
-	if err := s.finalizeExecutionSuccess(ctx, id); err != nil {
+	if err := s.finalizeExecutionSuccess(ctx, conn, id); err != nil {
 		// All action results may already be durable. Keep EXECUTING so a retry can
 		// safely finalize without replaying successful actions.
-		return nil, err
+		return false, err
 	}
-	return s.Get(context.WithoutCancel(ctx), id)
+	return true, nil
 }
 
 // loadRecoveryOvertime returns executed, date-scoped overtime minutes for CRP
