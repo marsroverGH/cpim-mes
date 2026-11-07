@@ -1,13 +1,14 @@
-# v0.42.1 Release Candidate / GA Checklist
+# v0.43.0 Release Candidate / GA Checklist
 
 ## Source freeze
 
 - [ ] Working tree clean at the candidate commit.
 - [ ] `SHA256SUMS.txt` (generated at release time by `scripts/generate_source_checksums.py --require-clean`) verifies every distributed source file.
-- [ ] Target is `v0.42.1`; candidate matches `v0.42.1-rc.N`.
-- [ ] Migration files are exactly `0001` through `0042`; `0042` is Controlled Recovery Plan Execution.
+- [ ] Target is `v0.43.0`; candidate matches `v0.43.0-rc.N`.
+- [ ] Migration files are exactly `0001` through `0043`; `0042` is Controlled Recovery Plan Execution and `0043` is Quantity Column Scale.
+- [ ] Upgrade rehearsal on a restored production backup: `scripts/sql/check_quantity_float_artefacts.sql` result recorded before the upgrade, 0043 applies, and the result is 0 rows afterwards.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.
-- [ ] `docs/RELEASE_NOTES_v0.42.1.md` lists every change since v0.42.0 and the operational behavior changes.
+- [ ] `docs/RELEASE_NOTES_v0.43.0.md` lists every change since v0.42.1 and the operational behavior changes.
 
 ## Runtime / build
 
@@ -17,7 +18,7 @@
 - [ ] PostgreSQL 16.15.
 - [ ] `go mod verify`, `go vet`, `go test -race` PASS.
 - [ ] Frontend `npm ci`, typecheck, build PASS.
-- [ ] `/version` reports the candidate commit/build time and `migrationLatest=42`.
+- [ ] `/version` reports the candidate commit/build time and `migrationLatest=43`.
 
 ## Production topology / authentication
 
@@ -64,4 +65,4 @@
 - [ ] `.github/workflows/release-candidate.yml` is green for the exact candidate commit.
 - [ ] Verified RC bundle retained with its SHA-256 manifest.
 - [ ] No source/config/documentation change after final RC verification.
-- [ ] Tag/promote the exact verified commit as `v0.42.1`.
+- [ ] Tag/promote the exact verified commit as `v0.43.0`.

@@ -68,9 +68,9 @@ check('Step5 documentation exists', 'signed double-submit' in doc)
 
 migs=sorted((ROOT/'backend/migrations').glob('*.sql'))
 vers=[int(m.name[:4]) for m in migs if re.match(r'^\d{4}_',m.name)]
-check('migration count is 42', len(vers)==42, f'count={len(vers)}')
-check('latest migration is 0042', bool(vers) and max(vers)==42, f'latest={max(vers) if vers else None}')
-check('migration 0042 present', any(v==42 for v in vers) and not any(v>42 for v in vers))
+check('migration count is 43', len(vers)==43, f'count={len(vers)}')
+check('latest migration is 0043', bool(vers) and max(vers)==43, f'latest={max(vers) if vers else None}')
+check('migration 0043 present', any(v==43 for v in vers) and not any(v>43 for v in vers))
 failed=[x for x in checks if not x[1]]
 for n,ok,d in checks:
     print(('PASS' if ok else 'FAIL')+': '+n+(f' ({d})' if d else ''))

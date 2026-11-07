@@ -50,15 +50,17 @@ func TestQuantityFloatArtefactCheckScript(t *testing.T) {
 
 	// A value as v0.42.0 could have stored it (0.1 + 0.2 in float64), and one
 	// at exactly 9 decimal places, which is the precision the code now keeps.
-	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE items SET safety_stock=0.30000000000000004, lot_size=0.123456789 WHERE id=$1`, item.ID); err != nil {
+	// Since 0043 the main quantity columns are numeric(20,9) and cannot hold
+	// artefacts, so use columns that are still unconstrained.
+	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE items SET standard_cost=0.30000000000000004, ordering_cost=0.123456789 WHERE id=$1`, item.ID); err != nil {
 		t.Fatal(err)
 	}
 	rows := run()
 	if len(rows) != 1 {
-		t.Fatalf("want exactly items.safety_stock, got %+v", rows)
+		t.Fatalf("want exactly items.standard_cost, got %+v", rows)
 	}
 	got := rows[0]
-	if got.Table != "items" || got.Column != "safety_stock" || got.Rows != 1 || got.MaxScale != 17 || got.Example != "0.30000000000000004" {
+	if got.Table != "items" || got.Column != "standard_cost" || got.Rows != 1 || got.MaxScale != 17 || got.Example != "0.30000000000000004" {
 		t.Fatalf("unexpected report %+v", got)
 	}
 }

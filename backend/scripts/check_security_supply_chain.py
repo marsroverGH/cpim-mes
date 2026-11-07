@@ -114,7 +114,7 @@ for needle in [
 reject("scripts/run_container_security_gate.sh", "--skip-db-update", "stale Trivy vulnerability DB")
 checks += 1
 if (ROOT / ".trivyignore").exists():
-    errors.append("repository .trivyignore is forbidden for v0.42.1 supply-chain gate")
+    errors.append("repository .trivyignore is forbidden for v0.43.0 supply-chain gate")
 
 # Security workflow must be read-only and fail closed.
 workflow = text(".github/workflows/security.yml")
@@ -159,7 +159,7 @@ if "pull-requests: write" in workflow or "contents: write" in workflow:
 for needle in [
     '"releaseVersion": EXPECTED_RELEASE',
     '"migrationLatest": EXPECTED_MIGRATION_LATEST',
-    '"migration0042Created": True',
+    '"migration0043Created": True',
     '"RELEASE-BUNDLE-SHA256SUMS.txt"',
     '"RELEASE-BUNDLE-MANIFEST.json"',
 ]:
@@ -171,7 +171,7 @@ for needle in [
     "blocking vulnerability remains",
     "govulncheck reachable-finding gate exit code is not zero",
     "reachable symbol-level findings",
-    "migration0042Created",
+    "migration0043Created",
 ]:
     need("scripts/verify_release_bundle.py", needle)
 
@@ -188,11 +188,11 @@ need("scripts/check_ci_dependency_policy.py", ".github/workflows/security.yml")
 # No migration or runtime dependency addition is required by Step 12.
 checks += 1
 migrations = sorted((ROOT / "backend/migrations").glob("*.sql"))
-if len(migrations) != 42 or not migrations[-1].name.startswith("0042_"):
+if len(migrations) != 43 or not migrations[-1].name.startswith("0043_"):
     errors.append(f"migration invariant failed: count={len(migrations)} latest={migrations[-1].name if migrations else 'none'}")
 checks += 1
 if not any(p.name.startswith("0042_") for p in migrations):
-    errors.append("Migration 0042 must exist for v0.42.1")
+    errors.append("Migration 0042 must exist for v0.43.0")
 
 if errors:
     print(f"Step 12 Security CI / Supply Chain Guard: FAIL ({checks} checks)")

@@ -1,6 +1,6 @@
 # Backup and Restore Operations
 
-CPIM-MES v0.42.1 Step 11 adds an operational PostgreSQL backup/restore toolchain without exposing the production database port and without changing application schema or planning semantics.
+CPIM-MES v0.43.0 Step 11 adds an operational PostgreSQL backup/restore toolchain without exposing the production database port and without changing application schema or planning semantics.
 
 ## 1. Protection layers
 
@@ -136,7 +136,7 @@ pg_restore --exit-on-error
   ↓
 Compare schema_migrations ledger
   ↓
-Require count=42 / latest=0042
+Require count=43 / latest=0043
   ↓
 Compare public DB object inventory
   ↓

@@ -1,13 +1,14 @@
-CPIM-MES v0.42.1 Release Candidate
+CPIM-MES v0.43.0 Release Candidate
 ==================================
 
-Candidate: v0.42.1-rc.1
-Target GA release: v0.42.1
-Baseline: v0.42.0 / f9a7410af54ee03e3aeef21e92d1e1513383e3b5
-Scope: Migration 0042 Controlled Recovery Plan Execution
-Migration range: 0001-0042
-Migration count: 42
+Candidate: v0.43.0-rc.1
+Target GA release: v0.43.0
+Baseline: v0.42.1 / 7bd2d65c91e41e765ddb0ccbd41dafd5d246770d
+Scope: Migration 0043 Quantity Column Scale
+Migration range: 0001-0043
+Migration count: 43
 Migration 0042: Controlled Recovery Plan Execution
+Migration 0043: Quantity Column Scale
 Playwright definitions: 26
 
 Candidate invariants:
@@ -17,10 +18,11 @@ Candidate invariants:
 - Planner can prepare/preflight; approval/execution requires admin; approver differs from preparer.
 - Wildcard simulation targets cannot execute.
 - Per-action operational mutation and execution evidence are transactionally coupled.
+- Main quantity columns are numeric(20,9); the ledger reconciles after the upgrade rounding.
 - Production security, observability, supply-chain and backup/restore gates remain mandatory.
 
 Authoritative promotion gate:
   .github/workflows/release-candidate.yml
   -> scripts/final_clean_room_release_gate.sh
 
-Release notes: docs/RELEASE_NOTES_v0.42.1.md
+Release notes: docs/RELEASE_NOTES_v0.43.0.md

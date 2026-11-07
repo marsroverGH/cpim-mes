@@ -480,7 +480,7 @@ Release-blocking security gates run in `.github/workflows/security.yml`: reachab
 
 ## v0.41.1 Step 13 — Final Clean-room Release Candidate Gate
 
-The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0042` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **26 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.42.0-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
+The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0043` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **26 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.43.0-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
 
 ## 0042 Controlled Recovery Plan Execution
 
@@ -500,3 +500,7 @@ Key controls:
 - A later failure produces durable `PARTIAL_FAILED` evidence; already committed successful actions are not generically auto-reversed
 
 See [`docs/0042-controlled-recovery-plan-execution.md`](./docs/0042-controlled-recovery-plan-execution.md).
+
+## 0043 Quantity Column Scale
+
+v0.43.0 fixes the main quantity columns (inventory ledger, lots, BOM, item safety stock / lot size, MPS, work orders, purchase orders, sales orders) at `numeric(20,9)`, and the backend computes the main quantity paths in decimal. Float artefacts stored by v0.42.0 and earlier (such as `0.30000000000000004`) are rounded to 9 decimal places during the upgrade; the migration asserts that the inventory ledger still reconciles. The type change rewrites the affected tables, so run the upgrade in a maintenance window. See [`docs/QUANTITY_PRECISION.md`](./docs/QUANTITY_PRECISION.md) and [`docs/RELEASE_NOTES_v0.43.0.md`](./docs/RELEASE_NOTES_v0.43.0.md).
