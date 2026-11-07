@@ -27,6 +27,8 @@
 | クライアント指定の `X-Request-Id` をそのまま採用・返却する | `api/errors.go`: `assignRequestID` が常にサーバー側で ID を生成する（chi `middleware.RequestID` を置き換え） |
 | 供給者信頼性の `result_hash` が丸め前の float で計算され、保存値から再計算できない | `service/supplier_scheduling.go`: 結果を列の桁（numeric(12,4)・numeric(7,6)）に丸めてから保存・ハッシュ化する |
 | `createDemand` ハンドラが到達不能（0031 で需要予測が読み取り専用化） | `api/router.go` から削除。`DemandRepo.Create` は DB 側の拒否を確かめるテストで使うため残している |
+| MRP のロットまとめ（FOQ/EOQ）で、float の誤差によりロットが 1 つ余分に計画される（例: 手持ち 0.7・必要量 1.0・ロット 0.1 → 0.4） | `mathutil.go`: `RoundUpToMultiple` は誤差の範囲でちょうど倍数なら切り上げない。MRP の正味所要量・計画受入・予定在庫は `RoundQty` で小数 9 桁にそろえる |
+| Go で計算した数量が、桁数の決まっていない numeric 列に float の誤差ごと保存される（例: 作業指示 3 台 × 部品 0.1 の引当が `0.30000000000000004`） | `RoundQty`（小数 9 桁）を、BOM 必要量（`SnapshotRequirements`・`DirectBOMRequirements`）、在庫台帳の入口（取引数量・ロット割当）、FIFO の割当で使う。分割完了の引当確認は DB と同じ 0.000001 の許容に合わせ、引当解除は残っている引当を超えない |
 
 ## 決定事項
 

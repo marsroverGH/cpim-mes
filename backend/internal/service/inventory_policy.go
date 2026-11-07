@@ -560,15 +560,16 @@ func netMRPBucketWithInventoryPolicy(opening, gross, scheduled float64, policy d
 	if policy.ReplenishmentMethod != "MIN_MAX" || policy.CalculationStatus != "CALCULATED" {
 		return netMRPBucket(opening, gross, scheduled, policy.SafetyStock, lotSize, eoq, method)
 	}
-	projectedBefore := opening + scheduled - gross
+	projectedBefore := RoundQty(opening + scheduled - gross)
 	if projectedBefore+1e-9 >= policy.ReorderPoint {
 		return 0, 0, projectedBefore
 	}
 	net = policy.MaxQty - projectedBefore
+	net = RoundQty(net)
 	if net < 0 {
 		net = 0
 	}
 	plannedReceipt = ApplyLotSize(net, 0, lotSize, eoq, method)
-	projected = projectedBefore + plannedReceipt
+	projected = RoundQty(projectedBefore + plannedReceipt)
 	return net, plannedReceipt, projected
 }
