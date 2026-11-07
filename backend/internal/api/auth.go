@@ -277,9 +277,9 @@ func (h *server) runABC(w http.ResponseWriter, r *http.Request) {
 		err  error
 	)
 	if raw := strings.TrimSpace(r.URL.Query().Get("asOf")); raw != "" {
-		asOf, parseErr := time.Parse("2006-01-02", raw)
+		asOf, parseErr := service.ParseDateOnly(raw)
 		if parseErr != nil {
-			writeError(w, http.StatusBadRequest, strErr("asOf must be YYYY-MM-DD"))
+			writeError(w, http.StatusBadRequest, strErr("asOf must be YYYY-MM-DD or RFC3339"))
 			return
 		}
 		rows, err = h.s.ABC.RunAsOf(r.Context(), asOf)

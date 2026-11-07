@@ -72,3 +72,18 @@ func TestSchedulerAndCalendarDaysDoNotDependOnValueLocation(t *testing.T) {
 		t.Fatalf("calendarDay(date value) = %s, want %s", got, want)
 	}
 }
+
+func TestParseDateOnlyAcceptsDateAndRFC3339(t *testing.T) {
+	want := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC)
+	for _, in := range []string{"2026-11-11", " 2026-11-11 ", "2026-11-11T00:00:00Z", "2026-11-11T00:00:00+09:00", "2026-11-10T20:00:00Z"} {
+		got, err := ParseDateOnly(in)
+		if err != nil || !got.Equal(want) || got.Location() != time.UTC {
+			t.Errorf("ParseDateOnly(%q) = %s, %v; want %s", in, got, err, want)
+		}
+	}
+	for _, in := range []string{"", "11/11/2026", "2026-13-01", "2026-11-11T00:00"} {
+		if _, err := ParseDateOnly(in); err == nil {
+			t.Errorf("ParseDateOnly(%q) accepted", in)
+		}
+	}
+}

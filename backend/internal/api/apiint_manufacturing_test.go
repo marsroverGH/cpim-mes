@@ -83,7 +83,7 @@ func TestAPIIntItemCRUDAndValidation(t *testing.T) {
 		rr := admin.do(http.MethodGet, "/api/items/"+uuid.NewString(), nil)
 		apiintStatus(t, rr, http.StatusNotFound, "unknown item")
 		if strings.Contains(rr.Body.String(), "sql:") {
-			t.Logf("KNOWN ISSUE: 404 body exposes Go sql error text: %s", rr.Body.String())
+			t.Fatalf("404 body exposes Go sql error text: %s", rr.Body.String())
 		}
 	})
 
@@ -92,11 +92,7 @@ func TestAPIIntItemCRUDAndValidation(t *testing.T) {
 		if rr.Code < 400 {
 			t.Fatalf("duplicate code accepted: %d", rr.Code)
 		}
-		// Reported defect: handler passes 500 for every service error, so a
-		// unique violation surfaces as a sanitized 500 instead of 409.
-		if rr.Code != http.StatusConflict {
-			t.Logf("KNOWN ISSUE: duplicate item code -> %d %s (want 409)", rr.Code, rr.Body.String())
-		}
+		apiintStatus(t, rr, http.StatusConflict, "duplicate item code")
 	})
 
 	t.Run("CSV export and import", func(t *testing.T) {

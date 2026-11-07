@@ -1,10 +1,16 @@
 package api
 
 import (
+	"context"
+	"crypto/rand"
+	"database/sql"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/go-chi/chi/v5/middleware"
@@ -12,6 +18,28 @@ import (
 )
 
 const requestIDHeader = "X-Request-Id"
+
+// assignRequestID gives every request a server-generated ID. Unlike chi's
+// middleware.RequestID it never adopts a client-supplied X-Request-Id, so a
+// client cannot forge or collide IDs in the server log or in error bodies.
+// The ID is stored under middleware.RequestIDKey so middleware.GetReqID (and
+// chi's request logger) keep working.
+func assignRequestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), middleware.RequestIDKey, newRequestID())
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func newRequestID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// crypto/rand does not fail on supported platforms; keep requests
+		// flowing with a time-based fallback rather than an empty ID.
+		return fmt.Sprintf("t%x", time.Now().UnixNano())
+	}
+	return hex.EncodeToString(b[:])
+}
 
 // exposeRequestID copies the chi request ID into the response header so that
 // clients can quote it and writeError can tie a sanitized response to the
@@ -33,6 +61,10 @@ func exposeRequestID(next http.Handler) http.Handler {
 //     If the handler passed a 5xx, the status becomes 422 (403 for 42501,
 //     409 for 23503) because the request itself was rejected.
 //   - Serialization failures / deadlocks (40001, 40P01): 409 with a retry hint.
+//   - Built-in unique / foreign key violations (23505, 23503) where the
+//     handler passed a 5xx: 409 with a generic message (duplicate key, or a
+//     record that is missing or still in use).
+//   - sql.ErrNoRows anywhere in the chain: 404 with a generic message.
 //   - Any other database error, and any 5xx: a generic message plus the
 //     request ID; the full error goes to the server log.
 //   - Other 4xx errors (request decoding, parameter validation): err.Error().
@@ -72,7 +104,20 @@ func writeError(w http.ResponseWriter, code int, err error) {
 			writeJSON(w, status, map[string]string{"error": pgErr.Message})
 			return
 		}
+		if code >= 500 && (pgErr.Code == "23505" || pgErr.Code == "23503") {
+			// The request conflicts with existing data (duplicate key, or a
+			// referenced record that is missing / still in use).
+			writeJSON(w, http.StatusConflict, map[string]string{"error": publicDBMessage(http.StatusConflict, pgErr)})
+			return
+		}
 		writeJSON(w, code, sanitizedBody(w, code, publicDBMessage(code, pgErr), err))
+		return
+	}
+
+	if errors.Is(err, sql.ErrNoRows) {
+		// Never expose "sql: no rows in result set"; the handler may also have
+		// passed 500 for a lookup by an unknown id.
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "resource not found"})
 		return
 	}
 

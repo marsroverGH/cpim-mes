@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/cpim-mes/backend/internal/domain"
+	"github.com/google/uuid"
 )
 
 // TestAPIIntCapacityMasterData drives calendars, work centers and routings
@@ -85,8 +86,9 @@ func TestAPIIntCapacityMasterData(t *testing.T) {
 	if del.Code < 300 && n == 0 {
 		t.Fatal("work center in use was deleted")
 	}
-	if del.Code < 400 {
-		t.Errorf("deleting an in-use work center returned %d", del.Code)
+	apiintStatus(t, del, http.StatusConflict, "delete in-use work center")
+	if strings.Contains(del.Body.String(), "fkey") {
+		t.Errorf("FK constraint leaks: %s", del.Body.String())
 	}
 
 	apiintStatus(t, admin.do(http.MethodDelete, "/api/routing-operations/"+opID, nil), http.StatusNoContent, "delete op")
@@ -95,6 +97,15 @@ func TestAPIIntCapacityMasterData(t *testing.T) {
 	env.scalar(&n, `SELECT count(*) FROM work_calendars WHERE id=$1`, calID)
 	if n != 0 {
 		t.Fatal("calendar not deleted")
+	}
+	// Deleting something that does not exist (any more) is a 404, not a 204.
+	for _, path := range []string{
+		"/api/work-centers/" + wcID, "/api/calendars/" + calID, "/api/routing-operations/" + opID,
+		"/api/calendar-exceptions/" + uuid.NewString(), "/api/items/" + uuid.NewString(),
+		"/api/sop/plans/" + uuid.NewString(), "/api/routing-operation-alternatives/" + uuid.NewString(),
+		"/api/work-center-setup-matrix/" + uuid.NewString(), "/api/bom/" + uuid.NewString(),
+	} {
+		apiintStatus(t, admin.do(http.MethodDelete, path, nil), http.StatusNotFound, "delete unknown "+path)
 	}
 
 	// Cost rollup and CRP read the routing master.

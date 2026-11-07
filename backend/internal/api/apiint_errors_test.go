@@ -163,11 +163,16 @@ func TestAPIIntErrorMappingEndToEnd(t *testing.T) {
 		item := apiintItemBody("DUP-1")
 		apiintStatus(t, admin.do(http.MethodPost, "/api/items", item), http.StatusCreated, "first")
 		rr := admin.do(http.MethodPost, "/api/items", item)
-		// Reported: should be 409; currently the handler passes 500.
-		if rr.Code == http.StatusConflict {
-			return
+		apiintStatus(t, rr, http.StatusConflict, "duplicate item")
+		if got := apiintJSON[map[string]string](t, rr)["error"]; got != "a record with the same key already exists" {
+			t.Fatalf("duplicate item body: %s", rr.Body.String())
 		}
-		apiintAssertSanitized500(t, rr, "duplicate item")
+		if strings.Contains(rr.Body.String(), "items_") || strings.Contains(rr.Body.String(), "23505") {
+			t.Fatalf("unique violation leaks: %s", rr.Body.String())
+		}
+		cust := map[string]any{"customerNo": "C-DUP", "name": "Dup", "status": "ACTIVE"}
+		apiintStatus(t, planner.do(http.MethodPost, "/api/customers", cust), http.StatusCreated, "first customer")
+		apiintStatus(t, planner.do(http.MethodPost, "/api/customers", cust), http.StatusConflict, "duplicate customer")
 	})
 
 	t.Run("foreign key violation is sanitized", func(t *testing.T) {
@@ -180,10 +185,10 @@ func TestAPIIntErrorMappingEndToEnd(t *testing.T) {
 		}
 	})
 
-	t.Run("client request id is echoed", func(t *testing.T) {
+	t.Run("client request id is not adopted", func(t *testing.T) {
 		rr := admin.doWith(http.MethodGet, "/api/items/"+uuid.NewString(), nil, map[string]string{requestIDHeader: "client-chosen-id"})
-		if got := rr.Header().Get(requestIDHeader); got != "client-chosen-id" {
-			t.Fatalf("X-Request-Id = %q", got)
+		if got := rr.Header().Get(requestIDHeader); got == "" || got == "client-chosen-id" {
+			t.Fatalf("X-Request-Id = %q; want a server-generated id", got)
 		}
 	})
 

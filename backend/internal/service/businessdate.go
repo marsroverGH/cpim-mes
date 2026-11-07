@@ -79,3 +79,20 @@ func BusinessDate(t time.Time) time.Time {
 	y, mo, d := t.Date()
 	return time.Date(y, mo, d, 0, 0, 0, 0, time.UTC)
 }
+
+// ParseDateOnly parses a calendar-date input. It accepts both the date-only
+// form (2026-11-11) and RFC3339 (2026-11-11T00:00:00Z, the format used by the
+// rest of the API) and returns the business date in canonical form (UTC
+// midnight). An RFC3339 instant is read in the business timezone, like every
+// other instant in the system.
+func ParseDateOnly(raw string) (time.Time, error) {
+	raw = strings.TrimSpace(raw)
+	if t, err := time.Parse("2006-01-02", raw); err == nil {
+		return t, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("date must be YYYY-MM-DD or RFC3339: %q", raw)
+	}
+	return BusinessDate(t), nil
+}

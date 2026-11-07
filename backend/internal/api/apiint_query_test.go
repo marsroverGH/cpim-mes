@@ -20,10 +20,11 @@ func TestAPIIntQueryParameterValidation(t *testing.T) {
 		path string
 		want int
 	}{
-		// ABC analysis takes a business date (YYYY-MM-DD), unlike the
+		// ABC analysis takes a business date (YYYY-MM-DD or RFC3339), unlike the
 		// scheduling endpoints below which take RFC3339 instants.
 		{"/api/abc-analysis?asOf=2026-01-31", http.StatusOK},
-		{"/api/abc-analysis?asOf=2026-01-31T00:00:00Z", http.StatusBadRequest},
+		{"/api/abc-analysis?asOf=2026-01-31T00:00:00Z", http.StatusOK}, // RFC3339 accepted like the rest of the API
+		{"/api/abc-analysis?asOf=31/01/2026", http.StatusBadRequest},
 		{"/api/dispatch?asOf=2026-11-11", http.StatusBadRequest},
 		{"/api/dispatch?workCenterId=nope", http.StatusBadRequest},
 		{"/api/schedule-adherence/current?asOf=2026-11-11", http.StatusBadRequest},

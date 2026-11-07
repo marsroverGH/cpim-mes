@@ -249,12 +249,6 @@ func TestAPIIntReadEndpointsSmoke(t *testing.T) {
 	// Reads that legitimately answer 404 NOT_FOUND on a fresh database because
 	// no execution schedule has been published yet.
 	noSchedule := map[string]bool{"/dispatch": true, "/schedule-execution": true, "/schedule-adherence/current": true}
-	// Known defects (reported, not fixed here): the handler maps "row not
-	// found" to 500 instead of 404.
-	knownUnknownID500 := map[string]bool{
-		"/calendars/{id}":         true, // calendar.go:26
-		"/crp/schedule-runs/{id}": true, // capacity.go:243
-	}
 	for _, r := range apiintSecuredRoutes(t) {
 		if r.Method != http.MethodGet {
 			continue
@@ -287,11 +281,8 @@ func TestAPIIntReadEndpointsSmoke(t *testing.T) {
 			}
 			continue
 		}
-		if knownUnknownID500[r.Path] {
-			continue
-		}
 		rr := c.do(http.MethodGet, "/api"+apiintFill(r.Path, id), nil)
-		if rr.Code >= 500 {
+		if rr.Code >= 500 || strings.Contains(rr.Body.String(), "sql:") {
 			t.Errorf("%s with unknown id: status %d (body %s)", r, rr.Code, rr.Body.String())
 		} else if rr.Code < 400 {
 			unknownIDOK = append(unknownIDOK, r.String()+"="+strconv.Itoa(rr.Code))

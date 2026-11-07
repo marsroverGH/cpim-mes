@@ -96,9 +96,9 @@ func parseISODate(raw string, required bool) (*time.Time, error) {
 		}
 		return nil, nil
 	}
-	t, err := time.Parse("2006-01-02", raw)
+	t, err := ParseDateOnly(raw)
 	if err != nil {
-		return nil, domain.NewBadRequest("date must be YYYY-MM-DD", err)
+		return nil, domain.NewBadRequest("date must be YYYY-MM-DD or RFC3339", err)
 	}
 	return &t, nil
 }

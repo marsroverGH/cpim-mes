@@ -50,7 +50,7 @@ func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
 	})
 	srv := &server{s: s, cookies: cookies, allowedOrigins: cfg.AllowedOrigins, loginLimiter: limiter, buildInfo: cfg.BuildInfo, metrics: cfg.Metrics, tracer: cfg.Tracer}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
+	r.Use(assignRequestID)
 	r.Use(exposeRequestID)
 	r.Use(middleware.RealIP)
 	if cfg.Metrics != nil {
@@ -448,7 +448,7 @@ func (h *server) getItem(w http.ResponseWriter, r *http.Request) {
 	}
 	it, err := h.s.Items.Get(r.Context(), id)
 	if err != nil {
-		writeError(w, 404, err)
+		writeError(w, 500, err) // sql.ErrNoRows becomes 404
 		return
 	}
 	writeJSON(w, 200, it)
@@ -582,19 +582,6 @@ func (h *server) listDemand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, rows)
-}
-
-func (h *server) createDemand(w http.ResponseWriter, r *http.Request) {
-	var d domain.DemandForecast
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-		writeError(w, 400, err)
-		return
-	}
-	if err := h.s.Demand.Create(r.Context(), &d); err != nil {
-		writeError(w, 500, err)
-		return
-	}
-	writeJSON(w, 201, d)
 }
 
 func (h *server) listMPS(w http.ResponseWriter, r *http.Request) {

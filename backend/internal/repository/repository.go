@@ -136,8 +136,7 @@ func (r *ItemRepo) Update(ctx context.Context, it *domain.Item) error {
 }
 
 func (r *ItemRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM items WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM items WHERE id=$1`, id, "item")
 }
 
 // RecomputeLLC — 全品目の low_level_code を再計算 (BOM 変更後に呼び出す)

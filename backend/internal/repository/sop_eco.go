@@ -71,8 +71,7 @@ func (r *SOPRepo) UpsertPlan(ctx context.Context, p *domain.SOPPlan) error {
 }
 
 func (r *SOPRepo) DeletePlan(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM sop_plans WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM sop_plans WHERE id=$1`, id, "S&OP plan")
 }
 
 // ----- RCCP Profile -----
