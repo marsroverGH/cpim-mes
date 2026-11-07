@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-RELEASE_VERSION="${RELEASE_VERSION:-v0.42.0}"
-RC_VERSION="${RC_VERSION:-v0.42.0-rc.1}"
+RELEASE_VERSION="${RELEASE_VERSION:-v0.42.1}"
+RC_VERSION="${RC_VERSION:-v0.42.1-rc.1}"
 VCS_REF="${VCS_REF:-${GITHUB_SHA:-local}}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-rc-db-$(openssl rand -hex 16)}"

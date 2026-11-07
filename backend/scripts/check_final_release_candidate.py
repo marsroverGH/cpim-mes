@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""v0.42.0 static guard: documentation drift and final clean-room RC wiring."""
+"""v0.42.1 static guard: documentation drift and final clean-room RC wiring."""
 from __future__ import annotations
 
 import json
@@ -80,12 +80,12 @@ for pkg in ("frontend/package.json", "e2e/package.json"):
     except Exception as exc:
         errors.append(f"{pkg}: invalid JSON: {exc}")
         continue
-    if version != "0.42.0":
-        errors.append(f"{pkg}: expected version 0.42.0, got {version!r}")
-need("RELEASE-CANDIDATE-METADATA.txt", "Candidate: v0.42.0-rc.1")
+    if version != "0.42.1":
+        errors.append(f"{pkg}: expected version 0.42.1, got {version!r}")
+need("RELEASE-CANDIDATE-METADATA.txt", "Candidate: v0.42.1-rc.1")
 need("RELEASE-CANDIDATE-METADATA.txt", "Migration 0042: Controlled Recovery Plan Execution")
 need("RELEASE-CANDIDATE-METADATA.txt", "Playwright definitions: 26")
-need("RELEASE-METADATA.txt", "Target release: v0.42.0")
+need("RELEASE-METADATA.txt", "Target release: v0.42.1")
 need("RELEASE-METADATA.txt", "Migration latest: 0042")
 
 # Final clean-room script proves the full current gate.
@@ -148,8 +148,8 @@ for needle in [
     "actions/setup-node@v7.1.0",
     "actions/setup-python@v6.3.0",
     "actions/upload-artifact@v7.0.2",
-    "RELEASE_VERSION: 'v0.42.0'",
-    "RC_VERSION: 'v0.42.0-rc.1'",
+    "RELEASE_VERSION: 'v0.42.1'",
+    "RC_VERSION: 'v0.42.1-rc.1'",
     "./scripts/final_clean_room_release_gate.sh",
     "release-candidate-bundle",
 ]:
@@ -188,8 +188,8 @@ need(".github/workflows/ci.yml", "check_final_release_candidate.py")
 need(".github/workflows/ci.yml", "test_release_candidate_unit.py")
 
 if errors:
-    print(f"v0.42.0 Final Clean-room Release Candidate Guard: FAIL ({checks} checks)")
+    print(f"v0.42.1 Final Clean-room Release Candidate Guard: FAIL ({checks} checks)")
     for error in errors:
         print(" -", error)
     sys.exit(1)
-print(f"v0.42.0 Final Clean-room Release Candidate Guard: {checks}/{checks} PASS")
+print(f"v0.42.1 Final Clean-room Release Candidate Guard: {checks}/{checks} PASS")

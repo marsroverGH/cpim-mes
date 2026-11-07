@@ -89,7 +89,7 @@ for token in ['0042 Controlled Recovery Plan Execution','PREFLIGHT_PASSED','plan
     check('E2E contains '+token, token in e2e)
 
 openapi=json.loads(read('backend/internal/api/openapi.json'))
-check('OpenAPI version 0.42.0', openapi['info']['version']=='0.42.0')
+check('OpenAPI version 0.42.1', openapi['info']['version']=='0.42.1')
 for path in ['/recovery-executions','/recovery-executions/{id}','/recovery-scenarios/{id}/executions','/recovery-executions/{id}/preflight','/recovery-executions/{id}/approve','/recovery-executions/{id}/execute','/recovery-executions/{id}/cancel']:
     check('OpenAPI path '+path, path in openapi['paths'])
 

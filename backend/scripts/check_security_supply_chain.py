@@ -114,7 +114,7 @@ for needle in [
 reject("scripts/run_container_security_gate.sh", "--skip-db-update", "stale Trivy vulnerability DB")
 checks += 1
 if (ROOT / ".trivyignore").exists():
-    errors.append("repository .trivyignore is forbidden for v0.42.0 supply-chain gate")
+    errors.append("repository .trivyignore is forbidden for v0.42.1 supply-chain gate")
 
 # Security workflow must be read-only and fail closed.
 workflow = text(".github/workflows/security.yml")
@@ -192,7 +192,7 @@ if len(migrations) != 42 or not migrations[-1].name.startswith("0042_"):
     errors.append(f"migration invariant failed: count={len(migrations)} latest={migrations[-1].name if migrations else 'none'}")
 checks += 1
 if not any(p.name.startswith("0042_") for p in migrations):
-    errors.append("Migration 0042 must exist for v0.42.0")
+    errors.append("Migration 0042 must exist for v0.42.1")
 
 if errors:
     print(f"Step 12 Security CI / Supply Chain Guard: FAIL ({checks} checks)")

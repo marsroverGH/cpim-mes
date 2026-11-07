@@ -1,9 +1,10 @@
-CPIM-MES v0.42.0 Controlled Recovery Plan Execution
+CPIM-MES v0.42.1 Controlled Recovery Plan Execution
 ===================================================
 
-Baseline release: v0.41.1
-Baseline GA commit: f7c6491c8493e57e532fa57df1d0d7d3f3d44110
-Target release: v0.42.0 Controlled Recovery Plan Execution
+Baseline release: v0.42.0
+Baseline GA commit: f9a7410af54ee03e3aeef21e92d1e1513383e3b5
+Target release: v0.42.1 Controlled Recovery Plan Execution
+Release type: patch (bug fixes only, no additional migration)
 Implemented scope: Migration 0042 Controlled Recovery Plan Execution
 Migration range: 0001-0042
 Migration count: 42
@@ -47,13 +48,18 @@ Critical invariant:
 
 Preserved hardening milestones:
 - Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=42 restore verification.
-- Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.42.0.
+- Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.42.1.
 
-Post-import fixes included in v0.42.0 (no additional migration):
+v0.42.1 patch fixes (since v0.42.0, no additional migration):
+- MRP FOQ/EOQ lot sizing no longer plans an extra lot because of float noise
+- Quantities computed in Go are rounded to 9 decimal places before they are written to the ledger
+- Regression tests replace the remaining KNOWN BUG skips (no skipped DB tests)
+
+Post-import fixes already included in v0.42.0:
 - Previously always-failing endpoints fixed: WO complete/progress, audit log, S&OP product mix
 - Business date unified on the business timezone (eco_business_timezone)
 - CTP multi-level component netting, ABC top-item class, safety-stock fallback, CSV import validation
 - Recovery execution: preceding actions of the same execution no longer count as drift
 - Concurrency: Execute deadlock and supplier schedule retry exhaustion resolved
 - API: sanitized errors, 404 for unknown ids, 409 for key conflicts, server-generated X-Request-Id
-Release notes: docs/RELEASE_NOTES_v0.42.0.md
+Release notes: docs/RELEASE_NOTES_v0.42.1.md (v0.42.0: docs/RELEASE_NOTES_v0.42.0.md)
