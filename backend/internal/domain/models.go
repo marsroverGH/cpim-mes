@@ -893,6 +893,11 @@ type DetailedScheduleCapacityFeedbackSnapshot struct {
 // ====================================================================
 
 // WorkCenter — 作業区マスタ
+//
+// ShiftStartMinute is the shift start in minutes after 00:00 UTC
+// of the scheduling day (480 = 08:00 UTC = 17:00 JST). Detailed scheduling and
+// finite CRP intentionally interpret it in UTC, not in the business timezone
+// (decided 2026-11; see docs/TEST_FINDINGS.md).
 type WorkCenter struct {
 	ID                    uuid.UUID  `db:"id"                       json:"id"`
 	Code                  string     `db:"code"                     json:"code"`

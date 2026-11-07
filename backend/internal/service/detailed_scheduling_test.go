@@ -109,3 +109,42 @@ func TestPartialMaintenanceKeepsRemainingMachineCapacity(t *testing.T) {
 		t.Fatalf("two-machine operation must wait for maintenance to end: ok=%v frags=%#v end=%v", ok2, frags2, end2)
 	}
 }
+
+// TestShiftWindowIsInterpretedInUTC pins the agreed rule (2026-11): a work
+// center's ShiftStartMinute is minutes after 00:00 UTC of the scheduling day,
+// independent of the business timezone and of the server's TZ. 480 means
+// 08:00 UTC (17:00 JST). Changing this rule shifts every published schedule.
+func TestShiftWindowIsInterpretedInUTC(t *testing.T) {
+	old := BusinessLocation()
+	t.Cleanup(func() { _ = SetBusinessTimezone(old.String()) })
+	for _, zone := range []string{"Asia/Tokyo", "America/Los_Angeles", "UTC"} {
+		if err := SetBusinessTimezone(zone); err != nil {
+			t.Fatal(err)
+		}
+		day := time.Date(2026, 8, 24, 0, 0, 0, 0, time.UTC) // Monday
+		st := &detailedWCState{
+			wc:       domain.WorkCenter{MachineCount: 1, WorkerCount: 1, ShiftStartMinute: 480},
+			calendar: &CalendarSnapshot{Calendar: domain.WorkCalendar{MondayMin: 480}},
+			end:      day.Add(24*time.Hour - time.Nanosecond),
+		}
+		frags, end, ok := st.planClock(day, 60, 0, 1, nil)
+		if !ok || len(frags) != 1 {
+			t.Fatalf("%s: fragments=%d ok=%v", zone, len(frags), ok)
+		}
+		if want := time.Date(2026, 8, 24, 8, 0, 0, 0, time.UTC); !frags[0].start.Equal(want) || !end.Equal(want.Add(time.Hour)) {
+			t.Fatalf("%s: shift starts %v (end %v); want %v", zone, frags[0].start, end, want)
+		}
+	}
+
+	wcID := uuid.New()
+	wc := domain.WorkCenter{ID: wcID, Code: "WC", CapacityMinutesPerDay: 480, Efficiency: 1, Utilization: 1, ShiftStartMinute: 480}
+	start := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
+	a := &finiteAllocator{start: start, end: start.AddDate(0, 0, 2), workCenter: map[uuid.UUID]domain.WorkCenter{wcID: wc}, calendars: map[uuid.UUID]*CalendarSnapshot{}, days: map[string]*capacityDay{}}
+	segs, rem := a.allocateForward(wcID, start, 60)
+	if rem != 0 || len(segs) != 1 {
+		t.Fatalf("finite CRP: segments=%d rem=%v", len(segs), rem)
+	}
+	if want := time.Date(2026, 8, 19, 8, 0, 0, 0, time.UTC); !segs[0].StartAt.Equal(want) {
+		t.Fatalf("finite CRP shift starts %v; want %v", segs[0].StartAt, want)
+	}
+}
