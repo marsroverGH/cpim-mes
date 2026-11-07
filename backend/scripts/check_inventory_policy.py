@@ -73,7 +73,7 @@ checks={
  'calculation hash is canonical SHA256': allin(svc,'canonicalInventoryPolicyHash','sha256.Sum256'),
  'effective policy falls back to legacy item safety stock': allin(svc,'LEGACY_FIXED','item.SafetyStock','ITEM_MASTER'),
  'uncalculated active policy forces safety-stock mode': allin(svc,'p.CalculationStatus != "CALCULATED"','p.ReplenishmentMethod = "SAFETY_STOCK"'),
- 'Min-Max MRP replenishes only below ROP': allin(svc,'projectedBefore+1e-9 >= policy.ReorderPoint','net = policy.MaxQty - projectedBefore'),
+ 'Min-Max MRP replenishes only below ROP': allin(svc,'projectedBefore.GreaterThanOrEqual(dq(policy.ReorderPoint))','dq(policy.MaxQty).Sub(projectedBefore)'),
  'Min-Max MRP lot-sizing still applied': 'ApplyLotSize(net, 0, lotSize, eoq, method)' in svc,
  'MRP owns inventory policy service': allin(main,'inventoryPolicy *InventoryPolicyService','inventoryPolicy.Effective(ctx, it)'),
  'MRP start trigger distinguishes Min-Max from Safety Stock': allin(main,'startThreshold := policy.SafetyStock','policy.ReplenishmentMethod == "MIN_MAX"','startThreshold = policy.ReorderPoint'),

@@ -15,6 +15,7 @@ import (
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -560,16 +561,16 @@ func netMRPBucketWithInventoryPolicy(opening, gross, scheduled float64, policy d
 	if policy.ReplenishmentMethod != "MIN_MAX" || policy.CalculationStatus != "CALCULATED" {
 		return netMRPBucket(opening, gross, scheduled, policy.SafetyStock, lotSize, eoq, method)
 	}
-	projectedBefore := RoundQty(opening + scheduled - gross)
-	if projectedBefore+1e-9 >= policy.ReorderPoint {
-		return 0, 0, projectedBefore
+	projectedBefore := roundQtyDec(dq(opening).Add(dq(scheduled)).Sub(dq(gross)))
+	if projectedBefore.GreaterThanOrEqual(dq(policy.ReorderPoint)) {
+		return 0, 0, fq(projectedBefore)
 	}
-	net = policy.MaxQty - projectedBefore
-	net = RoundQty(net)
-	if net < 0 {
-		net = 0
+	netDec := roundQtyDec(dq(policy.MaxQty).Sub(projectedBefore))
+	if netDec.IsNegative() {
+		netDec = decimal.Zero
 	}
+	net = fq(netDec)
 	plannedReceipt = ApplyLotSize(net, 0, lotSize, eoq, method)
-	projected = RoundQty(projectedBefore + plannedReceipt)
+	projected = fq(projectedBefore.Add(dq(plannedReceipt)))
 	return net, plannedReceipt, projected
 }

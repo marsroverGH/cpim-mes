@@ -3,6 +3,8 @@ package service
 import (
 	"math"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 // ====================================================================
@@ -18,30 +20,30 @@ import (
 // guards use.
 const QuantityScale = 9
 
-// lotMultipleTolerance absorbs float noise when deciding whether a quantity
-// is already an exact multiple of a lot size (1.0-0.7 = 0.30000000000000004
-// must count as 3 lots of 0.1, not 4).
-const lotMultipleTolerance = 1e-9
-
 // RoundQty rounds a computed quantity to QuantityScale decimal places (half away
-// from zero, like PostgreSQL numeric rounding).
+// from zero, like PostgreSQL numeric rounding). The rounding is done in decimal,
+// so float noise such as 0.30000000000000004 becomes exactly 0.3.
 func RoundQty(x float64) float64 {
-	p := math.Pow10(QuantityScale)
-	return math.Round(x*p) / p
+	return fq(dq(x))
 }
 
-// RoundUpToMultiple — x をロットサイズ m の倍数に切り上げ
+// RoundUpToMultiple — x をロットサイズ m の倍数に切り上げ (decimal で計算する。
+// 1.0-0.7 = 0.30000000000000004 は 0.1 の 3 倍として扱い、4 倍にしない)
 func RoundUpToMultiple(x, m float64) float64 {
 	if m <= 0 {
 		return x
 	}
-	n := x / m
-	if r := math.Round(n); math.Abs(n-r) <= lotMultipleTolerance*math.Max(1, math.Abs(r)) {
-		n = r
-	} else {
-		n = math.Ceil(n)
+	return fq(roundUpToMultipleDec(roundQtyDec(dq(x)), dq(m)))
+}
+
+func roundUpToMultipleDec(x, m decimal.Decimal) decimal.Decimal {
+	if !m.IsPositive() {
+		return x
 	}
-	return RoundQty(n * m)
+	if x.Mod(m).IsZero() {
+		return x
+	}
+	return x.Div(m).Floor().Add(decimal.NewFromInt(1)).Mul(m)
 }
 
 // TruncateDay — タイムスタンプを日単位に切り捨て (タイムゾーンは引数を踏襲)
@@ -189,8 +191,8 @@ func ApplyLotSize(netReq, safety, lotSize, eoq float64, method LotSizeMethod) fl
 	}
 	// net requirements are differences of float quantities; keep planned
 	// receipts free of binary artefacts (1.0-0.7 = 0.30000000000000004).
-	target := RoundQty(netReq + safety)
-	if target <= 0 {
+	target := roundQtyDec(dq(netReq).Add(dq(safety)))
+	if !target.IsPositive() {
 		return 0
 	}
 	switch method {
@@ -199,24 +201,26 @@ func ApplyLotSize(netReq, safety, lotSize, eoq float64, method LotSizeMethod) fl
 		if lotSize <= 0 {
 			lotSize = 1
 		}
-		return RoundUpToMultiple(target, lotSize)
+		return fq(roundUpToMultipleDec(target, dq(lotSize)))
 	case LotMethodEOQ:
 		if eoq > 0 {
-			return RoundUpToMultiple(target, eoq)
+			// EOQ is a square root and has no exact decimal form; the lot is
+			// the EOQ rounded to QuantityScale places.
+			return fq(roundUpToMultipleDec(target, roundQtyDec(dq(eoq))))
 		}
 		// If EOQ cannot be calculated, fall back to Lot-for-Lot rather than
 		// silently imposing the item's fixed lot size.
-		return target
+		return fq(target)
 	case LotMethodPOQ:
 		// POQ demand periods are aggregated by the caller. The receipt quantity
 		// itself is therefore Lot-for-Lot against the aggregated net requirement.
-		return target
+		return fq(target)
 	case LotMethodLFL:
 		fallthrough
 	default:
 		// Lot-for-Lot means exactly the net requirement; lot_size is not a
 		// multiplier in LFL.
-		return target
+		return fq(target)
 	}
 }
 
@@ -248,25 +252,23 @@ type LotConsumption struct {
 //
 //	required = 30, total balance = 22 → 全消費 + shortage = 8
 func SplitFIFO(lots []LotBalance, required float64) (consumptions []LotConsumption, shortage float64) {
-	remaining := required
+	remaining := roundQtyDec(dq(required))
 	for _, l := range lots {
-		if remaining <= 0 {
+		if !remaining.IsPositive() {
 			break
 		}
-		if l.Balance <= 0 {
+		balance := roundQtyDec(dq(l.Balance))
+		if !balance.IsPositive() {
 			continue
 		}
-		take := l.Balance
-		if take > remaining {
-			take = remaining
-		}
+		take := decimal.Min(balance, remaining)
 		consumptions = append(consumptions, LotConsumption{
-			LotID: l.LotID, LotNo: l.LotNo, Consumed: take,
+			LotID: l.LotID, LotNo: l.LotNo, Consumed: fq(take),
 		})
-		remaining -= take
+		remaining = remaining.Sub(take)
 	}
-	if remaining > 0 {
-		shortage = remaining
+	if remaining.IsPositive() {
+		shortage = fq(remaining)
 	}
 	return consumptions, shortage
 }

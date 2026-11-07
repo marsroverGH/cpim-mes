@@ -353,6 +353,7 @@ func (s *SalesOrderService) Allocate(ctx context.Context, lineID uuid.UUID, in S
 	if err := actor.validate(); err != nil {
 		return nil, err
 	}
+	in.Quantity = RoundQty(in.Quantity) // the ledger keeps QuantityScale places
 	if in.AllocationID == uuid.Nil || in.Quantity <= 0 {
 		return nil, domain.NewBadRequest("allocationId and positive quantity are required", nil)
 	}
@@ -386,8 +387,8 @@ func (s *SalesOrderService) Allocate(ctx context.Context, lineID uuid.UUID, in S
 	if l.OrderStatus != "CONFIRMED" && l.OrderStatus != "PARTIALLY_SHIPPED" {
 		return nil, domain.NewConflict("sales order must be CONFIRMED or PARTIALLY_SHIPPED")
 	}
-	remaining := l.Quantity - l.ShippedQty - l.CancelledQty - l.AllocatedQty
-	if in.Quantity > remaining+1e-9 {
+	remaining := dq(l.Quantity).Sub(dq(l.ShippedQty)).Sub(dq(l.CancelledQty)).Sub(dq(l.AllocatedQty))
+	if dq(in.Quantity).GreaterThan(remaining) {
 		return nil, domain.NewConflict("allocation exceeds open unallocated quantity")
 	}
 	var locked uuid.UUID
@@ -398,7 +399,7 @@ func (s *SalesOrderService) Allocate(ctx context.Context, lineID uuid.UUID, in S
 	if err := tx.GetContext(ctx, &b, `SELECT item_id,code,name,on_hand,reserved FROM v_stock_balance WHERE item_id=$1`, l.ItemID); err != nil {
 		return nil, err
 	}
-	if b.Available()+1e-9 < in.Quantity {
+	if roundQtyDec(dq(b.Available())).LessThan(dq(in.Quantity)) {
 		return nil, domain.NewConflict(fmt.Sprintf("insufficient available stock: need %.2f, available %.2f", in.Quantity, b.Available()))
 	}
 	now := time.Now().UTC()
@@ -423,6 +424,7 @@ func (s *SalesOrderService) ReleaseAllocation(ctx context.Context, lineID uuid.U
 	if err := actor.validate(); err != nil {
 		return nil, err
 	}
+	in.Quantity = RoundQty(in.Quantity) // the ledger keeps QuantityScale places
 	if in.ReleaseID == uuid.Nil || in.Quantity <= 0 {
 		return nil, domain.NewBadRequest("releaseId and positive quantity are required", nil)
 	}
@@ -456,7 +458,7 @@ func (s *SalesOrderService) ReleaseAllocation(ctx context.Context, lineID uuid.U
 	if l.OrderStatus != "CONFIRMED" && l.OrderStatus != "PARTIALLY_SHIPPED" {
 		return nil, domain.NewConflict("sales order is not allocatable")
 	}
-	if in.Quantity > l.AllocatedQty+1e-9 {
+	if dq(in.Quantity).GreaterThan(dq(l.AllocatedQty)) {
 		return nil, domain.NewConflict("release exceeds allocated quantity")
 	}
 	now := time.Now().UTC()
@@ -481,6 +483,7 @@ func (s *SalesOrderService) Ship(ctx context.Context, lineID uuid.UUID, in Sales
 	if err := actor.validate(); err != nil {
 		return nil, err
 	}
+	in.Quantity = RoundQty(in.Quantity) // the ledger keeps QuantityScale places
 	if in.ShipmentID == uuid.Nil || in.Quantity <= 0 {
 		return nil, domain.NewBadRequest("shipmentId and positive quantity are required", nil)
 	}
@@ -513,10 +516,10 @@ func (s *SalesOrderService) Ship(ctx context.Context, lineID uuid.UUID, in Sales
 	if l.OrderStatus != "CONFIRMED" && l.OrderStatus != "PARTIALLY_SHIPPED" {
 		return nil, domain.NewConflict("sales order is not shippable")
 	}
-	if in.Quantity > l.AllocatedQty+1e-9 {
+	if dq(in.Quantity).GreaterThan(dq(l.AllocatedQty)) {
 		return nil, domain.NewConflict("shipment exceeds allocated quantity")
 	}
-	if in.Quantity > l.Quantity-l.ShippedQty-l.CancelledQty+1e-9 {
+	if dq(in.Quantity).GreaterThan(dq(l.Quantity).Sub(dq(l.ShippedQty)).Sub(dq(l.CancelledQty))) {
 		return nil, domain.NewConflict("shipment exceeds open quantity")
 	}
 	now := time.Now().UTC()

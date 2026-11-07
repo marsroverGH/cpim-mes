@@ -402,7 +402,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 			continue
 		}
 		k := bucketKey{Day: day, Item: m.ItemID}
-		gross[k] += m.Planned
+		gross[k] = addQty(gross[k], m.Planned)
 		if it, ok := itemByID[m.ItemID]; ok {
 			addPeg(k, it.Code)
 		}
@@ -434,7 +434,8 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		if day.Before(startDay) {
 			day = startDay
 		}
-		scheduled[bucketKey{Day: day, Item: po.ItemID}] += remaining
+		k := bucketKey{Day: day, Item: po.ItemID}
+		scheduled[k] = addQty(scheduled[k], remaining)
 	}
 
 	wos, err := s.repos.WorkOrders.List(ctx)
@@ -445,7 +446,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 		if wo.Status != "RELEASED" && wo.Status != "IN_PROGRESS" {
 			continue
 		}
-		remaining := wo.Quantity - wo.CompletedQty
+		remaining := subQty(wo.Quantity, wo.CompletedQty)
 		if remaining <= 0 {
 			continue
 		}
@@ -454,7 +455,8 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 			if day.Before(startDay) {
 				day = startDay
 			}
-			scheduled[bucketKey{Day: day, Item: wo.ItemID}] += remaining
+			k := bucketKey{Day: day, Item: wo.ItemID}
+			scheduled[k] = addQty(scheduled[k], remaining)
 		}
 
 		// A released/in-progress WO is firm supply for its parent AND firm
@@ -481,7 +483,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 			for _, c := range components {
 				required := directComponentRequirement(remaining, c.Quantity, c.ScrapPct)
 				childKey := bucketKey{Day: componentDay, Item: c.ChildID}
-				gross[childKey] += required
+				gross[childKey] = addQty(gross[childKey], required)
 				addPeg(childKey, parentCode)
 			}
 		}
@@ -682,7 +684,7 @@ func (s *MRPService) run(ctx context.Context, req MRPRequest, recomputeLLC bool)
 					// the parent's actual past-due release date remains visible in its result.
 					dependentDay := dependentRequirementDate(releaseDay, startDay)
 					childKey := bucketKey{Day: dependentDay, Item: c.ChildID}
-					gross[childKey] += required
+					gross[childKey] = addQty(gross[childKey], required)
 
 					if len(pegs) > 0 {
 						for _, peg := range pegs {
@@ -741,7 +743,7 @@ func poqAggregate(
 			head := bucketKey{Day: days[i], Item: itemID}
 			for j := i + 1; j < i+group && j < len(days); j++ {
 				k := bucketKey{Day: days[j], Item: itemID}
-				gross[head] += gross[k]
+				gross[head] = addQty(gross[head], gross[k])
 				if pegging[head] == nil {
 					pegging[head] = make(map[string]bool)
 				}
