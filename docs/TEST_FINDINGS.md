@@ -18,13 +18,8 @@
 | CSV 取込で既存品目を更新すると CSV に無い計画パラメータが初期値に戻る（#12） | `csv.go`: 既存品目は CSV の列だけを上書き |
 | CSV 取込がドメイン検証を通さず負の値を受け付ける（#13） | `csv.go`: `domain.Item` と同じ範囲検証（lotSize>0、safetyStock/standardCost>=0、リードタイム 0〜3650、文字数、NaN/Inf） |
 | 同一実行内の 2 つのアクションが同じ部品・同じ残業枠を使うと、自分自身の変更を「ドリフト」と判定して PARTIAL_FAILED になる（#16） | `recovery_execution.go`: preflight と実行開始ゲートで、前のアクションの効果を SAVEPOINT 内で実際に適用してから次のアクションを評価し、最後にロールバックする。全体としてのみ実行不能な計画（同じ作業指示の二重リリース、合計で日をまたぐ残業など）は承認前に BLOCKED になる |
-
-## 同時実行（優先度：中）
-
-| # | 内容 | 場所 |
-| --- | --- | --- |
-| 14 | 同じ実行計画への Execute が 8 件以上同時に来るとデッドロック（40P01）が起き、5 回のリトライで解消しきれず 409 になる。データ整合性は保たれる | `backend/internal/service/recovery_execution.go:781, 1091`（ロック順序） |
-| 15 | 同一 PO への RecordEvent が 6 件以上同時だと 40001 がリトライ上限を超える（advisory lock の時点でスナップショットが固定され、待機者が必ず 1 回失敗する） | `backend/internal/service/supplier_scheduling.go:179, 199` |
+| 同じ実行計画への Execute が 8 件以上同時に来るとデッドロック（40P01）が起き、リトライ上限を超えて 409 になる（#14） | `recovery_execution.go`: Execute を実行計画ごとのセッション advisory lock で直列化（トランザクション開始前に取得し、同じ接続で処理）。後続の呼び出しは完了済みの実行を返す。開始ゲート（実行→アクションの順）とアクション処理（アクション→外部キー経由の実行行）のロック順序の逆転が原因だった |
+| 同一 PO への RecordEvent が 6 件以上同時だと 40001 がリトライ上限を超える（#15） | `supplier_scheduling.go`: PO ごとのセッション advisory lock をトランザクション開始前に取得する（`advisory_lock.go` の `withSessionAdvisoryLock`）。待機者が古いスナップショットを持たなくなり、24 件同時でも全件成功する |
 
 ## 要判断（未対応）
 

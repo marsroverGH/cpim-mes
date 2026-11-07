@@ -158,8 +158,6 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 	const workers = 8
 
 	phase := ""
-	tolerateEscapes := false
-	var escaped []error
 	race := func(n int, fn func(i int) error) []error {
 		errs := make([]error, n)
 		var wg sync.WaitGroup
@@ -175,10 +173,6 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 		close(start)
 		wg.Wait()
 		for i, err := range errs {
-			if IsRetryableTxError(err) && tolerateEscapes {
-				escaped = append(escaped, err)
-				continue
-			}
 			if IsRetryableTxError(err) {
 				t.Fatalf("%s worker %d: retryable error escaped: %v", phase, i, err)
 			}
@@ -189,9 +183,8 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 	// --- SupplierScheduling.RecordEvent: distinct events on one PO ---
 	po := recPO(t, e.dbFixture, "PO-REC-RACE", "CHAIN-1", 30, recDay(-1), recDay(25))
 	qty := 30.0
-	// Every writer that queued on the PO row lock carries a snapshot taken
-	// before the winner committed, so it loses with 40001 and retries; with
-	// txRetryMaxAttempts=5 up to 5 simultaneous writers are guaranteed to fit.
+	// Writers of one PO queue on a session-level advisory lock before their
+	// transaction starts, so none inherits a stale snapshot (#15).
 	const writers = txRetryMaxAttempts
 	phase = "record-distinct"
 	errs := race(writers, func(i int) error {
@@ -217,28 +210,21 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 	}
 	checkRevisions(po.ID, writers)
 
-	// Heavier burst on another PO: escaped 40001s are tolerated (and reported)
-	// but the persisted revisions must stay gapless and duplicate-free.
+	// Heavier burst on another PO, well beyond txRetryMaxAttempts: every
+	// writer must succeed and the revisions must stay gapless (#15).
 	po2 := recPO(t, e.dbFixture, "PO-REC-RACE-HEAVY", "CHAIN-1", 30, recDay(-1), recDay(25))
 	phase = "record-distinct-heavy"
-	tolerateEscapes = true
-	errs = race(3*workers, func(i int) error {
+	const heavyWriters = 3 * workers
+	errs = race(heavyWriters, func(i int) error {
 		_, err := e.Svc.SupplierScheduling.RecordEvent(e.Ctx, po2.ID, SupplierScheduleEventInput{EventID: uuid.NewString(), EventType: "REVISE", Quantity: &qty, ConfirmedDeliveryDate: recDay(10 + i).Format("2006-01-02")}, recSalesActor(e.Planner))
 		return err
 	})
-	tolerateEscapes = false
-	ok := 0
 	for i, err := range errs {
-		switch {
-		case err == nil:
-			ok++
-		case !IsRetryableTxError(err):
+		if err != nil {
 			t.Fatalf("heavy record event %d: %v", i, err)
 		}
 	}
-	checkRevisions(po2.ID, ok)
-	recordEscapes := len(escaped)
-	escaped = nil
+	checkRevisions(po2.ID, heavyWriters)
 
 	// --- RecordEvent: the same eventId retried concurrently is idempotent ---
 	eventID := uuid.NewString()
@@ -315,14 +301,11 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 		t.Helper()
 		results := make([]*domain.RecoveryPlanExecutionDetail, n)
 		errs := race(n, func(i int) error {
-			r, err := rx.Execute(e.Ctx, id, admins[i])
+			r, err := rx.Execute(e.Ctx, id, admins[i%len(admins)])
 			results[i] = r
 			return err
 		})
 		for i, err := range errs {
-			if IsRetryableTxError(err) {
-				continue // only reachable when tolerateEscapes is set
-			}
 			if err != nil {
 				t.Fatalf("execute %d: %v", i, err)
 			}
@@ -361,8 +344,8 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 	phase = "execute-2"
 	execRace(id, 2, "WO-REC-RACE", recDay(7), recDay(12))
 
-	// Heavy burst: correctness must hold; escaped retryable errors are counted
-	// and reported (known limitation, see report) but never corrupt state.
+	// Heavy burst: concurrent callers queue on the execution lock instead of
+	// deadlocking, so every caller sees SUCCEEDED (#14).
 	recWO(t, e.dbFixture, "WO-REC-RACE2", "WHEEL-1", 1, recDay(20), recDay(25))
 	recPO(t, e.dbFixture, "PO-REC-RACE2", "CHAIN-1", 30, recDay(-1), recDay(25))
 	d2 := recApproved(t, e, "race-heavy", []RecoveryScenarioActionInput{
@@ -370,8 +353,7 @@ func TestRecDBTxRetryConcurrentContention(t *testing.T) {
 		{ActionType: "EXPEDITE_PO", TargetType: "PURCHASE_ORDER", TargetRef: "PO:PO-REC-RACE2", Parameters: recParams(t, map[string]any{"expediteDays": 2})},
 		{ActionType: "ADD_OVERTIME_CAPACITY", TargetType: "WORK_CENTER", TargetRef: "WC:WC-PAINT", Parameters: recParams(t, map[string]any{"overtimeMinutes": 45, "effectiveDate": recDay(9).Format("2006-01-02")})},
 	})
-	phase = "execute-8"
-	tolerateEscapes = true
-	execRace(d2.Execution.ID, workers, "WO-REC-RACE2", recDay(17), recDay(22))
-	t.Logf("retries performed under contention: %d; escaped after %d attempts: RecordEvent(%d writers)=%d, Execute(%d callers)=%d %v", retries.Load(), txRetryMaxAttempts, 3*workers, recordEscapes, workers, len(escaped), escaped)
+	phase = "execute-heavy"
+	execRace(d2.Execution.ID, 3*workers, "WO-REC-RACE2", recDay(17), recDay(22))
+	t.Logf("retries performed under contention: %d", retries.Load())
 }
