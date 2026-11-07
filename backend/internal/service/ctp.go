@@ -63,10 +63,28 @@ func (e *CTPEngine) MaterialReadyWithUsage(ctx context.Context, parentID uuid.UU
 		itemByID[it.ID] = it
 	}
 
+	// BOM.Explode returns one row per (level, component). A component used at
+	// several levels must be netted once against its total requirement,
+	// otherwise each level sees the same free stock.
+	type componentNeed struct {
+		ChildID  uuid.UUID
+		TotalQty float64
+	}
+	needs := []componentNeed{}
+	needIdx := map[uuid.UUID]int{}
+	for _, row := range rows {
+		if i, ok := needIdx[row.ChildID]; ok {
+			needs[i].TotalQty += row.TotalQty
+			continue
+		}
+		needIdx[row.ChildID] = len(needs)
+		needs = append(needs, componentNeed{ChildID: row.ChildID, TotalQty: row.TotalQty})
+	}
+
 	ready := start
 	purchaseShortage, productionShortage := false, false
 	constraints := []map[string]any{}
-	for _, row := range rows {
+	for _, row := range needs {
 		it, ok := itemByID[row.ChildID]
 		if !ok {
 			continue

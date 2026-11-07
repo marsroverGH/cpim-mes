@@ -97,15 +97,14 @@ func TestOpsCSVItemsExportImport(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if res.Inserted != 0 {
-			t.Skipf("KNOWN BUG csv.go parseItemRow: row with lotSize=-1 safetyStock=-5 standardCost=-2 was imported "+
-				"(domain.Item requires lotSize>0, safetyStock>=0, standardCost>=0; CSV import skips that validation and the DB has no CHECK): %+v", res)
+		if res.Inserted != 0 || res.Skipped != 1 {
+			t.Fatalf("row with lotSize=-1 safetyStock=-5 standardCost=-2 must be rejected: %+v", res)
 		}
 	})
 
 	t.Run("update preserves planning fields not in the CSV", func(t *testing.T) {
 		if updated.LotSizeMethod != "POQ" || updated.PoqPeriods != 4 || !opsNear(updated.OrderingCost, 25) || !opsNear(updated.HoldingCostPct, 0.3) {
-			t.Skipf("KNOWN BUG csv.go ImportItems/parseItemRow: updating an existing item resets non-CSV planning fields "+
+			t.Fatalf("updating an existing item via CSV reset non-CSV planning fields "+
 				"(lot_size_method=%s poq_periods=%d ordering_cost=%.2f holding_cost_pct=%.2f; were POQ/4/25/0.30)",
 				updated.LotSizeMethod, updated.PoqPeriods, updated.OrderingCost, updated.HoldingCostPct)
 		}
@@ -178,8 +177,7 @@ func TestOpsABCRunFromIssueHistory(t *testing.T) {
 			t.Fatalf("highest usage item must rank first: %+v", rows[0])
 		}
 		if rows[0].ABCClass != "A" {
-			t.Skipf("KNOWN ISSUE abc.go BuildAnnualDollarUsageABC: top-ranked item with %.1f%% of usage value is classified %s "+
-				"because the class is taken from the cumulative %% including the item itself", rows[0].UsageValuePct, rows[0].ABCClass)
+			t.Fatalf("top-ranked item with %.1f%% of usage value is classified %s", rows[0].UsageValuePct, rows[0].ABCClass)
 		}
 	})
 }

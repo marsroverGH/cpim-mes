@@ -93,10 +93,8 @@ func TestPlanCTPMaterialReady(t *testing.T) {
 	}
 }
 
-// A component used at two BOM levels must be netted against its total requirement.
-// Known bug: CTPEngine checks each (level, component) row from BOM.Explode independently,
-// so a component appearing at level 1 and level 2 is checked against the same free
-// stock twice. Skips while the bug exists.
+// A component used at two BOM levels must be netted against its total requirement,
+// not checked per level against the same free stock.
 func TestPlanCTPComponentAtTwoLevels(t *testing.T) {
 	t.Parallel()
 	f := newDBFixture(t)
@@ -114,7 +112,7 @@ func TestPlanCTPComponentAtTwoLevels(t *testing.T) {
 	}
 	// One P needs 1 X directly + 1 X through S = 2 X, but only 1 is free.
 	if res.ReadyDate.Before(start.AddDate(0, 0, 9)) {
-		t.Skipf("KNOWN BUG (ctp.go MaterialReadyWithUsage): component at two BOM levels checked twice against the same free stock; ready=%s source=%s",
+		t.Fatalf("component at two BOM levels checked twice against the same free stock; ready=%s source=%s",
 			res.ReadyDate.Format("2006-01-02"), res.Source)
 	}
 }
