@@ -65,6 +65,7 @@ make ci-local
   判定は `go test` と Playwright の実行結果で行う。逆に、ガードが参照している文字列を消すとガードが落ちる。
 - **マイグレーションは追記のみ**。既存ファイル（特に 0041 以前）はバイト単位で不変が前提（ハッシュを docs で記録している）。down マイグレーションは無い。
 - **業務日付**: 日付の比較・集計・「今日」は `service.BusinessDate` / `BusinessToday()` を使う（業務タイムゾーンの暦日を UTC 0 時で表す。DB の `eco_business_timezone()` と一致）。`TruncateDay(time.Now())` はサーバーの TZ に依存するので使わない。日付が絡むテストは `TZ=UTC` と `TZ=Asia/Tokyo` の両方で通すこと。
+- **シフト時間帯は UTC 基準**（2026-11 決定）: 詳細スケジューリング・有限 CRP では、作業区の `shiftStartMinute` を UTC 0 時からの分として扱う（480 = 8:00 UTC = 17:00 JST）。業務日付とは基準が違うので、業務タイムゾーンに寄せる変更はしない（`TestShiftWindowIsInterpretedInUTC` が落ちる）。
 - API の日付は RFC3339（`2026-11-11T00:00:00Z`）。`YYYY-MM-DD` は 400 になる。
 - E2E で UI ログインした直後は `await expect(page).toHaveURL(/\/$/)` でリダイレクト完了を待ってから遷移する。
 
@@ -72,6 +73,5 @@ make ci-local
 
 移行時の解析とテスト拡充で見つかった主な改善点（テストで見つかった不具合の一覧は `docs/TEST_FINDINGS.md`）。着手するときは個別に相談のうえ進める。
 
-- `docs/TEST_FINDINGS.md` の要判断事項（詳細スケジューリングのシフト時間帯の基準）
 - 数量計算が float
 - 在庫台帳が全履歴を再走査する

@@ -1318,5 +1318,6 @@ func (s *CRPService) GetDetailedRun(ctx context.Context, id uuid.UUID) (*domain.
 // from PostgreSQL in the server's local zone (maintenance windows) with UTC
 // dates from MRP; flooring in each value's own zone made working windows
 // depend on the server TZ. Normalising to UTC keeps the result identical to
-// the production container (TZ=UTC) on every host.
+// the production container (TZ=UTC) on every host. Shift windows
+// (WorkCenter.ShiftStartMinute) are offsets from this UTC midnight by design.
 func schedDay(t time.Time) time.Time { return TruncateDay(t.UTC()) }
