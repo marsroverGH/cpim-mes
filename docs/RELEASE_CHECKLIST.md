@@ -7,6 +7,7 @@
 - [ ] Target is `v0.42.0`; candidate matches `v0.42.0-rc.N`.
 - [ ] Migration files are exactly `0001` through `0042`; `0042` is Controlled Recovery Plan Execution.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.
+- [ ] `docs/RELEASE_NOTES_v0.42.0.md` lists every change since v0.41.1, including the post-import fixes and the operational behavior changes.
 
 ## Runtime / build
 
