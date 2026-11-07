@@ -316,8 +316,16 @@ func (s *InventoryPolicyService) demandStatistics(ctx context.Context, tx *sqlx.
 	start := asOf.AddDate(0, 0, -(windowDays - 1))
 	var out demandStats
 	err := tx.GetContext(ctx, &out, `
-WITH days AS (
-  SELECT generate_series($2::date,$3::date,'1 day'::interval)::date AS day
+WITH first_activity AS (
+  -- History starts at the item's first inventory transaction, so an item
+  -- without history has 0 observation days (item-master fallback) and a new
+  -- item's average is not diluted by days before it existed.
+  SELECT MIN((occurred_at AT TIME ZONE eco_business_timezone())::date) AS day
+    FROM inventory_txns
+   WHERE item_id=$1 AND (occurred_at AT TIME ZONE eco_business_timezone())::date <= $3
+), days AS (
+  SELECT generate_series(GREATEST($2::date,f.day),$3::date,'1 day'::interval)::date AS day
+    FROM first_activity f WHERE f.day IS NOT NULL
 ), daily AS (
   SELECT (occurred_at AT TIME ZONE eco_business_timezone())::date AS day,COALESCE(SUM(-quantity),0)::double precision AS qty
     FROM inventory_txns

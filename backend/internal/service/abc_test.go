@@ -98,3 +98,38 @@ func TestIntervalDays(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildAnnualDollarUsageABC_TopItemIsA(t *testing.T) {
+	end := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
+	start := end.AddDate(-1, 0, 1)
+	classes := func(values ...float64) string {
+		items := []domain.Item{}
+		usage := map[uuid.UUID]float64{}
+		for i, v := range values {
+			id := uuid.New()
+			items = append(items, domain.Item{ID: id, Code: string(rune('A' + i)), StandardCost: 1})
+			usage[id] = v
+		}
+		out := ""
+		for _, r := range BuildAnnualDollarUsageABC(items, map[uuid.UUID]float64{}, usage, start, end) {
+			out += r.ABCClass
+		}
+		return out
+	}
+	cases := []struct {
+		name   string
+		values []float64
+		want   string
+	}{
+		{"dominant item is A", []float64{91, 5, 4}, "ACC"},
+		{"single item is A", []float64{10}, "A"},
+		{"top item crossing 90%", []float64{95, 5}, "AC"},
+		{"regular Pareto split unchanged", []float64{60, 30, 10}, "ABC"},
+		{"equal shares", []float64{10, 10, 10, 10, 10, 10, 10, 10, 10, 10}, "AAAAAAABBC"},
+	}
+	for _, c := range cases {
+		if got := classes(c.values...); got != c.want {
+			t.Errorf("%s: classes %s, want %s", c.name, got, c.want)
+		}
+	}
+}

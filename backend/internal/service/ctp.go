@@ -63,17 +63,35 @@ func (e *CTPEngine) MaterialReadyWithUsage(ctx context.Context, parentID uuid.UU
 		itemByID[it.ID] = it
 	}
 
+	// BOM.Explode returns one row per (level, component). A component used at
+	// several levels must be netted once against its total requirement,
+	// otherwise each level sees the same free stock.
+	type componentNeed struct {
+		childID  uuid.UUID
+		totalQty float64
+	}
+	needs := []componentNeed{}
+	needIdx := map[uuid.UUID]int{}
+	for _, row := range rows {
+		if i, ok := needIdx[row.ChildID]; ok {
+			needs[i].totalQty += row.TotalQty
+			continue
+		}
+		needIdx[row.ChildID] = len(needs)
+		needs = append(needs, componentNeed{childID: row.ChildID, totalQty: row.TotalQty})
+	}
+
 	ready := start
 	purchaseShortage, productionShortage := false, false
 	constraints := []map[string]any{}
-	for _, row := range rows {
-		it, ok := itemByID[row.ChildID]
+	for _, row := range needs {
+		it, ok := itemByID[row.childID]
 		if !ok {
 			continue
 		}
-		required := row.TotalQty
+		required := row.totalQty
 		if cumulativeUsage != nil {
-			required += cumulativeUsage[row.ChildID]
+			required += cumulativeUsage[row.childID]
 		}
 		componentReady, shortage, detail, err := e.componentReady(ctx, it, required, start, end)
 		if err != nil {
@@ -89,10 +107,10 @@ func (e *CTPEngine) MaterialReadyWithUsage(ctx context.Context, parentID uuid.UU
 				productionShortage = true
 			}
 		}
-		detail["runLineRequired"] = row.TotalQty
+		detail["runLineRequired"] = row.totalQty
 		constraints = append(constraints, detail)
 		if cumulativeUsage != nil {
-			cumulativeUsage[row.ChildID] += row.TotalQty
+			cumulativeUsage[row.childID] += row.totalQty
 		}
 	}
 	source := "CTP_PRODUCTION"

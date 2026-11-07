@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/cpim-mes/backend/internal/repository"
@@ -112,12 +114,20 @@ func (s *CSVService) ImportItems(ctx context.Context, r io.Reader) (*ImportResul
 		}
 
 		if cur, ok := byCode[it.Code]; ok {
-			it.ID = cur.ID
+			// Only the CSV columns are overwritten; planning parameters that the
+			// CSV does not carry (lot-sizing method, POQ periods, costs, group)
+			// keep their current values.
+			upd := cur
+			upd.Name, upd.Type, upd.UoM = it.Name, it.Type, it.UoM
+			upd.LeadTimeDays, upd.SafetyStock = it.LeadTimeDays, it.SafetyStock
+			upd.LotSize, upd.StandardCost = it.LotSize, it.StandardCost
+			it = upd
 			if err := s.repos.Items.Update(ctx, &it); err != nil {
 				res.Errors = append(res.Errors, fmt.Sprintf("row %d update: %v", rowNum, err))
 				res.Skipped++
 				continue
 			}
+			byCode[it.Code] = it
 			res.Updated++
 		} else {
 			if err := s.repos.Items.Create(ctx, &it); err != nil {
@@ -125,6 +135,7 @@ func (s *CSVService) ImportItems(ctx context.Context, r io.Reader) (*ImportResul
 				res.Skipped++
 				continue
 			}
+			byCode[it.Code] = it
 			res.Inserted++
 		}
 	}
@@ -143,16 +154,29 @@ func parseItemRow(rec []string, h map[string]int) (domain.Item, error) {
 		if s == "" {
 			return def, nil
 		}
-		return strconv.ParseFloat(s, 64)
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return 0, err
+		}
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return 0, fmt.Errorf("invalid number %q", s)
+		}
+		return v, nil
 	}
 
 	code := get("code")
 	if code == "" {
 		return domain.Item{}, errors.New("code is required")
 	}
+	if utf8.RuneCountInString(code) > 50 {
+		return domain.Item{}, errors.New("code must be at most 50 characters")
+	}
 	name := get("name")
 	if name == "" {
 		return domain.Item{}, errors.New("name is required")
+	}
+	if utf8.RuneCountInString(name) > 200 {
+		return domain.Item{}, errors.New("name must be at most 200 characters")
 	}
 	tp := domain.ItemType(strings.ToUpper(get("type")))
 	switch tp {
@@ -165,6 +189,9 @@ func parseItemRow(rec []string, h map[string]int) (domain.Item, error) {
 	if uom == "" {
 		uom = "EA"
 	}
+	if utf8.RuneCountInString(uom) > 10 {
+		return domain.Item{}, errors.New("uom must be at most 10 characters")
+	}
 
 	ltStr := get("leadTimeDays")
 	lt := 0
@@ -173,19 +200,31 @@ func parseItemRow(rec []string, h map[string]int) (domain.Item, error) {
 		if err != nil {
 			return domain.Item{}, fmt.Errorf("leadTimeDays: %w", err)
 		}
+		if v < 0 || v > 3650 {
+			return domain.Item{}, fmt.Errorf("leadTimeDays must be between 0 and 3650, got %d", v)
+		}
 		lt = v
 	}
 	ss, err := parseFloat(get("safetyStock"), 0)
 	if err != nil {
 		return domain.Item{}, fmt.Errorf("safetyStock: %w", err)
 	}
+	if ss < 0 {
+		return domain.Item{}, fmt.Errorf("safetyStock must be >= 0, got %v", ss)
+	}
 	ls, err := parseFloat(get("lotSize"), 1)
 	if err != nil {
 		return domain.Item{}, fmt.Errorf("lotSize: %w", err)
 	}
+	if ls <= 0 {
+		return domain.Item{}, fmt.Errorf("lotSize must be > 0, got %v", ls)
+	}
 	sc, err := parseFloat(get("standardCost"), 0)
 	if err != nil {
 		return domain.Item{}, fmt.Errorf("standardCost: %w", err)
+	}
+	if sc < 0 {
+		return domain.Item{}, fmt.Errorf("standardCost must be >= 0, got %v", sc)
 	}
 
 	return domain.Item{

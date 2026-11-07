@@ -142,11 +142,12 @@ func TestOpsInventoryPolicyLifecycleAndRefresh(t *testing.T) {
 	if run1.Run.Status != "COMPLETE" || run1.Run.ResultHash == nil || r.DemandSource != "FIXED_POLICY" || r.SafetyStock != 7 {
 		t.Fatalf("fixed refresh: run=%+v result=%+v", run1.Run, r)
 	}
-	// 20 days * avg 3 over a 90-day window.
-	if !opsNear(r.AverageDailyDemand, 60.0/90) || r.DemandObservationDays != 90 || r.NonzeroDemandDays != 20 || r.LeadTimeMeanDays != 4 || r.LeadTimeSource != "ITEM_MASTER" {
+	// History starts 20 days ago (first transaction), so the 90-day window
+	// observes 20 days averaging 3 — below MinHistoryDays (30), hence LOW.
+	if !opsNear(r.AverageDailyDemand, 3) || r.DemandObservationDays != 20 || r.NonzeroDemandDays != 20 || r.LeadTimeMeanDays != 4 || r.LeadTimeSource != "ITEM_MASTER" {
 		t.Fatalf("demand statistics: %+v", r)
 	}
-	if !opsNear(r.ReorderPoint, r.AverageDailyDemand*4+7) || !opsNear(r.MaxQty, r.MinQty) || r.Confidence != "MEDIUM" {
+	if !opsNear(r.ReorderPoint, r.AverageDailyDemand*4+7) || !opsNear(r.MaxQty, r.MinQty) || r.Confidence != "LOW" {
 		t.Fatalf("SAFETY_STOCK policy ROP/min/max: %+v", r)
 	}
 	eff, err = ip.Effective(f.Ctx, *item)
@@ -269,10 +270,8 @@ func TestOpsInventoryPolicyPurchasedItemWithoutHistory(t *testing.T) {
 	}
 	t.Run("falls back to item-master safety stock", func(t *testing.T) {
 		if r.DemandSource != "ITEM_MASTER_FALLBACK" || r.SafetyStock != 5 {
-			t.Skipf("KNOWN ISSUE inventory_policy.go Refresh: demandStatistics counts calendar days of the window "+
-				"(generate_series), so ObservationDays (%d) always >= MinHistoryDays and the ITEM_MASTER_FALLBACK branch is "+
-				"unreachable; an item with no issue history gets statistical safety stock %.2f instead of its item-master %.2f (source %s)",
-				r.DemandObservationDays, r.SafetyStock, rm.SafetyStock, r.DemandSource)
+			t.Fatalf("item without issue history must use its item-master safety stock %.2f, got %.2f (source %s, observation days %d)",
+				rm.SafetyStock, r.SafetyStock, r.DemandSource, r.DemandObservationDays)
 		}
 	})
 }

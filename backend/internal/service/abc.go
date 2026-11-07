@@ -126,12 +126,18 @@ func BuildAnnualDollarUsageABC(
 		return rows
 	}
 
+	// The class comes from the cumulative share including the item, except
+	// that the top-ranked item is always A: otherwise a dominant item (e.g. 91%
+	// of usage) would be classified B or C and class A would be empty.
 	cum := 0.0
 	for i := range rows {
 		rows[i].UsageValuePct = rows[i].AnnualUsageValue / totalUsageValue * 100
 		cum += rows[i].AnnualUsageValue
 		rows[i].CumulativePct = cum / totalUsageValue * 100
 		rows[i].ABCClass = ClassifyABC(rows[i].CumulativePct)
+		if i == 0 && rows[i].AnnualUsageValue > 0 {
+			rows[i].ABCClass = "A"
+		}
 	}
 	return rows
 }
