@@ -387,10 +387,9 @@ func TestPlanCalendarServiceAndSnapshot(t *testing.T) {
 	}
 }
 
-// The API calls CRP.Run without a start date when the client omits it. MRP then
-// defaults to today, but CRP itself loads calendar exceptions for the window starting
-// at the zero time (year 1), so holidays near today are ignored. Skips while the
-// known bug exists (capacity.go CRPService.Run does not default StartDate/HorizonDays).
+// The API calls CRP.Run without a start date when the client omits it. CRP must
+// still honour holidays near today (regression: it loaded calendar exceptions for
+// a window starting at the zero time, year 1, so they were ignored).
 func TestPlanCRPRunDefaultStartHonoursHolidays(t *testing.T) {
 	t.Parallel()
 	f := newDBFixture(t)
@@ -415,9 +414,8 @@ func TestPlanCRPRunDefaultStartHonoursHolidays(t *testing.T) {
 			day = r.Date.Format("2006-01-02")
 		}
 	}
-	if day == hol.Format("2006-01-02") {
-		t.Skipf("KNOWN BUG (capacity.go CRPService.Run): with zero StartDate the calendar window starts at year 1, so the %s holiday is ignored and load is placed on it", day)
-	}
+	// Regression: with a zero StartDate the calendar window used to start at
+	// year 1, so the holiday was ignored and load was placed on it.
 	if want := hol.AddDate(0, 0, -1).Format("2006-01-02"); day != want {
 		t.Fatalf("load placed on %q, want %s (previous workday)", day, want)
 	}

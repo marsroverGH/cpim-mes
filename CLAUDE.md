@@ -32,7 +32,7 @@ make ci-local
   各テストはマイグレーション済みテンプレートを複製した専用 DB を使う（`backend/internal/testdb`）。ローカルでは例えば:
   `docker run -d --name cpim-mes-testdb -e POSTGRES_USER=cpim -e POSTGRES_PASSWORD=testpw -p 127.0.0.1:55499:5432 postgres:16.15-alpine3.24` →
   `CPIM_TEST_DATABASE_URL='postgres://cpim:testpw@127.0.0.1:55499/postgres?sslmode=disable' go test -race ./...`。CI の Backend ジョブも同じ方式。
-- 既知の未修正バグは `docs/TEST_FINDINGS.md`。テストは `KNOWN BUG` として skip しており、直すと自動で検証が有効になる。
+- 既知の未修正バグは `docs/TEST_FINDINGS.md`（2026-11-08 時点で未修正は無い）。新しく見つけた未修正バグはテストで `KNOWN BUG` として skip し、直したら skip を消して回帰テスト（失敗扱い）にする。
 - 依存 lock を意図的に更新するときだけ `make lock`。通常は `-mod=readonly` / `npm ci` を使う。
 - `scripts/test_release_candidate_unit.py` は Python 3.12+ 必須（ローカルが 3.9 だと実行不可。CI では動く）。
 

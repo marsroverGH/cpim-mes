@@ -139,12 +139,8 @@ func TestAPIIntItemCRUDAndValidation(t *testing.T) {
 		t.Fatalf("audit rows for admin item writes = %d; want >= 3", rows)
 	}
 	audit := admin.do(http.MethodGet, "/api/audit-log?resource=items", nil)
-	if audit.Code == http.StatusInternalServerError {
-		// KNOWN BUG (reported): repository AuditRepo.List scans the nullable
-		// audit_log.payload into json.RawMessage, which fails on NULL, so the
-		// audit viewer is a 500 as soon as any body-less mutation was audited.
-		t.Skip("KNOWN BUG: GET /api/audit-log 500s on NULL audit payload")
-	}
+	// Body-less mutations are audited with a NULL payload; the viewer must
+	// still answer 200 (regression: it used to 500).
 	apiintStatus(t, audit, http.StatusOK, "audit log")
 	if !strings.Contains(audit.Body.String(), "admin") {
 		t.Fatalf("audit log missing admin writes: %s", audit.Body.String())
@@ -294,49 +290,11 @@ func TestAPIIntWorkOrderPurchaseAndShopFloorFlow(t *testing.T) {
 
 	// Partial completion with an idempotency key.
 	cid := uuid.NewString()
-	var statusBefore string
-	env.scalar(&statusBefore, `SELECT status FROM work_orders WHERE id=$1`, wo.ID)
+	apiintStatus(t, planner.do(http.MethodPut, woPath+"/status", map[string]string{"status": "CLOSED"}), http.StatusConflict, "close a non-completed WO")
+	// Completion and progress reports used to fail on every call (42804 /
+	// 42P08); the happy path below now has to pass end to end.
 	c1 := operator.do(http.MethodPost, woPath+"/complete", map[string]any{"quantity": 2, "lotNo": "WHEEL-LOT-A", "completionId": cid})
-	if c1.Code == http.StatusBadRequest && apiintErrMsg(t, c1) == "the request could not be processed" {
-		// KNOWN BUG (reported): service/workflow.go CompleteWorkOrder's
-		// UPDATE work_orders ... completed_at=CASE WHEN $2='COMPLETED' THEN $3
-		// ELSE NULL END fails with SQLSTATE 42804 (CASE typed as text), so no
-		// WO completion can ever succeed. Verify it is at least atomic and
-		// sanitized, then continue with the rest of the flow.
-		var st string
-		var done float64
-		var lots int
-		env.scalar(&st, `SELECT status FROM work_orders WHERE id=$1`, wo.ID)
-		env.scalar(&done, `SELECT completed_qty FROM work_orders WHERE id=$1`, wo.ID)
-		env.scalar(&lots, `SELECT count(*) FROM lots WHERE lot_no='WHEEL-LOT-A'`)
-		if st != statusBefore || done != 0 || lots != 0 {
-			t.Fatalf("failed completion was not rolled back: status=%s completed=%v lots=%d", st, done, lots)
-		}
-		t.Log("KNOWN BUG: POST /api/work-orders/{id}/complete always fails (workflow.go completed_at CASE typing)")
-		apiintStatus(t, operator.do(http.MethodPost, woPath+"/complete", map[string]any{"completionId": "nope"}), http.StatusBadRequest, "bad completionId")
-		apiintStatus(t, operator.do(http.MethodPost, woPath+"/progress", map[string]any{"completedQty": 99}), http.StatusBadRequest, "progress above plan")
-		apiintStatus(t, operator.do(http.MethodPost, woPath+"/progress", map[string]any{"completedQty": -1}), http.StatusBadRequest, "negative progress")
-		apiintStatus(t, operator.do(http.MethodPost, "/api/work-orders/"+uuid.NewString()+"/progress", map[string]any{"completedQty": 1}), http.StatusNotFound, "progress unknown WO")
-		pr := operator.do(http.MethodPost, woPath+"/progress", map[string]any{"completedQty": 3})
-		switch pr.Code {
-		case http.StatusOK:
-			var rp float64
-			env.scalar(&rp, `SELECT reported_progress_qty FROM work_orders WHERE id=$1`, wo.ID)
-			if rp != 3 {
-				t.Fatalf("reported_progress_qty = %v; want 3", rp)
-			}
-		case http.StatusInternalServerError:
-			// KNOWN BUG (reported): repository WorkOrderRepo.UpdateProgress uses
-			// $1 both as numeric column value and in "$1 > 0", which PostgreSQL
-			// rejects with SQLSTATE 42P08; every valid progress report 500s.
-			t.Log("KNOWN BUG: POST /api/work-orders/{id}/progress 500s (repository.go UpdateProgress 42P08)")
-		default:
-			t.Fatalf("progress: %d %s", pr.Code, pr.Body.String())
-		}
-		apiintStatus(t, planner.do(http.MethodPut, woPath+"/status", map[string]string{"status": "CLOSED"}), http.StatusConflict, "close a non-completed WO")
-	} else {
-		apiintWOCompletionHappyPath(t, env, planner, operator, wo, woPath, cid, c1)
-	}
+	apiintWOCompletionHappyPath(t, env, planner, operator, wo, woPath, cid, c1)
 
 	apiintPurchaseFlow(t, env, planner, operator, tire)
 }

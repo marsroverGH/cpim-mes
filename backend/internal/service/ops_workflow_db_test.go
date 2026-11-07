@@ -1,7 +1,6 @@
 package service
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/cpim-mes/backend/internal/domain"
@@ -51,28 +50,6 @@ func opsRunOp(t *testing.T, f *dbFixture, opID uuid.UUID, cumulative float64, ac
 	if err := f.Svc.ShopFloor.Complete(f.Ctx, opID, cumulative, actor, "ok"); err != nil {
 		t.Fatalf("complete op %d to %.2f: %v", op.SeqNo, cumulative, err)
 	}
-}
-
-// opsSkipIfCompletionBug detects the known production defect in
-// WorkflowService.CompleteWorkOrder (workflow.go, UPDATE work_orders ...
-// completed_at=CASE WHEN $2='COMPLETED' THEN $3 ELSE NULL END): PostgreSQL
-// resolves the untyped CASE to text and rejects the statement with SQLSTATE
-// 42804, so every finished-goods receipt fails. When it happens the test first
-// proves the failure was fully rolled back, then skips the remainder so the
-// assertions automatically become active once the defect is fixed.
-func opsSkipIfCompletionBug(t *testing.T, f *dbFixture, err error, woID, fgID uuid.UUID) {
-	t.Helper()
-	if err == nil || !strings.Contains(err.Error(), "42804") {
-		return
-	}
-	if n := opsCount(t, f, `SELECT count(*) FROM work_order_completions WHERE work_order_id=$1`, woID); n != 0 {
-		t.Fatalf("failed completion left %d completion rows", n)
-	}
-	if onHand, _ := opsBalance(t, f, fgID); onHand != 0 {
-		t.Fatalf("failed completion left finished goods on hand: %.2f", onHand)
-	}
-	opsAssertLedgerReconciled(t, f)
-	t.Skipf("KNOWN BUG workflow.go CompleteWorkOrder: %v", err)
 }
 
 func TestOpsWorkflowReleaseCompleteEndToEnd(t *testing.T) {
@@ -163,8 +140,7 @@ func TestOpsWorkflowReleaseCompleteEndToEnd(t *testing.T) {
 	// --- Partial completion of 4 consumes RM1 FIFO from lot A and RM2.
 	compID := uuid.New()
 	res, err := f.Svc.Workflow.CompleteWorkOrder(f.Ctx, wo.ID, compID, opsPtr(4.0), "")
-	opsSkipIfCompletionBug(t, f, err, wo.ID, s.FG.ID)
-	if err != nil {
+	if err != nil { // regression: used to fail with 42804 on every call
 		t.Fatalf("partial completion: %v", err)
 	}
 	if res.Status != "IN_PROGRESS" || !opsNear(res.CompletedQty, 4) || !opsNear(res.RemainingQty, 6) || res.IdempotentHit {
