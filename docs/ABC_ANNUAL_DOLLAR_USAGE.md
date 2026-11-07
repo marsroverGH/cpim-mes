@@ -10,7 +10,7 @@ The ranking basis is economic usage/consumption, not how much stock happens to b
 
 ## Usage window
 
-The default analysis end date is the application's business date (`eco_business_date(now())`, Asia/Tokyo fallback). The window is the 12 calendar months ending on that date, inclusive. The API also accepts `?asOf=YYYY-MM-DD` for reproducible historical analysis.
+The default analysis end date is the application's business date (`eco_business_date(now())`, Asia/Tokyo fallback). The window is the 12 calendar months ending on that date, inclusive. The API also accepts `?asOf=YYYY-MM-DD` (or an RFC3339 timestamp, read as a business date) for reproducible historical analysis.
 
 Only `inventory_txns.txn_type='ISSUE'` counts as usage. The following are intentionally excluded:
 

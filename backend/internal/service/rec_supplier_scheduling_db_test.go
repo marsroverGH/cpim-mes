@@ -166,12 +166,10 @@ func TestRecDBSupplierReliabilityRun(t *testing.T) {
 	if run.Results[0].ItemID != nil || run.Results[1].ItemID == nil || run.Results[1].ItemCode != "CHAIN-1" {
 		t.Fatalf("rollup ordering: %+v", run.Results)
 	}
-	// NOTE: result_hash is computed over unrounded float64 values while the
-	// result columns are numeric(12,4)/numeric(7,6), so the hash can NOT be
-	// re-derived from persisted evidence when averages are non-terminating
-	// (here 20/3 and 2/3). Reported as suspicious; not asserted either way.
+	// result_hash must be re-derivable from the persisted rows (numeric(12,4)
+	// / numeric(7,6)) even when averages are non-terminating (here 20/3, 2/3).
 	if canonicalSupplierReliabilityHash(run.Results) != hash {
-		t.Logf("supplier reliability hash is not reproducible from persisted rows (known issue)")
+		t.Fatalf("supplier reliability hash is not reproducible from persisted rows")
 	}
 
 	// Deterministic: a second run on the same evidence yields the same hash.

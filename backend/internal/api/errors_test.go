@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -141,7 +142,7 @@ func TestWriteErrorAppErrorDoesNotSerializeCause(t *testing.T) {
 }
 
 func TestExposeRequestIDSetsResponseHeader(t *testing.T) {
-	h := middleware.RequestID(exposeRequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	h := assignRequestID(exposeRequestID(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		writeError(w, http.StatusInternalServerError, errors.New("boom"))
 	})))
 	rec := httptest.NewRecorder()
@@ -152,4 +153,50 @@ func TestExposeRequestIDSetsResponseHeader(t *testing.T) {
 		t.Fatalf("request id %q missing from header or body: %s", id, rec.Body.String())
 	}
 	assertNoLeak(t, rec, "boom")
+}
+
+func TestAssignRequestIDIgnoresClientHeader(t *testing.T) {
+	var seen string
+	h := assignRequestID(exposeRequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = middleware.GetReqID(r.Context())
+	})))
+	ids := map[string]bool{}
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set(requestIDHeader, "forged\nlog-line")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		got := rec.Header().Get(requestIDHeader)
+		if got == "" || got != seen || strings.Contains(got, "forged") {
+			t.Fatalf("request id %q (context %q); want a server-generated id", got, seen)
+		}
+		ids[got] = true
+	}
+	if len(ids) != 3 {
+		t.Fatalf("request ids are not unique: %v", ids)
+	}
+}
+
+func TestWriteErrorMapsBuiltInKeyViolationsTo409WhenHandlerPassed500(t *testing.T) {
+	for code, want := range map[string]string{
+		"23505": "a record with the same key already exists",
+		"23503": "a referenced record does not exist or is still in use",
+	} {
+		pgErr := &pgconn.PgError{Code: code, Message: "constraint detail", TableName: "work_centers", ConstraintName: "secret_fkey"}
+		rec, body := callWriteError(t, http.StatusInternalServerError, fmt.Errorf("delete: %w", pgErr))
+		if rec.Code != http.StatusConflict || body["error"] != want {
+			t.Fatalf("%s: unexpected response %d %v", code, rec.Code, body)
+		}
+		assertNoLeak(t, rec, "secret_fkey", "work_centers", code)
+	}
+}
+
+func TestWriteErrorMapsNoRowsTo404(t *testing.T) {
+	for _, code := range []int{http.StatusNotFound, http.StatusInternalServerError} {
+		rec, body := callWriteError(t, code, fmt.Errorf("load calendar: %w", sql.ErrNoRows))
+		if rec.Code != http.StatusNotFound || body["error"] != "resource not found" {
+			t.Fatalf("handler code %d: unexpected response %d %v", code, rec.Code, body)
+		}
+		assertNoLeak(t, rec, "sql:", "load calendar")
+	}
 }

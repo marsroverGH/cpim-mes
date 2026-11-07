@@ -64,8 +64,7 @@ func (r *WorkCenterRepo) Update(ctx context.Context, w *domain.WorkCenter) error
 }
 
 func (r *WorkCenterRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM work_centers WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM work_centers WHERE id=$1`, id, "work center")
 }
 
 // ==================== Routings ====================
@@ -138,8 +137,7 @@ func (r *RoutingRepo) UpdateOperation(ctx context.Context, op *domain.RoutingOpe
 }
 
 func (r *RoutingRepo) DeleteOperation(ctx context.Context, opID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM routing_operations WHERE id=$1`, opID)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM routing_operations WHERE id=$1`, opID, "routing operation")
 }
 
 // OperationsForItem — 品目から有効ルーティングの工程を直接取得 (CRP/原価で多用)
@@ -187,8 +185,7 @@ func (r *RoutingRepo) AddAlternative(ctx context.Context, x *domain.RoutingOpera
 }
 
 func (r *RoutingRepo) DeleteAlternative(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM routing_operation_alternatives WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM routing_operation_alternatives WHERE id=$1`, id, "routing alternative")
 }
 
 func (r *WorkCenterRepo) SetupMatrix(ctx context.Context, wcID uuid.UUID) ([]domain.WorkCenterSetupMatrixRow, error) {
@@ -216,6 +213,5 @@ func (r *WorkCenterRepo) UpsertSetupMatrix(ctx context.Context, x *domain.WorkCe
 }
 
 func (r *WorkCenterRepo) DeleteSetupMatrix(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM work_center_setup_matrix WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM work_center_setup_matrix WHERE id=$1`, id, "setup matrix row")
 }

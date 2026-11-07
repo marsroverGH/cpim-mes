@@ -339,9 +339,13 @@ SELECT supplier_name,item_id,
 	for _, a := range aggregates {
 		r := domain.SupplierLeadTimeResult{
 			ID: uuid.New(), RunID: run.ID, SupplierName: a.SupplierName, ItemID: a.ItemID,
-			SampleCount: a.SampleCount, AverageLeadDays: a.AverageLeadDays, StddevLeadDays: a.StddevLeadDays,
-			P50LeadDays: a.P50LeadDays, P90LeadDays: a.P90LeadDays, OnTimeRate: a.OnTimeRate,
-			AverageLatenessDays: a.AverageLatenessDays,
+			// Round to the scale of the result columns (numeric(12,4) /
+			// numeric(7,6)) so that the stored rows, the returned rows and
+			// result_hash all describe the same values and the hash can be
+			// re-derived from persisted evidence.
+			SampleCount: a.SampleCount, AverageLeadDays: roundToScale(a.AverageLeadDays, 4), StddevLeadDays: roundToScale(a.StddevLeadDays, 4),
+			P50LeadDays: roundToScale(a.P50LeadDays, 4), P90LeadDays: roundToScale(a.P90LeadDays, 4), OnTimeRate: roundToScale(a.OnTimeRate, 6),
+			AverageLatenessDays: roundToScale(a.AverageLatenessDays, 4),
 			RecommendedLeadDays: recommendedSupplierLeadDays(a.AverageLeadDays, a.StddevLeadDays, a.P90LeadDays),
 			Confidence:          supplierReliabilityConfidence(a.SampleCount, in.MinSamples),
 		}
@@ -368,6 +372,13 @@ RETURNING *`, run.ID, hash); err != nil {
 		return nil, err
 	}
 	return s.GetReliabilityRun(ctx, run.ID)
+}
+
+// roundToScale rounds x half away from zero to the given number of decimal
+// places, matching PostgreSQL's rounding when a value is stored in numeric(p,scale).
+func roundToScale(x float64, scale int) float64 {
+	p := math.Pow10(scale)
+	return math.Round(x*p) / p
 }
 
 func canonicalSupplierReliabilityHash(rows []domain.SupplierLeadTimeResult) string {

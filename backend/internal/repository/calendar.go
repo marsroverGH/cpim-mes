@@ -76,8 +76,7 @@ func (r *CalendarRepo) Update(ctx context.Context, c *domain.WorkCalendar) error
 }
 
 func (r *CalendarRepo) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM work_calendars WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM work_calendars WHERE id=$1`, id, "calendar")
 }
 
 // ----- Exceptions -----
@@ -112,6 +111,5 @@ func (r *CalendarRepo) AddException(ctx context.Context, e *domain.CalendarExcep
 }
 
 func (r *CalendarRepo) DeleteException(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM calendar_exceptions WHERE id=$1`, id)
-	return err
+	return deleteOne(ctx, r.db, `DELETE FROM calendar_exceptions WHERE id=$1`, id, "calendar exception")
 }

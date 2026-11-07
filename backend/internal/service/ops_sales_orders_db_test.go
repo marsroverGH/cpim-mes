@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
@@ -116,7 +117,7 @@ func TestOpsSalesOrderCreateValidation(t *testing.T) {
 		{"no lines", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, RequestedDate: opsDay(1)}, domain.ErrCodeBadRequest, "at least one line"},
 		{"no order no", SalesOrderCreateInput{CustomerID: c.ID, RequestedDate: opsDay(1), Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "orderNo"},
 		{"no requested date", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "date is required"},
-		{"rfc3339 date", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, RequestedDate: "2026-11-11T00:00:00Z", Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "YYYY-MM-DD"},
+		{"slash date", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, RequestedDate: "2026/11/11", Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "YYYY-MM-DD"},
 		{"bad order date", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, OrderDate: "x", RequestedDate: opsDay(1), Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "YYYY-MM-DD"},
 		{"bad promised date", SalesOrderCreateInput{OrderNo: "A", CustomerID: c.ID, PromisedDate: "x", RequestedDate: opsDay(1), Lines: []SalesOrderLineInput{line}}, domain.ErrCodeBadRequest, "YYYY-MM-DD"},
 		{"unknown customer", SalesOrderCreateInput{OrderNo: "A", CustomerID: uuid.New(), RequestedDate: opsDay(1), Lines: []SalesOrderLineInput{line}}, domain.ErrCodeNotFound, "customer"},
@@ -137,6 +138,18 @@ func TestOpsSalesOrderCreateValidation(t *testing.T) {
 	// Failed creates leave nothing behind.
 	if n := opsCount(t, f, `SELECT count(*) FROM sales_orders WHERE customer_id=$1`, c.ID); n != 0 {
 		t.Fatalf("failed creates left %d orders", n)
+	}
+
+	// RFC3339 is accepted for date-only fields like the rest of the API and is
+	// read as a business date.
+	rfc, err := f.Svc.SalesOrders.Create(f.Ctx, SalesOrderCreateInput{
+		OrderNo: opsCode("SO-RFC"), CustomerID: c.ID, RequestedDate: "2026-11-11T00:00:00Z", Lines: []SalesOrderLineInput{line},
+	}, actor)
+	if err != nil {
+		t.Fatalf("RFC3339 requested date: %v", err)
+	}
+	if want := time.Date(2026, 11, 11, 0, 0, 0, 0, time.UTC); !rfc.Order.RequestedDate.Equal(want) {
+		t.Fatalf("RFC3339 requested date stored as %s; want %s", rfc.Order.RequestedDate, want)
 	}
 
 	// Line-level dates override the header.
