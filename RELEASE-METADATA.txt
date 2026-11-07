@@ -48,3 +48,12 @@ Critical invariant:
 Preserved hardening milestones:
 - Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=42 restore verification.
 - Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.42.0.
+
+Post-import fixes included in v0.42.0 (no additional migration):
+- Previously always-failing endpoints fixed: WO complete/progress, audit log, S&OP product mix
+- Business date unified on the business timezone (eco_business_timezone)
+- CTP multi-level component netting, ABC top-item class, safety-stock fallback, CSV import validation
+- Recovery execution: preceding actions of the same execution no longer count as drift
+- Concurrency: Execute deadlock and supplier schedule retry exhaustion resolved
+- API: sanitized errors, 404 for unknown ids, 409 for key conflicts, server-generated X-Request-Id
+Release notes: docs/RELEASE_NOTES_v0.42.0.md

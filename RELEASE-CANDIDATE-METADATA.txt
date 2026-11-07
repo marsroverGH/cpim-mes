@@ -22,3 +22,5 @@ Candidate invariants:
 Authoritative promotion gate:
   .github/workflows/release-candidate.yml
   -> scripts/final_clean_room_release_gate.sh
+
+Release notes (including post-import fixes): docs/RELEASE_NOTES_v0.42.0.md
