@@ -15,6 +15,7 @@ import (
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -596,6 +597,81 @@ func (s *RecoveryExecutionService) preflightActionTx(ctx context.Context, tx *sq
 	}
 }
 
+// simulatedActionState is the preflight evidence of one action evaluated
+// after the effects of the preceding actions of the same execution.
+type simulatedActionState struct {
+	State  json.RawMessage
+	Hash   string
+	Reason string
+}
+
+// simulateActionStatesTx evaluates every action in sequence order as executeOne
+// will see it: each ready action's operational effect is applied before the
+// next action is evaluated, and everything is rolled back at the end. Without
+// this, an action whose preflight state depends on what an earlier action of
+// the same execution changes (component availability after a release, the
+// recovery overtime already added to a work-center/day) would be rejected at
+// execution time as drift caused by the execution itself.
+func (s *RecoveryExecutionService) simulateActionStatesTx(ctx context.Context, tx *sqlx.Tx, e domain.RecoveryPlanExecution, actions []domain.RecoveryPlanExecutionAction, actor RecoveryPlanningActor) ([]simulatedActionState, error) {
+	if _, err := tx.ExecContext(ctx, `SAVEPOINT recovery_preflight_simulation`); err != nil {
+		return nil, err
+	}
+	out := make([]simulatedActionState, 0, len(actions))
+	for _, a := range actions {
+		state, h, reason, err := s.preflightActionTx(ctx, tx, a)
+		if err != nil {
+			return nil, err
+		}
+		if reason == "" {
+			if _, err := tx.ExecContext(ctx, `SAVEPOINT recovery_preflight_action`); err != nil {
+				return nil, err
+			}
+			if _, _, err := s.applyRecoveryActionTx(ctx, tx, e, a, state, actor); err != nil {
+				if IsRetryableTxError(err) {
+					return nil, err
+				}
+				msg, ok := recoveryActionBusinessError(err)
+				if !ok {
+					return nil, err
+				}
+				if _, rbErr := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT recovery_preflight_action`); rbErr != nil {
+					return nil, rbErr
+				}
+				st := parsePreflightState(state)
+				state, h, reason, err = executionPreflightBlocked("action cannot be applied after the preceding actions of this execution: "+msg, st)
+				if err != nil {
+					return nil, err
+				}
+			} else if _, err := tx.ExecContext(ctx, `RELEASE SAVEPOINT recovery_preflight_action`); err != nil {
+				return nil, err
+			}
+		}
+		out = append(out, simulatedActionState{State: state, Hash: h, Reason: reason})
+	}
+	if _, err := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT recovery_preflight_simulation`); err != nil {
+		return nil, err
+	}
+	if _, err := tx.ExecContext(ctx, `RELEASE SAVEPOINT recovery_preflight_simulation`); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// recoveryActionBusinessError reports whether err is an expected business
+// rejection (application error or a RAISEd / integrity PostgreSQL error)
+// rather than an infrastructure failure, and returns its message.
+func recoveryActionBusinessError(err error) (string, bool) {
+	var app *domain.AppError
+	if errors.As(err, &app) {
+		return string(app.Code) + ": " + app.Message, true
+	}
+	var pg *pgconn.PgError
+	if errors.As(err, &pg) && (strings.HasPrefix(pg.Code, "P0") || strings.HasPrefix(pg.Code, "23")) {
+		return pg.Message, true
+	}
+	return "", false
+}
+
 // Preflight retries the whole operation on serialization failures / deadlocks.
 func (s *RecoveryExecutionService) Preflight(ctx context.Context, id uuid.UUID, actor RecoveryPlanningActor) (*domain.RecoveryPlanExecutionDetail, error) {
 	return retrySerializable(ctx, func() (*domain.RecoveryPlanExecutionDetail, error) {
@@ -644,11 +720,12 @@ func (s *RecoveryExecutionService) preflightOnce(ctx context.Context, id uuid.UU
 		Status   string `json:"status"`
 	}
 	hashes := make([]hashRow, 0, len(actions))
-	for _, a := range actions {
-		state, h, reason, err := s.preflightActionTx(ctx, tx, a)
-		if err != nil {
-			return nil, err
-		}
+	sims, err := s.simulateActionStatesTx(ctx, tx, e, actions, actor)
+	if err != nil {
+		return nil, err
+	}
+	for i, a := range actions {
+		state, h, reason := sims[i].State, sims[i].Hash, sims[i].Reason
 		status := "READY"
 		if reason != "" {
 			status = "BLOCKED"
@@ -797,86 +874,9 @@ func (s *RecoveryExecutionService) executeOne(ctx context.Context, e domain.Reco
 	if _, err := tx.ExecContext(ctx, `UPDATE recovery_plan_execution_actions SET execution_status='RUNNING',started_at=now(),before_state=$2,error_text='' WHERE id=$1`, locked.ID, state); err != nil {
 		return err
 	}
-	p, err := decodeRecoveryExecutionParams(locked.Parameters)
+	after, opRef, err := s.applyRecoveryActionTx(ctx, tx, e, locked, state, actor)
 	if err != nil {
 		return err
-	}
-	before := parsePreflightState(state)
-	after := map[string]any{}
-	opRef := ""
-	switch locked.ActionType {
-	case "EXPEDITE_PO":
-		poID, _ := uuid.Parse(mapString(before, "purchaseOrderId"))
-		remaining := mapFloat(before, "remainingQty")
-		target := mapString(before, "targetDate")
-		event, err := s.supplierScheduling.recordEventTx(ctx, tx, poID, SupplierScheduleEventInput{EventID: locked.ID.String(), EventType: "REVISE", Quantity: &remaining, ConfirmedDeliveryDate: target, SupplierReference: "RECOVERY:" + e.ID.String(), Notes: "Controlled Recovery Plan Execution action " + locked.ID.String()}, SalesOrderActor{UserID: actor.UserID, Username: actor.Username, Role: domain.RoleAdmin})
-		if err != nil {
-			return err
-		}
-		after = map[string]any{"supplierScheduleEventId": event.ID.String(), "revisionNo": event.RevisionNo, "confirmedDeliveryDate": target, "quantity": remaining}
-		opRef = "SUPPLIER_SCHEDULE:" + event.ID.String()
-		if err := insertRecoveryRescheduleSignal(ctx, tx, "MATERIAL_SHORTAGE", opRef, nil, nil, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "purchaseOrderId": poID.String()}); err != nil {
-			return err
-		}
-	case "RESCHEDULE_WO":
-		woID, _ := uuid.Parse(mapString(before, "workOrderId"))
-		newStart := mapString(before, "newStartDate")
-		newDue := mapString(before, "newDueDate")
-		res, err := tx.ExecContext(ctx, `UPDATE work_orders SET start_date=$2,due_date=$3 WHERE id=$1 AND status IN ('PLANNED','RELEASED')`, woID, newStart, newDue)
-		if err != nil {
-			return err
-		}
-		n, _ := res.RowsAffected()
-		if n != 1 {
-			return domain.NewConflict("work order changed before reschedule")
-		}
-		after = map[string]any{"workOrderId": woID.String(), "startDate": newStart, "dueDate": newDue}
-		opRef = "WO:" + mapString(before, "orderNo")
-		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, nil, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "recoveryDays": p.RecoveryDays}); err != nil {
-			return err
-		}
-	case "ALTERNATE_WORK_CENTER":
-		opID, _ := uuid.Parse(mapString(before, "workOrderOperationId"))
-		altID, _ := uuid.Parse(mapString(before, "alternateWorkCenterId"))
-		woID, _ := uuid.Parse(mapString(before, "woId"))
-		res, err := tx.ExecContext(ctx, `UPDATE wo_operations SET work_center_id=$2 WHERE id=$1 AND status IN ('PENDING','READY')`, opID, altID)
-		if err != nil {
-			return err
-		}
-		n, _ := res.RowsAffected()
-		if n != 1 {
-			return domain.NewConflict("WO operation changed before alternate work center execution")
-		}
-		after = map[string]any{"workOrderOperationId": opID.String(), "workCenterId": altID.String(), "workCenterCode": mapString(before, "alternateWorkCenterCode")}
-		opRef = "WOOP:" + opID.String()
-		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, &altID, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String()}); err != nil {
-			return err
-		}
-	case "ADD_OVERTIME_CAPACITY":
-		wcID, _ := uuid.Parse(mapString(before, "workCenterId"))
-		date := mapString(before, "effectiveDate")
-		overrideID := uuid.New()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO recovery_capacity_overrides(id,execution_action_id,execution_id,work_center_id,effective_date,overtime_minutes,created_by_user_id,created_by_username) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, overrideID, locked.ID, e.ID, wcID, date, p.OvertimeMinutes, actor.UserID, actor.Username); err != nil {
-			return err
-		}
-		after = map[string]any{"capacityOverrideId": overrideID.String(), "workCenterId": wcID.String(), "effectiveDate": date, "overtimeMinutes": p.OvertimeMinutes}
-		opRef = "RECOVERY_CAPACITY_OVERRIDE:" + overrideID.String()
-		if err := insertRecoveryRescheduleSignal(ctx, tx, "CAPACITY_FEEDBACK_CHANGE", opRef, &wcID, nil, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "effectiveDate": date, "overtimeMinutes": p.OvertimeMinutes}); err != nil {
-			return err
-		}
-	case "RELEASE_WO":
-		woID, _ := uuid.Parse(mapString(before, "workOrderId"))
-		rr, err := s.workflow.releaseWorkOrderTx(ctx, tx, woID)
-		if err != nil {
-			return err
-		}
-		after = map[string]any{"workOrderId": rr.WorkOrderID.String(), "orderNo": rr.OrderNo, "bomSnapshotId": rr.BOMSnapshotID.String(), "reservationCount": len(rr.Reservations)}
-		opRef = "WO:" + rr.OrderNo
-		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, nil, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "released": true}); err != nil {
-			return err
-		}
-	default:
-		return domain.NewBadRequest("unsupported recovery execution action", nil)
 	}
 	resultHash, err := stableRecoveryExecutionHash(struct {
 		ActionID       string `json:"actionId"`
@@ -892,6 +892,94 @@ func (s *RecoveryExecutionService) executeOne(ctx context.Context, e domain.Reco
 		return err
 	}
 	return tx.Commit()
+}
+
+// applyRecoveryActionTx performs the operational effect of one action inside
+// tx, using the before-state captured by preflightActionTx. It is used by
+// executeOne and, inside a rolled-back savepoint, by simulateActionStatesTx.
+func (s *RecoveryExecutionService) applyRecoveryActionTx(ctx context.Context, tx *sqlx.Tx, e domain.RecoveryPlanExecution, locked domain.RecoveryPlanExecutionAction, state json.RawMessage, actor RecoveryPlanningActor) (map[string]any, string, error) {
+	p, err := decodeRecoveryExecutionParams(locked.Parameters)
+	if err != nil {
+		return nil, "", err
+	}
+	before := parsePreflightState(state)
+	after := map[string]any{}
+	opRef := ""
+	switch locked.ActionType {
+	case "EXPEDITE_PO":
+		poID, _ := uuid.Parse(mapString(before, "purchaseOrderId"))
+		remaining := mapFloat(before, "remainingQty")
+		target := mapString(before, "targetDate")
+		event, err := s.supplierScheduling.recordEventTx(ctx, tx, poID, SupplierScheduleEventInput{EventID: locked.ID.String(), EventType: "REVISE", Quantity: &remaining, ConfirmedDeliveryDate: target, SupplierReference: "RECOVERY:" + e.ID.String(), Notes: "Controlled Recovery Plan Execution action " + locked.ID.String()}, SalesOrderActor{UserID: actor.UserID, Username: actor.Username, Role: domain.RoleAdmin})
+		if err != nil {
+			return nil, "", err
+		}
+		after = map[string]any{"supplierScheduleEventId": event.ID.String(), "revisionNo": event.RevisionNo, "confirmedDeliveryDate": target, "quantity": remaining}
+		opRef = "SUPPLIER_SCHEDULE:" + event.ID.String()
+		if err := insertRecoveryRescheduleSignal(ctx, tx, "MATERIAL_SHORTAGE", opRef, nil, nil, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "purchaseOrderId": poID.String()}); err != nil {
+			return nil, "", err
+		}
+	case "RESCHEDULE_WO":
+		woID, _ := uuid.Parse(mapString(before, "workOrderId"))
+		newStart := mapString(before, "newStartDate")
+		newDue := mapString(before, "newDueDate")
+		res, err := tx.ExecContext(ctx, `UPDATE work_orders SET start_date=$2,due_date=$3 WHERE id=$1 AND status IN ('PLANNED','RELEASED')`, woID, newStart, newDue)
+		if err != nil {
+			return nil, "", err
+		}
+		n, _ := res.RowsAffected()
+		if n != 1 {
+			return nil, "", domain.NewConflict("work order changed before reschedule")
+		}
+		after = map[string]any{"workOrderId": woID.String(), "startDate": newStart, "dueDate": newDue}
+		opRef = "WO:" + mapString(before, "orderNo")
+		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, nil, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "recoveryDays": p.RecoveryDays}); err != nil {
+			return nil, "", err
+		}
+	case "ALTERNATE_WORK_CENTER":
+		opID, _ := uuid.Parse(mapString(before, "workOrderOperationId"))
+		altID, _ := uuid.Parse(mapString(before, "alternateWorkCenterId"))
+		woID, _ := uuid.Parse(mapString(before, "woId"))
+		res, err := tx.ExecContext(ctx, `UPDATE wo_operations SET work_center_id=$2 WHERE id=$1 AND status IN ('PENDING','READY')`, opID, altID)
+		if err != nil {
+			return nil, "", err
+		}
+		n, _ := res.RowsAffected()
+		if n != 1 {
+			return nil, "", domain.NewConflict("WO operation changed before alternate work center execution")
+		}
+		after = map[string]any{"workOrderOperationId": opID.String(), "workCenterId": altID.String(), "workCenterCode": mapString(before, "alternateWorkCenterCode")}
+		opRef = "WOOP:" + opID.String()
+		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, &altID, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String()}); err != nil {
+			return nil, "", err
+		}
+	case "ADD_OVERTIME_CAPACITY":
+		wcID, _ := uuid.Parse(mapString(before, "workCenterId"))
+		date := mapString(before, "effectiveDate")
+		overrideID := uuid.New()
+		if _, err := tx.ExecContext(ctx, `INSERT INTO recovery_capacity_overrides(id,execution_action_id,execution_id,work_center_id,effective_date,overtime_minutes,created_by_user_id,created_by_username) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, overrideID, locked.ID, e.ID, wcID, date, p.OvertimeMinutes, actor.UserID, actor.Username); err != nil {
+			return nil, "", err
+		}
+		after = map[string]any{"capacityOverrideId": overrideID.String(), "workCenterId": wcID.String(), "effectiveDate": date, "overtimeMinutes": p.OvertimeMinutes}
+		opRef = "RECOVERY_CAPACITY_OVERRIDE:" + overrideID.String()
+		if err := insertRecoveryRescheduleSignal(ctx, tx, "CAPACITY_FEEDBACK_CHANGE", opRef, &wcID, nil, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "effectiveDate": date, "overtimeMinutes": p.OvertimeMinutes}); err != nil {
+			return nil, "", err
+		}
+	case "RELEASE_WO":
+		woID, _ := uuid.Parse(mapString(before, "workOrderId"))
+		rr, err := s.workflow.releaseWorkOrderTx(ctx, tx, woID)
+		if err != nil {
+			return nil, "", err
+		}
+		after = map[string]any{"workOrderId": rr.WorkOrderID.String(), "orderNo": rr.OrderNo, "bomSnapshotId": rr.BOMSnapshotID.String(), "reservationCount": len(rr.Reservations)}
+		opRef = "WO:" + rr.OrderNo
+		if err := insertRecoveryRescheduleSignal(ctx, tx, "PRIORITY_CHANGE", opRef, nil, &woID, map[string]any{"executionId": e.ID.String(), "actionId": locked.ID.String(), "released": true}); err != nil {
+			return nil, "", err
+		}
+	default:
+		return nil, "", domain.NewBadRequest("unsupported recovery execution action", nil)
+	}
+	return after, opRef, nil
 }
 
 func recoveryExecutionDetachedContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -1132,10 +1220,13 @@ func (s *RecoveryExecutionService) executeOnce(ctx context.Context, id uuid.UUID
 			if a.ExecutionStatus != "PENDING" {
 				return nil, domain.NewConflict("approved recovery execution contains non-pending action evidence")
 			}
-			_, h, reason, err := s.preflightActionTx(ctx, tx, a)
-			if err != nil {
-				return nil, err
-			}
+		}
+		sims, err := s.simulateActionStatesTx(ctx, tx, e, actions, actor)
+		if err != nil {
+			return nil, err
+		}
+		for i, a := range actions {
+			h, reason := sims[i].Hash, sims[i].Reason
 			if reason != "" || a.PreflightStateHash == nil || h != *a.PreflightStateHash {
 				return nil, domain.NewConflict("operational state drift detected; prepare a new recovery execution")
 			}

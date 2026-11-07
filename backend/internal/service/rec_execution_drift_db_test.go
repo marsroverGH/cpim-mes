@@ -177,13 +177,12 @@ func TestRecDBExecutionResumeReconcilesPersistedEvidence(t *testing.T) {
 	recWantCode(t, err, domain.ErrCodeConflict, "cannot be cancelled")
 }
 
-// Two RELEASE_WO actions for work orders that share components. The first
-// release reserves components, which changes the "available" balance captured
-// in the second action's preflight state hash, so the second action is
-// rejected as operational drift and the execution ends PARTIAL_FAILED even
-// though nothing outside the execution changed. Same for two overtime actions
-// on one work center/day ("existingRecoveryOvertimeMinutes"). This pins the
-// current (questionable) behaviour; see the coverage report.
+// Two RELEASE_WO actions for work orders that share components, and two
+// overtime actions on one work center/day. The first action changes state that
+// the second action's preflight captures (available component balance,
+// existingRecoveryOvertimeMinutes). Preflight evaluates actions after the
+// effects of the preceding ones, so the execution's own changes are not
+// mistaken for operational drift and both actions succeed.
 func TestRecDBExecutionSequentialActionsSharingState(t *testing.T) {
 	t.Parallel()
 	e := recNewEnv(t)
@@ -194,8 +193,10 @@ func TestRecDBExecutionSequentialActionsSharingState(t *testing.T) {
 	check := func(name string, actions []RecoveryScenarioActionInput) {
 		d := recApproved(t, e, name, actions)
 		res, err := e.Svc.RecoveryExecution.Execute(e.Ctx, d.Execution.ID, e.AdminActor)
-		recWantCode(t, err, domain.ErrCodeConflict, "drift detected before action execution")
-		if res.Execution.Status != "PARTIAL_FAILED" || res.Actions[0].ExecutionStatus != "SUCCEEDED" || res.Actions[1].ExecutionStatus != "FAILED" {
+		if err != nil {
+			t.Fatalf("%s: execute: %v", name, err)
+		}
+		if res.Execution.Status != "SUCCEEDED" || res.Actions[0].ExecutionStatus != "SUCCEEDED" || res.Actions[1].ExecutionStatus != "SUCCEEDED" {
 			t.Fatalf("%s: %+v", name, res.Execution)
 		}
 	}
@@ -207,4 +208,61 @@ func TestRecDBExecutionSequentialActionsSharingState(t *testing.T) {
 		{ActionType: "ADD_OVERTIME_CAPACITY", TargetType: "WORK_CENTER", TargetRef: "WC:WC-WELD", Parameters: recParams(t, map[string]any{"overtimeMinutes": 30, "effectiveDate": date})},
 		{ActionType: "ADD_OVERTIME_CAPACITY", TargetType: "WORK_CENTER", TargetRef: "WC:WC-WELD", Parameters: recParams(t, map[string]any{"overtimeMinutes": 30, "effectiveDate": date})},
 	})
+}
+
+// Preflight evaluates each action after the preceding ones, so a plan that is
+// only infeasible as a whole is blocked before approval instead of failing
+// midway through execution. The simulation leaves no operational trace.
+func TestRecDBPreflightBlocksActionsInfeasibleAfterPrecedingOnes(t *testing.T) {
+	t.Parallel()
+	e := recNewEnv(t)
+	item := recRoutedItem(t, e.dbFixture)
+	wo := recWO(t, e.dbFixture, "WO-REC-DUP", item, 1, recDay(10), recDay(15))
+	var wc domain.WorkCenter
+	if err := e.DB.GetContext(e.Ctx, &wc, `SELECT * FROM work_centers WHERE code='WC-WELD'`); err != nil {
+		t.Fatal(err)
+	}
+	base := int(wc.CapacityMinutesPerDay)
+	if base <= 0 {
+		base = 480
+	}
+	slack := 1440 - wc.ShiftStartMinute - base
+	if slack < 2 {
+		t.Fatalf("WC-WELD has no overtime slack: %+v", wc)
+	}
+	overtime := slack/2 + 1 // each fits alone, both together do not
+	date := recDay(5).Format("2006-01-02")
+
+	check := func(name string, actions []RecoveryScenarioActionInput) {
+		d := recPrepare(t, e, name, actions)
+		pf, err := e.Svc.RecoveryExecution.Preflight(e.Ctx, d.Execution.ID, e.PlannerActor)
+		if err != nil {
+			t.Fatalf("%s: preflight: %v", name, err)
+		}
+		if pf.Execution.Status != "PREFLIGHT_BLOCKED" || pf.Actions[0].PreflightStatus != "READY" || pf.Actions[1].PreflightStatus != "BLOCKED" {
+			t.Fatalf("%s: preflight %s, actions %s/%s (%s)", name, pf.Execution.Status, pf.Actions[0].PreflightStatus, pf.Actions[1].PreflightStatus, pf.Actions[1].ErrorText)
+		}
+	}
+	check("duplicate-release", []RecoveryScenarioActionInput{
+		{ActionType: "RELEASE_WO", TargetType: "WORK_ORDER", TargetRef: "WO:WO-REC-DUP"},
+		{ActionType: "RELEASE_WO", TargetType: "WORK_ORDER", TargetRef: "WO:WO-REC-DUP"},
+	})
+	check("overtime-beyond-day", []RecoveryScenarioActionInput{
+		{ActionType: "ADD_OVERTIME_CAPACITY", TargetType: "WORK_CENTER", TargetRef: "WC:WC-WELD", Parameters: recParams(t, map[string]any{"overtimeMinutes": overtime, "effectiveDate": date})},
+		{ActionType: "ADD_OVERTIME_CAPACITY", TargetType: "WORK_CENTER", TargetRef: "WC:WC-WELD", Parameters: recParams(t, map[string]any{"overtimeMinutes": overtime, "effectiveDate": date})},
+	})
+
+	if got := recGetWO(t, e.dbFixture, wo.ID); got.Status != "PLANNED" {
+		t.Fatalf("preflight simulation released the work order: %s", got.Status)
+	}
+	var traces int
+	if err := e.DB.GetContext(e.Ctx, &traces, `
+SELECT (SELECT count(*) FROM recovery_capacity_overrides)
+     + (SELECT count(*) FROM inventory_txns WHERE ref_doc='WO:WO-REC-DUP')
+     + (SELECT count(*) FROM wo_operations WHERE wo_id=$1)`, wo.ID); err != nil {
+		t.Fatal(err)
+	}
+	if traces != 0 {
+		t.Fatalf("preflight simulation left %d operational rows", traces)
+	}
 }
