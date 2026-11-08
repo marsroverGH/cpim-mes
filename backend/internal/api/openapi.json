@@ -98,6 +98,39 @@
     {
       "name": "User Administration",
       "description": "Administrator-only user lifecycle management and authenticated self-service password changes"
+    },
+    {
+      "name": "Planning"
+    },
+    {
+      "name": "WorkOrders"
+    },
+    {
+      "name": "PurchaseOrders"
+    },
+    {
+      "name": "WorkCenters"
+    },
+    {
+      "name": "Routings"
+    },
+    {
+      "name": "Calendars"
+    },
+    {
+      "name": "Quality"
+    },
+    {
+      "name": "ShopFloor"
+    },
+    {
+      "name": "KPI"
+    },
+    {
+      "name": "ECO"
+    },
+    {
+      "name": "Agent"
     }
   ],
   "components": {
@@ -9769,6 +9802,1863 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/items/{id}/bom": {
+      "get": {
+        "tags": [
+          "BOM"
+        ],
+        "summary": "品目の BOM 取得",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "BOM"
+        ],
+        "summary": "BOM 構成の追加",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/bom/{compId}": {
+      "delete": {
+        "tags": [
+          "BOM"
+        ],
+        "summary": "BOM 構成の削除",
+        "parameters": [
+          {
+            "name": "compId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/items/{id}/explode": {
+      "get": {
+        "tags": [
+          "BOM"
+        ],
+        "summary": "BOM の多段階展開",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "qty",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/items/recompute-llc": {
+      "post": {
+        "tags": [
+          "BOM"
+        ],
+        "summary": "低位レベルコード (LLC) の再計算",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/demand": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "旧需要データの一覧 (読み取り専用)",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/mps": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "MPS 一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "MPS の登録・更新",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/inventory/{itemId}/transactions": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "品目の在庫取引履歴",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/inventory/transactions": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "在庫取引の記帳",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/work-orders": {
+      "get": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示の作成",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/status": {
+      "put": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示の状態更新",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/purchase-orders": {
+      "get": {
+        "tags": [
+          "PurchaseOrders"
+        ],
+        "summary": "購買発注一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "PurchaseOrders"
+        ],
+        "summary": "購買発注の登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/purchase-orders/{id}/receipts": {
+      "get": {
+        "tags": [
+          "PurchaseOrders"
+        ],
+        "summary": "発注の受入履歴",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/work-centers": {
+      "get": {
+        "tags": [
+          "WorkCenters"
+        ],
+        "summary": "作業区一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "WorkCenters"
+        ],
+        "summary": "作業区登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/work-centers/{id}": {
+      "put": {
+        "tags": [
+          "WorkCenters"
+        ],
+        "summary": "作業区更新",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "WorkCenters"
+        ],
+        "summary": "作業区削除",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/work-center-setup-matrix/{id}": {
+      "delete": {
+        "tags": [
+          "WorkCenters"
+        ],
+        "summary": "段取りマトリクスの削除",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/routings": {
+      "get": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "ルーティング一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "ルーティング登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/routings/{id}/operations": {
+      "get": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "ルーティングの工程一覧",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "工程の追加",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/routing-operations/{opId}": {
+      "put": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "工程の更新",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "工程の削除",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/routing-operation-alternatives/{id}": {
+      "delete": {
+        "tags": [
+          "Routings"
+        ],
+        "summary": "代替作業区の削除",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/lots/{id}/movements": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "ロットの移動履歴",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "ロット移動の記帳",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/lots/{id}/where-used": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "ロットの使用先の追跡",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/lots": {
+      "get": {
+        "tags": [
+          "Lots"
+        ],
+        "summary": "品目のロット一覧",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/inventory/balance": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "summary": "在庫残高の一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/release": {
+      "post": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示のリリース",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/bom-snapshot": {
+      "get": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示の BOM スナップショット",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/complete": {
+      "post": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示の完成報告 (部分完了可)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/purchase-orders/{id}/receive": {
+      "post": {
+        "tags": [
+          "PurchaseOrders"
+        ],
+        "summary": "発注の受入 (部分受入可)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/calendars": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "作業カレンダー一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "作業カレンダー登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/calendars/{id}": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "作業カレンダー取得",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "作業カレンダー更新",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "作業カレンダー削除",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/calendars/{id}/exceptions": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "カレンダー例外日の一覧",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "カレンダー例外日の追加",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/calendar-exceptions/{exId}": {
+      "delete": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "カレンダー例外日の削除",
+        "parameters": [
+          {
+            "name": "exId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/progress": {
+      "post": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "進捗の報告 (在庫は動かない)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/items/{itemId}/atp": {
+      "get": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目の ATP 照会",
+        "parameters": [
+          {
+            "name": "itemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bucketDays",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "horizonDays",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/lots/{id}/inspections": {
+      "get": {
+        "tags": [
+          "Quality"
+        ],
+        "summary": "ロットの検査記録一覧",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Quality"
+        ],
+        "summary": "ロットの検査記録の登録",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/lots/{id}/quality-history": {
+      "get": {
+        "tags": [
+          "Quality"
+        ],
+        "summary": "ロットの品質状態の履歴",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/quality/recent": {
+      "get": {
+        "tags": [
+          "Quality"
+        ],
+        "summary": "最近の検査記録",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/mrp/action-messages": {
+      "get": {
+        "tags": [
+          "MRP"
+        ],
+        "summary": "MRP アクションメッセージ一覧",
+        "parameters": [
+          {
+            "name": "horizonDays",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/shop-floor/active": {
+      "get": {
+        "tags": [
+          "ShopFloor"
+        ],
+        "summary": "現場の作業対象工程の一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/work-orders/{id}/operations": {
+      "get": {
+        "tags": [
+          "WorkOrders"
+        ],
+        "summary": "作業指示の工程一覧",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/wo-operations/{opId}/start": {
+      "post": {
+        "tags": [
+          "ShopFloor"
+        ],
+        "summary": "工程の開始",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/wo-operations/{opId}/stop": {
+      "post": {
+        "tags": [
+          "ShopFloor"
+        ],
+        "summary": "工程の中断",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/wo-operations/{opId}/complete": {
+      "post": {
+        "tags": [
+          "ShopFloor"
+        ],
+        "summary": "工程の完了報告 (累計の良品数)",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/wo-operations/{opId}/logs": {
+      "get": {
+        "tags": [
+          "ShopFloor"
+        ],
+        "summary": "工程の作業記録",
+        "parameters": [
+          {
+            "name": "opId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/kpi/dashboard": {
+      "get": {
+        "tags": [
+          "KPI"
+        ],
+        "summary": "ダッシュボードの KPI",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/item-groups": {
+      "get": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目グループ一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Items"
+        ],
+        "summary": "品目グループ登録",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/sop/plans": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 計画一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 計画の登録・更新",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/sop/plans/{id}": {
+      "delete": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 計画の削除",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/sop/product-mix/versions": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "製品構成比の版一覧",
+        "parameters": [
+          {
+            "name": "groupId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "製品構成比の版の作成",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/sop/product-mix/versions/{id}/activate": {
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "製品構成比の版の有効化",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/sop/plans/{id}/disaggregation/preview": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 按分のプレビュー",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mixVersionId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/sop/plans/{id}/disaggregate": {
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 按分の発行 (MPS へ反映)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/sop/disaggregation-runs": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "S&OP 按分の実行履歴",
+        "parameters": [
+          {
+            "name": "planId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/rccp/run": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "RCCP の実行",
+        "parameters": [
+          {
+            "name": "workingDays",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/rccp/profiles": {
+      "get": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "RCCP 負荷プロファイル一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Planning"
+        ],
+        "summary": "RCCP 負荷プロファイルの登録・更新",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/eco": {
+      "get": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO 一覧",
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO 起案",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/eco/{id}/approve": {
+      "post": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の承認",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/eco/{id}/apply": {
+      "post": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の適用",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/eco/{id}/cancel": {
+      "post": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の取消",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "成功 (本文なし)"
+          }
+        }
+      }
+    },
+    "/eco/{id}/components": {
+      "get": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の変更内容の一覧",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の変更内容の追加",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "作成"
+          }
+        }
+      }
+    },
+    "/eco/{id}/history": {
+      "get": {
+        "tags": [
+          "ECO"
+        ],
+        "summary": "ECO の状態履歴",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          }
+        }
+      }
+    },
+    "/agent/ask": {
+      "post": {
+        "tags": [
+          "Agent"
+        ],
+        "summary": "AI アシスタントへの問い合わせ",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "成功"
           }
         }
       }

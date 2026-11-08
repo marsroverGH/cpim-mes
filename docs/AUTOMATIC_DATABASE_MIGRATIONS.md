@@ -58,7 +58,7 @@ the migration history after the first instance finishes.
 
 An existing database created by old Docker init scripts has no
 `schema_migrations` table. On first startup with this version, the backend checks
-unique schema fingerprints for migrations 0001..0025 and baselines only the
+unique schema fingerprints for migrations 0001..0041 (except data-only 0014) and baselines only the
 contiguous prefix it can prove exists.
 
 The data-only migration 0014 is deliberately replay-safe and may be re-executed;

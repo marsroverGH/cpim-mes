@@ -49,7 +49,7 @@ PGOPTIONS='-c default_transaction_read_only=on -c statement_timeout=30min' \
 ```
 
 - 読み取りだけを行う。上のように読み取り専用のセッションで実行する。
-- `public` スキーマで桁数の決まっていない `numeric` 列（v0.42.x で 128 列、0043 の適用後は 103 列）をすべて全件走査する。
+- `public` スキーマで桁数の決まっていない `numeric` 列（v0.42.x で 129 列、0043 の適用後は 104 列。生成列 `cycle_counts.variance` を含む）をすべて全件走査する。
   本番で実行するときは、レプリカかリストアしたバックアップ（`docs/BACKUP_RESTORE.md`）で行うのが望ましい。
   `numeric(18,6)` のように桁が決まっている列は誤差を持てないので対象外。
 - 結果は、誤差つきの値が 1 件以上ある列ごとに 1 行。
