@@ -38,6 +38,7 @@ services:
       OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-256}
       MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
       MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-docker-compose-backend}
+      BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-Asia/Tokyo}
     depends_on:
       db:
         condition: service_healthy
