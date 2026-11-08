@@ -6,6 +6,7 @@
 - [ ] `SHA256SUMS.txt` (generated at release time by `scripts/generate_source_checksums.py --require-clean`) verifies every distributed source file.
 - [ ] Target is `v0.43.0`; candidate matches `v0.43.0-rc.N`.
 - [ ] Migration files are exactly `0001` through `0044`; `0042` is Controlled Recovery Plan Execution, `0043` is Quantity Column Scale, and `0044` is Audit Log Append-only.
+- [ ] If the production `BUSINESS_TIMEZONE` is not `Asia/Tokyo`, `SHOW app.business_timezone` on the production database returns the same IANA name; the backend refuses to start when they differ.
 - [ ] Upgrade rehearsal on a restored production backup (`docs/MIGRATION_0043_REHEARSAL.md`): `scripts/rehearse_migration_0043.sh` preflight reports no blocker and its float-artefact list is recorded, `--dry-run` passes, and the dry-run time fits the maintenance window and `MIGRATION_TIMEOUT`.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.
 - [ ] `docs/RELEASE_NOTES_v0.43.0.md` lists every change since v0.42.1 and the operational behavior changes.

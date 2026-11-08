@@ -64,7 +64,7 @@ make ci-local
 - **静的ガードは文字列の有無しか見ていない**。ガードが全 PASS でも実テストが落ちていることがある（実際にあった）。
   判定は `go test` と Playwright の実行結果で行う。逆に、ガードが参照している文字列を消すとガードが落ちる。
 - **マイグレーションは追記のみ**。既存ファイル（特に 0041 以前）はバイト単位で不変が前提（ハッシュを docs で記録している）。down マイグレーションは無い。
-- **業務日付**: 日付の比較・集計・「今日」は `service.BusinessDate` / `BusinessToday()` を使う（業務タイムゾーンの暦日を UTC 0 時で表す。DB の `eco_business_timezone()` と一致）。`TruncateDay(time.Now())` はサーバーの TZ に依存するので使わない。日付が絡むテストは `TZ=UTC` と `TZ=Asia/Tokyo` の両方で通すこと。
+- **業務日付**: 日付の比較・集計・「今日」は `service.BusinessDate` / `BusinessToday()` を使う（業務タイムゾーンの暦日を UTC 0 時で表す。DB の `eco_business_timezone()` と一致）。`TruncateDay(time.Now())` はサーバーの TZ に依存するので使わない。日付が絡むテストは `TZ=UTC` と `TZ=Asia/Tokyo` の両方で通すこと。`BUSINESS_TIMEZONE` と DB の `app.business_timezone` が違うと backend は起動しない（別名の `Japan` と `Asia/Tokyo` も不一致扱い）。
 - **シフト時間帯は UTC 基準**（2026-11 決定）: 詳細スケジューリング・有限 CRP では、作業区の `shiftStartMinute` を UTC 0 時からの分として扱う（480 = 8:00 UTC = 17:00 JST）。業務日付とは基準が違うので、業務タイムゾーンに寄せる変更はしない（`TestShiftWindowIsInterpretedInUTC` が落ちる）。
 - API の日付は RFC3339（`2026-11-11T00:00:00Z`）が基本。日時型の項目（作業指示・PO など）に `YYYY-MM-DD` を送ると 400 になる。ただし項目によっては `YYYY-MM-DD` のみ、または両方を受け付ける（受注の `requestedDate` など）ので、実装を確認すること。
 - E2E で UI ログインした直後は `await expect(page).toHaveURL(/\/$/)` でリダイレクト完了を待ってから遷移する。
