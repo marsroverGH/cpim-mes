@@ -1,17 +1,16 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { createVuetify } from 'vuetify'
-import * as components from 'vuetify/components'
-import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
 
 import App from './App.vue'
 import router from './router'
 
+// Components and directives are imported per use by vite-plugin-vuetify
+// (autoImport in vite.config.ts). Registering `vuetify/components` here would
+// pull every Vuetify component into the entry chunk.
 const vuetify = createVuetify({
-  components,
-  directives,
   theme: {
     defaultTheme: 'cpimLight',
     themes: {
