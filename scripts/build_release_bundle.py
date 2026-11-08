@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_RELEASE = "v0.43.0"
-EXPECTED_MIGRATION_LATEST = 43
+EXPECTED_MIGRATION_LATEST = 44
 
 DEPENDENCY_FILES = [
     "govulncheck.json",
@@ -110,7 +110,7 @@ def main() -> int:
         "buildTime": dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "migrationLatest": EXPECTED_MIGRATION_LATEST,
         "migrationCount": EXPECTED_MIGRATION_LATEST,
-        "migration0043Created": True,
+        "migration0044Created": True,
         "securityPolicy": {
             "govulncheck": "any reachable known vulnerability blocks release",
             "npmFrontendProduction": "HIGH or CRITICAL blocks release",

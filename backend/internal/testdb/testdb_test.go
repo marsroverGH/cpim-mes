@@ -12,8 +12,8 @@ func TestNewGivesIsolatedMigratedDatabases(t *testing.T) {
 	if err := a.Get(&latest, `SELECT max(version) FROM schema_migrations`); err != nil {
 		t.Fatalf("schema_migrations: %v", err)
 	}
-	if latest != 43 {
-		t.Fatalf("latest migration = %d, want 43", latest)
+	if latest != 44 {
+		t.Fatalf("latest migration = %d, want 44", latest)
 	}
 
 	var nameA, nameB string

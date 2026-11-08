@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 EXPECTED_RELEASE = "v0.43.0"
-EXPECTED_MIGRATION_LATEST = 43
+EXPECTED_MIGRATION_LATEST = 44
 REQUIRED_SBOMS = {
     "SBOM.spdx.json",
     "SBOM-backend-image.spdx.json",
@@ -117,9 +117,9 @@ def verify_security_metadata(root: Path) -> None:
     commit = data.get("gitCommit")
     if commit != "local" and not (isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{40}", commit)):
         fail("security metadata gitCommit is not 40-hex/local")
-    if data.get("migrationLatest") != EXPECTED_MIGRATION_LATEST or data.get("migrationCount") != 43:
+    if data.get("migrationLatest") != EXPECTED_MIGRATION_LATEST or data.get("migrationCount") != 44:
         fail("security metadata migration state mismatch")
-    if data.get("migration0043Created") is not True:
+    if data.get("migration0044Created") is not True:
         fail("security metadata must record Migration 0042 as created")
 
 
@@ -127,7 +127,7 @@ def verify_release_metadata(root: Path) -> None:
     text = (root / "RELEASE-METADATA.txt").read_text(encoding="utf-8")
     for needle in (
         "Target release: v0.43.0 Quantity Precision",
-        "Migration count: 43",
+        "Migration count: 44",
         "Migration 0042: Controlled Recovery Plan Execution",
         "Migration 0043: Quantity Column Scale",
         "Step 12 Security CI / Supply Chain",

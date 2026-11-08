@@ -5,10 +5,11 @@ Candidate: v0.43.0-rc.1
 Target GA release: v0.43.0
 Baseline: v0.42.1 / 7bd2d65c91e41e765ddb0ccbd41dafd5d246770d
 Scope: Migration 0043 Quantity Column Scale
-Migration range: 0001-0043
-Migration count: 43
+Migration range: 0001-0044
+Migration count: 44
 Migration 0042: Controlled Recovery Plan Execution
 Migration 0043: Quantity Column Scale
+Migration 0044: Audit Log Append-only
 Playwright definitions: 26
 
 Candidate invariants:

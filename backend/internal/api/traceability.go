@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -51,51 +52,72 @@ func auditMiddleware(audit *service.AuditService) func(http.Handler) http.Handle
 			}
 
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
-			next.ServeHTTP(rec, r)
-
-			// Skip very long uploads and every authentication route. Authentication
-			// uses dedicated security audit events so passwords/tokens/cookies can
-			// never be captured by generic request-body auditing.
-			if strings.Contains(r.URL.Path, "/items/import") || strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/users") {
-				bodyBytes = nil
-			}
-			if strings.HasPrefix(r.URL.Path, "/api/auth/") {
-				return
-			}
-
-			c, _ := r.Context().Value(ctxKeyClaims).(*service.Claims)
-			username, role := "anonymous", ""
-			if c != nil {
-				username = c.Username
-				role = string(c.Role)
-			}
-
-			// Sniff resource from path (e.g. /api/items/{id} → items)
-			resource := guessResource(r.URL.Path)
-			resourceID := chi.URLParam(r, "id")
-
-			var payload json.RawMessage
-			if len(bodyBytes) > 0 {
-				if json.Valid(bodyBytes) {
-					payload = bodyBytes
-				} else {
-					payload = json.RawMessage(`{"_note":"non-JSON body redacted"}`)
+			// Deferred so a request that panics is recorded too. The panic keeps
+			// propagating to middleware.Recoverer, which answers 500.
+			completed := false
+			defer func() {
+				if !completed {
+					rec.status = http.StatusInternalServerError
 				}
-			}
-
-			entry := &domain.AuditLogEntry{
-				Username:   username,
-				UserRole:   role,
-				Action:     method + " " + r.URL.Path,
-				Resource:   resource,
-				ResourceID: resourceID,
-				HTTPStatus: rec.status,
-				IPAddress:  clientIP(r),
-				Payload:    payload,
-			}
-			// best-effort; do NOT block the response on failure
-			_ = audit.Record(context.Background(), entry)
+				recordRequestAudit(audit, r, rec.status, bodyBytes)
+			}()
+			next.ServeHTTP(rec, r)
+			completed = true
 		})
+	}
+}
+
+// recordRequestAudit writes the audit entry for a finished mutating request.
+func recordRequestAudit(audit *service.AuditService, r *http.Request, status int, bodyBytes []byte) {
+	// Skip very long uploads and every authentication route. Authentication
+	// uses dedicated security audit events so passwords/tokens/cookies can
+	// never be captured by generic request-body auditing.
+	if strings.Contains(r.URL.Path, "/items/import") || strings.HasPrefix(r.URL.Path, "/api/auth/") || strings.HasPrefix(r.URL.Path, "/api/admin/users") {
+		bodyBytes = nil
+	}
+	if strings.HasPrefix(r.URL.Path, "/api/auth/") {
+		return
+	}
+
+	c, _ := r.Context().Value(ctxKeyClaims).(*service.Claims)
+	username, role := "anonymous", ""
+	if c != nil {
+		username = c.Username
+		role = string(c.Role)
+	}
+
+	// Sniff resource from path (e.g. /api/items/{id} → items)
+	resource := guessResource(r.URL.Path)
+	resourceID := chi.URLParam(r, "id")
+
+	var payload json.RawMessage
+	if len(bodyBytes) > 0 {
+		if json.Valid(bodyBytes) {
+			payload = bodyBytes
+		} else {
+			payload = json.RawMessage(`{"_note":"non-JSON body redacted"}`)
+		}
+	}
+
+	entry := &domain.AuditLogEntry{
+		Username:   username,
+		UserRole:   role,
+		Action:     r.Method + " " + r.URL.Path,
+		Resource:   resource,
+		ResourceID: resourceID,
+		HTTPStatus: status,
+		IPAddress:  clientIP(r),
+		Payload:    payload,
+	}
+	// best-effort; do NOT block the response on failure
+	recordAudit(context.Background(), audit, entry)
+}
+
+// recordAudit stores entry. A failure must not fail the request, but it must
+// be visible, because the audit trail then has a gap. The payload is not logged.
+func recordAudit(ctx context.Context, audit *service.AuditService, entry *domain.AuditLogEntry) {
+	if err := audit.Record(ctx, entry); err != nil {
+		log.Printf("audit record failed: username=%q action=%q status=%d: %v", entry.Username, entry.Action, entry.HTTPStatus, err)
 	}
 }
 
@@ -148,7 +170,7 @@ func recordAuthAudit(audit *service.AuditService, r *http.Request, username, rol
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_ = audit.Record(ctx, entry)
+	recordAudit(ctx, audit, entry)
 }
 
 // ====================================================================

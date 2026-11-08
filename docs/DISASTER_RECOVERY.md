@@ -100,8 +100,8 @@ Use a **new PostgreSQL instance/data directory**. Never experiment on the only c
 For this release, a valid recovered CPIM-MES v0.43.0 database must have:
 
 ```text
-schema_migrations count = 43
-schema_migrations latest = 0043
+schema_migrations count = 44
+schema_migrations latest = 0044
 ```
 
 The normal startup Migration Manager remains a safety gate: checksum mismatch, a history gap, or an unknown newer DB version must block API startup.
@@ -139,7 +139,7 @@ Application:
 
 ```text
 [ ] Backend /healthz passes
-[ ] GET /version returns expected release/commit and migrationLatest=43
+[ ] GET /version returns expected release/commit and migrationLatest=44
 [ ] Admin authentication works
 [ ] RBAC works
 [ ] Inventory read path works

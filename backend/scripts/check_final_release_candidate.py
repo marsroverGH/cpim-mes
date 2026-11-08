@@ -87,7 +87,7 @@ need("RELEASE-CANDIDATE-METADATA.txt", "Migration 0042: Controlled Recovery Plan
 need("RELEASE-CANDIDATE-METADATA.txt", "Migration 0043: Quantity Column Scale")
 need("RELEASE-CANDIDATE-METADATA.txt", "Playwright definitions: 26")
 need("RELEASE-METADATA.txt", "Target release: v0.43.0")
-need("RELEASE-METADATA.txt", "Migration latest: 0043")
+need("RELEASE-METADATA.txt", "Migration latest: 0044")
 
 # Final clean-room script proves the full current gate.
 for needle in [
@@ -98,10 +98,10 @@ for needle in [
     "run_container_security_gate.sh",
     "down -v --remove-orphans",
     "schema_migrations",
-    'expected_sequence="$(seq -s, 1 43)"',
+    'expected_sequence="$(seq -s, 1 44)"',
     "validate_production_topology.py",
     "verify_running_version.py",
-    "--migration-latest 43",
+    "--migration-latest 44",
     "recovery_simulation_failed_total",
     "test_recovery_failed_persistence.py",
     "npx playwright test --workers=1",
@@ -110,9 +110,9 @@ for needle in [
     "verify_release_bundle.py",
     "build_release_candidate_bundle.py",
     "verify_release_candidate_bundle.py",
-    '"migrationCount": 43',
-    '"migrationLatest": 43',
-    '"migration0043Created": True',
+    '"migrationCount": 44',
+    '"migrationLatest": 44',
+    '"migration0044Created": True',
     '"playwrightTests": 26',
 ]:
     need("scripts/final_clean_room_release_gate.sh", needle)
@@ -168,8 +168,8 @@ if "contents: write" in workflow or "pull-requests: write" in workflow:
 checks += 1
 migrations = sorted((ROOT / "backend/migrations").glob("[0-9][0-9][0-9][0-9]_*.sql"))
 versions = [int(p.name[:4]) for p in migrations]
-if versions != list(range(1, 44)):
-    errors.append(f"migration sequence must be exactly 0001..0043, got {versions[:3]}...{versions[-3:] if versions else []}")
+if versions != list(range(1,45)):
+    errors.append(f"migration sequence must be exactly 0001..0044, got {versions[:3]}...{versions[-3:] if versions else []}")
 checks += 1
 if not any(p.name.startswith("0042_controlled_recovery_plan_execution") for p in migrations):
     errors.append("Migration 0042 Controlled Recovery Plan Execution is missing")
@@ -180,8 +180,8 @@ need("backend/scripts/check_controlled_recovery_execution.py", "95/95") if False
 
 # CI / Makefile wiring.
 need("README.md", "0042 Controlled Recovery Plan Execution")
-need("docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md", "migration 0001 -> 0043")
-need("docs/RELEASE_CHECKLIST.md", "`0001` through `0043`")
+need("docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md", "migration 0001 -> 0044")
+need("docs/RELEASE_CHECKLIST.md", "`0001` through `0044`")
 need("Makefile", "check-controlled-recovery-execution")
 need("Makefile", "final-clean-room")
 need(".github/workflows/ci.yml", "check_controlled_recovery_execution.py")
