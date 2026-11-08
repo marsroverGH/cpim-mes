@@ -1,12 +1,15 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
 	"time"
 	_ "time/tzdata" // the runtime image has no zoneinfo; embed it
+
+	"github.com/jmoiron/sqlx"
 )
 
 // Business dates
@@ -53,6 +56,29 @@ func SetBusinessTimezone(name string) error {
 
 // BusinessLocation returns the timezone that defines business calendar days.
 func BusinessLocation() *time.Location { return businessLoc.Load() }
+
+// CheckBusinessTimezone returns an error when the Go business timezone and the
+// database's eco_business_timezone() differ. Business dates would otherwise
+// silently disagree between Go and the PL/pgSQL rules during part of each day.
+func CheckBusinessTimezone(ctx context.Context, db *sqlx.DB) error {
+	return checkBusinessTimezone(ctx, db, BusinessLocation().String())
+}
+
+func checkBusinessTimezone(ctx context.Context, db *sqlx.DB, goTimezone string) error {
+	var dbTimezone string
+	if err := db.GetContext(ctx, &dbTimezone, `SELECT eco_business_timezone()`); err != nil {
+		return fmt.Errorf("read database business timezone: %w", err)
+	}
+	// PostgreSQL matches timezone names case-insensitively. Aliases such as
+	// Japan and Asia/Tokyo are deliberately treated as different: one name on
+	// both sides is simple to verify.
+	if !strings.EqualFold(goTimezone, dbTimezone) {
+		return fmt.Errorf("%s is %q but the database app.business_timezone is %q; "+
+			"set both to the same IANA name (ALTER DATABASE <db> SET app.business_timezone = '<name>')",
+			BusinessTimezoneEnv, goTimezone, dbTimezone)
+	}
+	return nil
+}
 
 // nowFunc is replaced in tests.
 var nowFunc = time.Now

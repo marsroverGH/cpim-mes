@@ -43,6 +43,13 @@ func main() {
 		log.Printf("database migration complete: latest=%04d baselined=%v applied=%v", result.LatestVersion, result.Baselined, result.AppliedNow)
 	}
 
+	timezoneCtx, timezoneCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	err = service.CheckBusinessTimezone(timezoneCtx, db)
+	timezoneCancel()
+	if err != nil {
+		log.Fatalf("business timezone check failed; backend will not start: %v", err)
+	}
+
 	repos := repository.NewRepositories(db)
 
 	// Step 3 removes fixed demo credentials entirely. An empty users table is a
