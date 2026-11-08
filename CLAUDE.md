@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-CPIM-MES: CPIM準拠の生産管理（MES）システム。現行リリース v0.43.0（マイグレーション 0001–0043）。
+CPIM-MES: CPIM準拠の生産管理（MES）システム。現行リリース v0.43.0（マイグレーション 0001–0044）。
 ChatGPT で開発され、2026-11 に Claude Code へ移行した。移行時の実測結果は `docs/BASELINE_MEASUREMENT.md`。
 
 ## 構成
@@ -21,7 +21,7 @@ cd backend && go mod verify && go vet -mod=readonly ./... && go test -mod=readon
 # Frontend（vue-tsc 型検査込み）
 cd frontend && npm ci && npm run build
 
-# Docker 一式・0001→0043 適用・観測性/失敗永続化ゲート・Playwright・リストア訓練（CI の Integration ジョブ相当）
+# Docker 一式・0001→0044 適用・観測性/失敗永続化ゲート・Playwright・リストア訓練（CI の Integration ジョブ相当）
 ./scripts/measure_local_stack.sh        # ログは .measure/、終了時に down -v
 
 # 静的ガード一式・CI 相当
@@ -58,7 +58,7 @@ make ci-local
 
 ## 変更時の注意
 
-- **バージョン番号・件数のハードコード**: リリース番号（`v0.43.0`）、マイグレーション最新番号（43）、Playwright 定義数（26）、権限数（54）、権限チェック付きの更新系ルート数（120。保護ルート全体は 231 本）が
+- **バージョン番号・件数のハードコード**: リリース番号（`v0.43.0`）、マイグレーション最新番号（44）、Playwright 定義数（26）、権限数（54）、権限チェック付きの更新系ルート数（120。保護ルート全体は 231 本）が
   workflows・`buildinfo.go`・`openapi.json`・`check_*.py`・docs・RELEASE-*-METADATA.txt に散在する。
   リリースを上げる・マイグレーションやテストを追加するときは `git grep` で全箇所を洗うこと。
 - **静的ガードは文字列の有無しか見ていない**。ガードが全 PASS でも実テストが落ちていることがある（実際にあった）。
@@ -74,4 +74,5 @@ make ci-local
 移行時の解析とテスト拡充で見つかった主な改善点（テストで見つかった不具合の一覧は `docs/TEST_FINDINGS.md`）。着手するときは個別に相談のうえ進める。
 
 - 数量計算が float（第 1〜3 段階は対応済み: v0.42.1 で保存前に小数 9 桁へ丸め、v0.43.0 で主要経路を decimal（`shopspring/decimal`）で計算し、0043 で主な数量列を `numeric(20,9)` に固定。残りは需要予測・統計・スケジューリングの float64 と、桁未固定の列。Go で数量を計算するときは `service/quantity.go` の `dq` / `fq` を使い、保存前に小数 9 桁へ丸める。経緯・範囲・既存データの確認は `docs/QUANTITY_PRECISION.md`）
+- DB ロールが分離されていない: アプリは superuser の `cpim` で接続するため、`audit_log` などの不変トリガは外せる（経緯は `docs/AUDIT_LOG.md`）
 - 在庫台帳が全履歴を再走査する（2026-11-07 計測: 取引 100 万件でも 0.15 秒以内で、今は不要。着手の目安と方向性は `docs/LEDGER_SCALING_MEASUREMENT.md`）

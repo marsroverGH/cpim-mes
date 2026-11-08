@@ -137,8 +137,8 @@ check("CI checks metrics are not public", "metrics_public_status" in ci)
 check("E2E checks public metrics are blocked", "request.get('/metrics')" in e2e and "toBe(404)" in e2e)
 
 migrations = sorted((ROOT / "backend/migrations").glob("[0-9][0-9][0-9][0-9]_*.sql"))
-check("migration count is 43", len(migrations) == 43)
-check("latest migration is 0043", bool(migrations) and migrations[-1].name.startswith("0043_"))
+check("migration count is 44", len(migrations) == 44)
+check("latest migration is 0044", bool(migrations) and migrations[-1].name.startswith("0044_"))
 check("migration 0042 present", any(p.name.startswith("0042_") for p in migrations))
 
 # Dependency policy: Step 10 deliberately adds no Go dependency for metrics/OTLP.

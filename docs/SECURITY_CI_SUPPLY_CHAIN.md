@@ -126,8 +126,8 @@ RELEASE-BUNDLE-SHA256SUMS.txt
 releaseVersion = v0.43.0
 gitCommit      = exact 40-hex commit
 buildTime      = UTC RFC3339
-migrationLatest = 43
-migration0043Created = true
+migrationLatest = 44
+migration0044Created = true
 ```
 
 `verify_release_bundle.py` rejects:
