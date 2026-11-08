@@ -22,6 +22,7 @@ Rules:
 - When cumulative good quantity reaches the WO planned quantity, the operation becomes `COMPLETED` and the next operation becomes `READY` in the same transaction.
 - A `COMPLETED` operation cannot be reopened by the normal Shop Floor API.
 - A later sequence cannot start until every lower sequence is `COMPLETED`.
+  Since migration 0030 this is relaxed by `wo_predecessor_transfer_ready`: when a predecessor has `overlap_enabled`, the next operation can become `READY` once the predecessor's cumulative good quantity reaches the transfer lot quantity.
 
 ## Atomic execution
 

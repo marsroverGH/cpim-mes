@@ -104,6 +104,21 @@ ci-local: check-locks
 	python3 backend/scripts/check_backup_restore_dr.py
 	python3 backend/scripts/check_security_supply_chain.py
 	python3 backend/scripts/check_final_release_candidate.py
+	python3 backend/scripts/check_abc_annual_usage.py
+	python3 backend/scripts/check_advanced_order_promising.py
+	python3 backend/scripts/check_backorder_processing.py
+	python3 backend/scripts/check_crp_finite_capacity.py
+	python3 backend/scripts/check_detailed_scheduling.py
+	python3 backend/scripts/check_full_pegging_exception_management.py
+	python3 backend/scripts/check_inventory_policy.py
+	python3 backend/scripts/check_maintenance_capacity.py
+	python3 backend/scripts/check_production_control_tower.py
+	python3 backend/scripts/check_production_performance.py
+	python3 backend/scripts/check_realtime_dispatch_rescheduling.py
+	python3 backend/scripts/check_recovery_planning.py
+	python3 backend/scripts/check_sales_order_management.py
+	python3 backend/scripts/check_supplier_quality_ncr.py
+	python3 backend/scripts/check_supplier_scheduling_reliability.py
 	python3 scripts/test_security_supply_chain_unit.py
 	python3 scripts/test_release_candidate_unit.py
 	python3 scripts/check_ci_dependency_policy.py
