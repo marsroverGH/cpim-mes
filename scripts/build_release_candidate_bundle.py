@@ -79,7 +79,7 @@ def main() -> int:
     p.add_argument("--candidate", required=True)
     a = p.parse_args()
 
-    if not re.fullmatch(r"v0\.43\.0-rc\.\d+", a.candidate):
+    if not re.fullmatch(r"v0\.44\.0-rc\.\d+", a.candidate):
         raise SystemExit("ERROR: --candidate must match v0.44.0-rc.N")
     if a.commit != "local" and not re.fullmatch(r"[0-9a-fA-F]{40}", a.commit):
         raise SystemExit("ERROR: --commit must be 40-hex or local")
