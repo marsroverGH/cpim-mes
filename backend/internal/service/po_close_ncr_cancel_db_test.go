@@ -1,8 +1,10 @@
 package service
 
 import (
+	"math"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
 	"github.com/google/uuid"
@@ -15,18 +17,20 @@ func TestPurchaseCloseOpenAndPartial(t *testing.T) {
 	purchases := f.Svc.Purchases
 
 	open := opsPO(t, f, e.item.ID, e.supplier, 10)
-	_, err := purchases.Close(f.Ctx, open.ID, "x", PurchaseReceiptActor{})
+	_, err := purchases.Close(f.Ctx, open.ID, "SUPPLIER", "x", PurchaseReceiptActor{})
 	opsWantErr(t, err, domain.ErrCodeUnauthorized, "")
-	_, err = purchases.Close(f.Ctx, open.ID, "   ", e.recv)
+	_, err = purchases.Close(f.Ctx, open.ID, "MAYBE", "x", e.recv)
+	opsWantErr(t, err, domain.ErrCodeBadRequest, "cause")
+	_, err = purchases.Close(f.Ctx, open.ID, "SUPPLIER", "   ", e.recv)
 	opsWantErr(t, err, domain.ErrCodeBadRequest, "reason")
-	_, err = purchases.Close(f.Ctx, uuid.New(), "x", e.recv)
+	_, err = purchases.Close(f.Ctx, uuid.New(), "SUPPLIER", "x", e.recv)
 	opsWantErr(t, err, domain.ErrCodeNotFound, "purchase order")
 
-	got, err := purchases.Close(f.Ctx, open.ID, " 仕入先都合で中止 ", e.recv)
+	got, err := purchases.Close(f.Ctx, open.ID, "SUPPLIER", " 仕入先都合で中止 ", e.recv)
 	if err != nil {
 		t.Fatalf("close open PO: %v", err)
 	}
-	if got.Status != "CLOSED" || got.CloseReason != "仕入先都合で中止" || got.ClosedBy != e.recv.Username || got.ClosedAt == nil {
+	if got.Status != "CLOSED" || got.CloseReason != "仕入先都合で中止" || got.CloseCause != "SUPPLIER" || got.ClosedBy != e.recv.Username || got.ClosedAt == nil {
 		t.Fatalf("closed PO = %+v", got)
 	}
 	if rem := PurchaseScheduledRemaining(got.Status, got.Quantity, got.ReceivedQty); rem != 0 {
@@ -34,7 +38,7 @@ func TestPurchaseCloseOpenAndPartial(t *testing.T) {
 	}
 
 	// Final: no second close, no receipt, no reopening.
-	_, err = purchases.Close(f.Ctx, open.ID, "again", e.recv)
+	_, err = purchases.Close(f.Ctx, open.ID, "SUPPLIER", "again", e.recv)
 	opsWantErr(t, err, domain.ErrCodeConflict, "CLOSED")
 	_, err = f.Svc.Workflow.ReceivePurchase(f.Ctx, open.ID, uuid.New(), 1, "", e.recv)
 	opsWantErr(t, err, domain.ErrCodeConflict, "CLOSED")
@@ -46,7 +50,7 @@ func TestPurchaseCloseOpenAndPartial(t *testing.T) {
 	if _, err := f.Svc.Workflow.ReceivePurchase(f.Ctx, partial.ID, uuid.New(), 4, "", e.recv); err != nil {
 		t.Fatal(err)
 	}
-	got, err = purchases.Close(f.Ctx, partial.ID, "短納で打ち切り", e.recv)
+	got, err = purchases.Close(f.Ctx, partial.ID, "SUPPLIER", "短納で打ち切り", e.recv)
 	if err != nil || got.Status != "CLOSED" || got.ReceivedQty != 4 {
 		t.Fatalf("close partial: %+v err=%v", got, err)
 	}
@@ -55,7 +59,7 @@ func TestPurchaseCloseOpenAndPartial(t *testing.T) {
 	if _, err := f.Svc.Workflow.ReceivePurchase(f.Ctx, full.ID, uuid.New(), 2, "", e.recv); err != nil {
 		t.Fatal(err)
 	}
-	_, err = purchases.Close(f.Ctx, full.ID, "x", e.recv)
+	_, err = purchases.Close(f.Ctx, full.ID, "SUPPLIER", "x", e.recv)
 	opsWantErr(t, err, domain.ErrCodeConflict, "RECEIVED")
 }
 
@@ -72,13 +76,19 @@ func TestPurchaseCloseDatabaseGuards(t *testing.T) {
 		{"operator", "planner/admin", e.operator.UserID, "x"},
 		{"no reason", "reason", e.planner.UserID, " "},
 	} {
-		_, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason=$3 WHERE id=$1`, po.ID, c.actor, c.reason)
+		_, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason=$3, close_cause='SUPPLIER' WHERE id=$1`, po.ID, c.actor, c.reason)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Fatalf("%s: err = %v", c.name, err)
 		}
 	}
-	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason='x' WHERE id=$1`, po.ID, e.planner.UserID); err != nil {
+	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason='x' WHERE id=$1`, po.ID, e.planner.UserID); err == nil || !strings.Contains(err.Error(), "requires a cause") {
+		t.Fatalf("close without cause: err = %v", err)
+	}
+	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason='x', close_cause='INTERNAL' WHERE id=$1`, po.ID, e.planner.UserID); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := f.DB.ExecContext(f.Ctx, `UPDATE purchase_orders SET close_cause='SUPPLIER' WHERE id=$1`, po.ID); err == nil || !strings.Contains(err.Error(), "final") {
+		t.Fatalf("change cause: err = %v", err)
 	}
 	_, err := f.DB.ExecContext(f.Ctx, `
 		INSERT INTO purchase_orders (po_no, item_id, supplier, quantity, due_date, status)
@@ -169,5 +179,73 @@ func TestNCRCancelKeepsLotHeldUntilPassInspection(t *testing.T) {
 	_, err = f.DB.ExecContext(f.Ctx, `UPDATE supplier_ncrs SET status='CANCELLED', closed_by_user_id=$2 WHERE id=$1`, open.ID, e.planner.UserID)
 	if err == nil || !strings.Contains(err.Error(), "requires a reason") {
 		t.Fatalf("db cancel without reason err = %v", err)
+	}
+}
+
+func TestSupplierCloseCountsAgainstOnTimeRateOnly(t *testing.T) {
+	t.Parallel()
+	e := recNewEnv(t)
+	ss := e.Svc.SupplierScheduling
+	planner := recSalesActor(e.Planner)
+	recv := PurchaseReceiptActor{UserID: e.Admin.ID, Username: e.Admin.Username}
+	today := recDBToday(t, e.dbFixture)
+	day := func(n int) time.Time { return today.AddDate(0, 0, n) }
+
+	// Two orders delivered in full and on time, lead time 5 days.
+	for _, no := range []string{"A", "B"} {
+		po := recPO(t, e.dbFixture, "PO-CAUSE-"+no, "CHAIN-1", 10, day(-5), day(5))
+		if _, err := e.Svc.Workflow.ReceivePurchase(e.Ctx, po.ID, uuid.New(), 10, "LOT-CAUSE-"+no, recv); err != nil {
+			t.Fatal(err)
+		}
+	}
+	closePO := func(no, cause string, received float64) {
+		t.Helper()
+		po := recPO(t, e.dbFixture, "PO-CAUSE-"+no, "CHAIN-1", 10, day(-30), day(-8))
+		if received > 0 {
+			if _, err := e.Svc.Workflow.ReceivePurchase(e.Ctx, po.ID, uuid.New(), received, "LOT-CAUSE-"+no, recv); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := e.Svc.Purchases.Close(e.Ctx, po.ID, cause, "test", recv); err != nil {
+			t.Fatal(err)
+		}
+	}
+	closePO("SHORT", "SUPPLIER", 6) // partial delivery, today: 8 days late
+	closePO("NONE", "SUPPLIER", 0)  // nothing delivered, closed today: 8 days late
+	closePO("OURS", "INTERNAL", 3)  // our decision: ignored
+
+	run, err := ss.RefreshReliability(e.Ctx, SupplierReliabilityRunInput{}, planner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Results) != 2 {
+		t.Fatalf("results = %+v", run.Results)
+	}
+	near := func(a, b float64) bool { return math.Abs(a-b) < 1e-3 }
+	for _, r := range run.Results {
+		if r.SampleCount != 2 || !near(r.AverageLeadDays, 5) || r.RecommendedLeadDays != 5 {
+			t.Fatalf("lead time statistics changed by closed orders: %+v", r)
+		}
+		if !near(r.OnTimeRate, 0.5) || !near(r.AverageLatenessDays, 4) {
+			t.Fatalf("on-time %v lateness %v, want 0.5 and 4", r.OnTimeRate, r.AverageLatenessDays)
+		}
+	}
+}
+
+func TestSupplierClosedItemDoesNotHideSupplierFallback(t *testing.T) {
+	t.Parallel()
+	e := recNewEnv(t)
+	recv := PurchaseReceiptActor{UserID: e.Admin.ID, Username: e.Admin.Username}
+	today := recDBToday(t, e.dbFixture)
+	po := recPO(t, e.dbFixture, "PO-FALLBACK", "CHAIN-1", 10, today.AddDate(0, 0, -9), today.AddDate(0, 0, -1))
+	if _, err := e.Svc.Purchases.Close(e.Ctx, po.ID, "SUPPLIER", "test", recv); err != nil {
+		t.Fatal(err)
+	}
+	run, err := e.Svc.SupplierScheduling.RefreshReliability(e.Ctx, SupplierReliabilityRunInput{}, recSalesActor(e.Planner))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(run.Results) != 1 || run.Results[0].ItemID != nil || run.Results[0].SampleCount != 0 || run.Results[0].OnTimeRate != 0 {
+		t.Fatalf("results = %+v", run.Results)
 	}
 }

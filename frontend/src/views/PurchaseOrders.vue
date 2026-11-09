@@ -27,7 +27,7 @@
       </template>
       <template #item.status="{ item }">
         <v-chip size="small" :color="statusColor(item.status)"
-                :title="item.status === 'CLOSED' ? `${item.closedBy}: ${item.closeReason}` : undefined">{{ item.status }}</v-chip>
+                :title="item.status === 'CLOSED' ? `${item.closedBy} [${item.closeCause}]: ${item.closeReason}` : undefined">{{ item.status }}</v-chip>
       </template>
       <template #item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
@@ -118,12 +118,14 @@
           締めると元に戻せません。入荷もできなくなります。残数が必要な場合は、新しい発注を作成してください。<br>
           残数は入荷予定から外れます。作成済みの MRP の結果には反映されないので、MRP を再実行してください。
         </v-alert>
+        <v-select v-model="closeCause" :items="closeCauseOptions" item-title="title" item-value="value" label="原因（必須）"
+                  hint="仕入先都合は、仕入先の納期遵守率で未遵守として数えます" persistent-hint class="mb-3" />
         <v-textarea v-model="closeReason" label="理由（必須）" rows="3" />
       </v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn @click="closeDialog = false">キャンセル</v-btn>
-        <v-btn color="error" :loading="busy" :disabled="!closeReason.trim()" @click="doClose">締める</v-btn>
+        <v-btn color="error" :loading="busy" :disabled="!closeCause || !closeReason.trim()" @click="doClose">締める</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -233,6 +235,11 @@ const auth = useAuthStore()
 const closeDialog = ref(false)
 const closePO = ref<PurchaseOrder | null>(null)
 const closeReason = ref('')
+const closeCause = ref<'SUPPLIER' | 'INTERNAL' | null>(null)
+const closeCauseOptions = [
+  { title: '仕入先都合（納入できない、品質問題など）', value: 'SUPPLIER' },
+  { title: '自社都合（需要の消失、設計変更など）', value: 'INTERNAL' }
+]
 
 const historyDialog = ref(false)
 const historyPO = ref<PurchaseOrder | null>(null)
@@ -360,14 +367,15 @@ async function doReceive() {
 function openClose(p: PurchaseOrder) {
   closePO.value = p
   closeReason.value = ''
+  closeCause.value = null
   closeDialog.value = true
 }
 
 async function doClose() {
-  if (!closePO.value?.id || !closeReason.value.trim()) return
+  if (!closePO.value?.id || !closeCause.value || !closeReason.value.trim()) return
   busy.value = true
   try {
-    const res = await PurchaseOrdersApi.close(closePO.value.id, closeReason.value)
+    const res = await PurchaseOrdersApi.close(closePO.value.id, closeCause.value, closeReason.value)
     resultText.value = `✅ PO ${res.poNo} を締めました\n\n理由: ${res.closeReason}\n実行者: ${res.closedBy}\n\nMRP の結果に反映するには、MRP を再実行してください。`
     closeDialog.value = false
     resultDialog.value = true

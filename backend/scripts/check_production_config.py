@@ -70,9 +70,9 @@ for path in migrations:
     match = re.match(r"^(\d{4})_", path.name)
     if match:
         versions.append(int(match.group(1)))
-check("migration count is 45", len(versions) == 45, f"count={len(versions)}")
-check("latest migration is 0045", bool(versions) and max(versions) == 45, f"latest={max(versions) if versions else 'none'}")
-check("migration 0045 created", any(v == 45 for v in versions) and not any(v > 45 for v in versions))
+check("migration count is 46", len(versions) == 46, f"count={len(versions)}")
+check("latest migration is 0046", bool(versions) and max(versions) == 46, f"latest={max(versions) if versions else 'none'}")
+check("migration 0046 created", any(v == 46 for v in versions) and not any(v > 46 for v in versions))
 check("production config documentation exists", "Production Configuration / Fail-Closed Startup Gate" in doc)
 
 failed = [item for item in checks if not item[1]]

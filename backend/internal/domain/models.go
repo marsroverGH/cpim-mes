@@ -130,6 +130,7 @@ type PurchaseOrder struct {
 	ClosedByUserID          *uuid.UUID `db:"closed_by_user_id" json:"closedByUserId,omitempty"`
 	ClosedBy                string     `db:"closed_by"         json:"closedBy,omitempty"`
 	CloseReason             string     `db:"close_reason"      json:"closeReason,omitempty"`
+	CloseCause              string     `db:"close_cause"       json:"closeCause,omitempty"`
 	ReliabilityOnTimeRate   float64    `db:"reliability_on_time_rate" json:"reliabilityOnTimeRate"`
 	ReliabilityP90Days      float64    `db:"reliability_p90_days" json:"reliabilityP90Days"`
 	RecommendedLeadTimeDays int        `db:"recommended_lead_time_days" json:"recommendedLeadTimeDays"`

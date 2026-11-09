@@ -15,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGET_RELEASE = "v0.44.0"
-EXPECTED_MIGRATION = 45
+EXPECTED_MIGRATION = 46
 EXPECTED_E2E = 26
 
 
@@ -97,7 +97,7 @@ def main() -> int:
         "targetRelease": TARGET_RELEASE,
         "migrationCount": EXPECTED_MIGRATION,
         "migrationLatest": EXPECTED_MIGRATION,
-        "migration0045Created": True,
+        "migration0046Created": True,
         "playwrightTests": EXPECTED_E2E,
     }
     for key, expected in required_result.items():
@@ -149,7 +149,7 @@ def main() -> int:
         "buildTime": dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         "migrationCount": EXPECTED_MIGRATION,
         "migrationLatest": EXPECTED_MIGRATION,
-        "migration0045Created": True,
+        "migration0046Created": True,
         "playwrightTests": EXPECTED_E2E,
         "sourceArchive": {"name": source_archive.name, "sha256": sha256(source_archive)},
         "securityEvidenceArchive": {"name": security_archive.name, "sha256": sha256(security_archive)},

@@ -364,7 +364,7 @@ func TestRecDBExecutionPreflightBlockReasons(t *testing.T) {
 
 	recPO(t, e.dbFixture, "PO-REC-RCVD", "CHAIN-1", 10, recDay(-5), recDay(10))
 	closer := e.dbFixture.user(t, "rec-po-closer", domain.RolePlanner)
-	if _, err := e.DB.ExecContext(e.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$1, close_reason='test' WHERE po_no='PO-REC-RCVD'`, closer.ID); err != nil {
+	if _, err := e.DB.ExecContext(e.Ctx, `UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$1, close_reason='test', close_cause='INTERNAL' WHERE po_no='PO-REC-RCVD'`, closer.ID); err != nil {
 		t.Fatal(err)
 	}
 	recPO(t, e.dbFixture, "PO-REC-EARLY", "CHAIN-1", 10, recDay(5), recDay(8))

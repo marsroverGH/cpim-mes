@@ -5,7 +5,7 @@
 - [ ] Working tree clean at the candidate commit.
 - [ ] `SHA256SUMS.txt` (generated at release time by `scripts/generate_source_checksums.py --require-clean`) verifies every distributed source file.
 - [ ] Target is `v0.44.0`; candidate matches `v0.44.0-rc.N`.
-- [ ] Migration files are exactly `0001` through `0045`; `0042` is Controlled Recovery Plan Execution, `0043` is Quantity Column Scale, `0044` is Audit Log Append-only, and `0045` is PO Close and NCR Cancel.
+- [ ] Migration files are exactly `0001` through `0046`; `0042` is Controlled Recovery Plan Execution, `0043` is Quantity Column Scale, `0044` is Audit Log Append-only, `0045` is PO Close and NCR Cancel, and `0046` is PO Close Cause.
 - [ ] If the production `BUSINESS_TIMEZONE` is not `Asia/Tokyo`, `SHOW app.business_timezone` on the production database returns the same IANA name; the backend refuses to start when they differ.
 - [ ] When upgrading a v0.42.x production database: upgrade rehearsal on a restored production backup (`docs/MIGRATION_0043_REHEARSAL.md`): `scripts/rehearse_migration_0043.sh` preflight reports no blocker and its float-artefact list is recorded, `--dry-run` passes, and the dry-run time fits the maintenance window and `MIGRATION_TIMEOUT`.
 - [ ] Migration 0041 checksum is unchanged from the v0.41.0 baseline contract.
@@ -19,7 +19,7 @@
 - [ ] PostgreSQL 16.15.
 - [ ] `go mod verify`, `go vet`, `go test -race` PASS.
 - [ ] Frontend `npm ci`, typecheck, build PASS.
-- [ ] `/version` reports the candidate commit/build time and `migrationLatest=45`.
+- [ ] `/version` reports the candidate commit/build time and `migrationLatest=46`.
 
 ## Production topology / authentication
 

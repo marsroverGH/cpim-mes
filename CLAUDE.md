@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-CPIM-MES: CPIM準拠の生産管理（MES）システム。現行リリース v0.44.0（マイグレーション 0001–0045）。
+CPIM-MES: CPIM準拠の生産管理（MES）システム。現行リリース v0.44.0（マイグレーション 0001–0046）。
 ChatGPT で開発され、2026-11 に Claude Code へ移行した。移行時の実測結果は `docs/BASELINE_MEASUREMENT.md`。
 
 ## 構成
@@ -21,7 +21,7 @@ cd backend && go mod verify && go vet -mod=readonly ./... && go test -mod=readon
 # Frontend（vue-tsc 型検査込み）
 cd frontend && npm ci && npm run build
 
-# Docker 一式・0001→0045 適用・観測性/失敗永続化ゲート・Playwright・リストア訓練（CI の Integration ジョブ相当）
+# Docker 一式・0001→0046 適用・観測性/失敗永続化ゲート・Playwright・リストア訓練（CI の Integration ジョブ相当）
 ./scripts/measure_local_stack.sh        # ログは .measure/、終了時に down -v
 
 # 静的ガード一式・CI 相当
@@ -58,7 +58,7 @@ make ci-local
 
 ## 変更時の注意
 
-- **バージョン番号・件数のハードコード**: リリース番号（`v0.44.0`）、マイグレーション最新番号（45）、Playwright 定義数（26）、権限数（54）、権限チェック付きの更新系ルート数（122。保護ルート全体は 233 本）が
+- **バージョン番号・件数のハードコード**: リリース番号（`v0.44.0`）、マイグレーション最新番号（46）、Playwright 定義数（26）、権限数（54）、権限チェック付きの更新系ルート数（122。保護ルート全体は 233 本）が
   workflows・`buildinfo.go`・`openapi.json`・`check_*.py`・docs・RELEASE-*-METADATA.txt に散在する。
   リリースを上げる・マイグレーションやテストを追加するときは `git grep` で全箇所を洗うこと。
 - **静的ガードは文字列の有無しか見ていない**。ガードが全 PASS でも実テストが落ちていることがある（実際にあった）。

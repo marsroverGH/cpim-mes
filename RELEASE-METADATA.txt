@@ -4,15 +4,16 @@ CPIM-MES v0.44.0 Order Closure and Audit Integrity
 Baseline release: v0.43.0
 Baseline GA commit: 8e19d3dac2cdca82b80f71f16005e46cd09ef30c
 Target release: v0.44.0 Order Closure and Audit Integrity
-Release type: minor (Migrations 0044-0045)
+Release type: minor (Migrations 0044-0046)
 Implemented scope: Migration 0044 Audit Log Append-only, Migration 0045 PO Close and NCR Cancel
-Migration range: 0001-0045
-Migration count: 45
-Migration latest: 0045
+Migration range: 0001-0046
+Migration count: 46
+Migration latest: 0046
 Migration 0042: Controlled Recovery Plan Execution
 Migration 0043: Quantity Column Scale
 Migration 0044: Audit Log Append-only
 Migration 0045: PO Close and NCR Cancel
+Migration 0046: PO Close Cause
 Playwright definitions: 26
 
 0045 capabilities:
@@ -68,7 +69,7 @@ Critical invariant:
 0041 Recovery Simulation and Publish remain operationally side-effect free. Only 0042 Controlled Recovery Plan Execution may apply an approved recovery plan to operational state.
 
 Preserved hardening milestones:
-- Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=45 restore verification.
+- Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=46 restore verification.
 - Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.44.0.
 
 Changes since v0.43.0:

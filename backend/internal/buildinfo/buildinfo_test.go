@@ -12,7 +12,7 @@ func TestCurrentIncludesMigrationLatestAndTrimsInjectedValues(t *testing.T) {
 	Commit = " abcdef123456 "
 	BuildTime = " 2026-11-05T12:34:56Z "
 
-	const migrationLatest = 45
+	const migrationLatest = 46
 	got := Current(migrationLatest)
 	if got.Version != "v0.44.0" || got.Commit != "abcdef123456" || got.BuildTime != "2026-11-05T12:34:56Z" || got.MigrationLatest != migrationLatest {
 		t.Fatalf("unexpected build info: %+v", got)
@@ -26,7 +26,7 @@ func TestCurrentFallsBackWhenLdflagValueIsBlank(t *testing.T) {
 	})
 
 	Version, Commit, BuildTime = " ", "", "\t"
-	const migrationLatest = 45
+	const migrationLatest = 46
 	got := Current(migrationLatest)
 	if got.Version != "v0.44.0-dev" || got.Commit != "unknown" || got.BuildTime != "unknown" {
 		t.Fatalf("unexpected fallback build info: %+v", got)

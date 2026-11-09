@@ -452,7 +452,7 @@ type PurchaseRepo struct{ db *sqlx.DB }
 
 // purchaseOrderColumns adds the closing details, which the planning view does
 // not carry, to the view's columns.
-const purchaseOrderColumns = `v.*, po.closed_at, po.closed_by_user_id, po.closed_by, po.close_reason`
+const purchaseOrderColumns = `v.*, po.closed_at, po.closed_by_user_id, po.closed_by, po.close_reason, po.close_cause`
 
 func (r *PurchaseRepo) List(ctx context.Context) ([]domain.PurchaseOrder, error) {
 	var rows []domain.PurchaseOrder

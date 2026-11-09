@@ -11687,9 +11687,17 @@
               "schema": {
                 "type": "object",
                 "required": [
+                  "cause",
                   "reason"
                 ],
                 "properties": {
+                  "cause": {
+                    "type": "string",
+                    "enum": [
+                      "SUPPLIER",
+                      "INTERNAL"
+                    ]
+                  },
                   "reason": {
                     "type": "string"
                   }
