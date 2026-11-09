@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
@@ -297,6 +298,45 @@ func (s *PurchaseService) Create(ctx context.Context, p *domain.PurchaseOrder) e
 	}
 	return s.r.Create(ctx, p)
 }
+
+// Close ends a purchase order that will not be received in full. Its remaining
+// quantity stops counting as supply, and a closed order cannot be reopened.
+func (s *PurchaseService) Close(ctx context.Context, id uuid.UUID, reason string, actor PurchaseReceiptActor) (*domain.PurchaseOrder, error) {
+	if err := actor.validate(); err != nil {
+		return nil, err
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil, domain.NewBadRequest("reason is required", nil)
+	}
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+
+	// The row lock serializes this with ReceivePurchase.
+	var status string
+	if err := tx.GetContext(ctx, &status, `SELECT status FROM purchase_orders WHERE id=$1 FOR UPDATE`, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NewNotFound("purchase order")
+		}
+		return nil, err
+	}
+	if status != "OPEN" && status != "PARTIALLY_RECEIVED" {
+		return nil, domain.NewConflict(fmt.Sprintf("PO cannot be closed in status %s", status))
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason=$3 WHERE id=$1`,
+		id, actor.UserID, reason); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.r.Get(ctx, id)
+}
+
 func (s *PurchaseService) ListReceipts(ctx context.Context, poID uuid.UUID) ([]domain.PurchaseReceipt, error) {
 	return s.r.ListReceipts(ctx, poID)
 }

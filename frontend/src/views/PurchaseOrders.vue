@@ -26,7 +26,8 @@
         </v-chip>
       </template>
       <template #item.status="{ item }">
-        <v-chip size="small" :color="statusColor(item.status)">{{ item.status }}</v-chip>
+        <v-chip size="small" :color="statusColor(item.status)"
+                :title="item.status === 'CLOSED' ? `${item.closedBy}: ${item.closeReason}` : undefined">{{ item.status }}</v-chip>
       </template>
       <template #item.actions="{ item }">
         <div class="d-flex ga-1 justify-end">
@@ -37,6 +38,9 @@
           <v-btn v-if="item.status === 'OPEN' || item.status === 'PARTIALLY_RECEIVED'"
                  size="small" variant="text" prepend-icon="mdi-calendar-check"
                  @click="openSchedule(item)">Schedule</v-btn>
+          <v-btn v-if="auth.canEdit && (item.status === 'OPEN' || item.status === 'PARTIALLY_RECEIVED')"
+                 size="small" variant="text" color="error" prepend-icon="mdi-close-octagon"
+                 @click="openClose(item)">締め</v-btn>
           <v-btn v-if="n(item.receivedQty) > 0"
                  size="small" variant="text" prepend-icon="mdi-history"
                  @click="openHistory(item)">履歴</v-btn>
@@ -97,6 +101,29 @@
         <v-spacer />
         <v-btn @click="receiveDialog = false">キャンセル</v-btn>
         <v-btn color="primary" :loading="busy" :disabled="!canReceive" @click="doReceive">入荷確定</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- Close PO -->
+  <v-dialog v-model="closeDialog" max-width="560">
+    <v-card :title="`発注を締める${closePO ? ' — ' + closePO.poNo : ''}`">
+      <v-card-text v-if="closePO">
+        <div class="d-flex ga-4 mb-3">
+          <v-chip>発注 {{ n(closePO.quantity) }}</v-chip>
+          <v-chip color="success">入荷済 {{ n(closePO.receivedQty) }}</v-chip>
+          <v-chip color="warning">打ち切る残数 {{ n(remaining(closePO)) }}</v-chip>
+        </div>
+        <v-alert type="warning" variant="tonal" density="compact" class="mb-3">
+          締めると元に戻せません。入荷もできなくなります。残数が必要な場合は、新しい発注を作成してください。<br>
+          残数は入荷予定から外れます。作成済みの MRP の結果には反映されないので、MRP を再実行してください。
+        </v-alert>
+        <v-textarea v-model="closeReason" label="理由（必須）" rows="3" />
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn @click="closeDialog = false">キャンセル</v-btn>
+        <v-btn color="error" :loading="busy" :disabled="!closeReason.trim()" @click="doClose">締める</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -181,6 +208,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { ItemsApi, PurchaseOrdersApi, WorkflowApi,
          type Item, type PurchaseOrder, type PurchaseReceipt, type SupplierScheduleEvent } from '@/api'
 
@@ -200,6 +228,11 @@ const receiveForm = ref<{ receiptId: string; quantity: number; lotNo: string }>(
 })
 const resultDialog = ref(false)
 const resultText = ref('')
+
+const auth = useAuthStore()
+const closeDialog = ref(false)
+const closePO = ref<PurchaseOrder | null>(null)
+const closeReason = ref('')
 
 const historyDialog = ref(false)
 const historyPO = ref<PurchaseOrder | null>(null)
@@ -323,6 +356,30 @@ async function doReceive() {
   }
 }
 
+
+function openClose(p: PurchaseOrder) {
+  closePO.value = p
+  closeReason.value = ''
+  closeDialog.value = true
+}
+
+async function doClose() {
+  if (!closePO.value?.id || !closeReason.value.trim()) return
+  busy.value = true
+  try {
+    const res = await PurchaseOrdersApi.close(closePO.value.id, closeReason.value)
+    resultText.value = `✅ PO ${res.poNo} を締めました\n\n理由: ${res.closeReason}\n実行者: ${res.closedBy}\n\nMRP の結果に反映するには、MRP を再実行してください。`
+    closeDialog.value = false
+    resultDialog.value = true
+    await load()
+  } catch (e: any) {
+    resultText.value = '❌ 締め処理失敗:\n' + (e?.response?.data?.message || e?.response?.data?.error || e.message)
+    closeDialog.value = false
+    resultDialog.value = true
+  } finally {
+    busy.value = false
+  }
+}
 
 async function openSchedule(p: PurchaseOrder) {
   if (!p.id) return

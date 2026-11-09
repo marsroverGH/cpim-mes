@@ -6,12 +6,13 @@ Baseline GA commit: 7bd2d65c91e41e765ddb0ccbd41dafd5d246770d
 Target release: v0.43.0 Quantity Precision
 Release type: minor (Migration 0043)
 Implemented scope: Migration 0043 Quantity Column Scale
-Migration range: 0001-0044
-Migration count: 44
-Migration latest: 0044
+Migration range: 0001-0045
+Migration count: 45
+Migration latest: 0045
 Migration 0042: Controlled Recovery Plan Execution
 Migration 0043: Quantity Column Scale
 Migration 0044: Audit Log Append-only
+Migration 0045: PO Close and NCR Cancel
 Playwright definitions: 26
 
 0043 capabilities:
@@ -57,7 +58,7 @@ Critical invariant:
 0041 Recovery Simulation and Publish remain operationally side-effect free. Only 0042 Controlled Recovery Plan Execution may apply an approved recovery plan to operational state.
 
 Preserved hardening milestones:
-- Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=44 restore verification.
+- Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=45 restore verification.
 - Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.43.0.
 
 Changes since v0.42.1:

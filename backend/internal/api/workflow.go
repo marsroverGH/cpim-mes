@@ -120,6 +120,33 @@ func (h *server) receivePurchase(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, res)
 }
 
+// POST /api/purchase-orders/{id}/close  body: {"reason":"..."}
+func (h *server) closePurchase(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	actor, err := authenticatedPurchaseReceiptActor(r)
+	if err != nil {
+		writeError(w, 401, err)
+		return
+	}
+	po, err := h.s.Purchases.Close(r.Context(), id, body.Reason, actor)
+	if err != nil {
+		writeError(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, po)
+}
+
 // GET /api/purchase-orders/{id}/receipts — immutable partial receipt history
 func (h *server) listPurchaseReceipts(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")

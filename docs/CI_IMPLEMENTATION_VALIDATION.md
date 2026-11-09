@@ -72,8 +72,8 @@ dependency vulnerability gates
 production image build
 Trivy + SPDX SBOMs
 empty Docker volume
-Migration 0001 -> 0044
-schema_migrations count=44, min=1, max=44, gap-free
+Migration 0001 -> 0045
+schema_migrations count=45, min=1, max=45, gap-free
 DB + backend host-private / frontend-only public topology
 /version build identity
 private /metrics and public 404 boundary

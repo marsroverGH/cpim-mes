@@ -88,9 +88,9 @@ check("CI starts production stack with bootstrap override", "docker-compose.prod
 check("bootstrap documentation exists", "Initial Administrator Bootstrap" in bootstrap_doc)
 migrations = sorted((ROOT / "backend/migrations").glob("*.sql"))
 versions = [int(m.name[:4]) for m in migrations if re.match(r"^\d{4}_", m.name)]
-check("migration count is 44", len(versions) == 44, f"count={len(versions)}")
-check("latest migration is 0044", bool(versions) and max(versions) == 44, f"latest={max(versions) if versions else 'none'}")
-check("migration 0044 present", any(v == 44 for v in versions) and not any(v > 44 for v in versions))
+check("migration count is 45", len(versions) == 45, f"count={len(versions)}")
+check("latest migration is 0045", bool(versions) and max(versions) == 45, f"latest={max(versions) if versions else 'none'}")
+check("migration 0045 present", any(v == 45 for v in versions) and not any(v > 45 for v in versions))
 legacy_migration = ROOT / "backend/migrations/0003_users.sql"
 legacy_sha = hashlib.sha256(legacy_migration.read_bytes()).hexdigest()
 check(

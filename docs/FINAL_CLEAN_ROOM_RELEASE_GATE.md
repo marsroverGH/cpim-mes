@@ -5,11 +5,11 @@ The v0.43.0 release candidate is validated from an empty environment. The gate p
 ## Required database state
 
 ```text
-migration files = exactly 0001 .. 0044
-schema_migrations count = 44
+migration files = exactly 0001 .. 0045
+schema_migrations count = 45
 schema_migrations min = 1
-schema_migrations max = 44
-schema_migrations sequence = 1,2,...,44
+schema_migrations max = 45
+schema_migrations sequence = 1,2,...,45
 ```
 
 Migration 0041 remains the side-effect-free Recovery Planning boundary. Migration 0042 adds a separate controlled operational execution boundary.
@@ -27,9 +27,9 @@ source checksum verification
   -> frontend typecheck/build
   -> E2E locked install
   -> empty PostgreSQL volume
-  -> migration 0001 -> 0044
+  -> migration 0001 -> 0045
   -> production topology validation
-  -> /version migrationLatest=44
+  -> /version migrationLatest=45
   -> private observability boundary
   -> forced 0041 FAILED-run persistence test
   -> Playwright 26/26

@@ -17,7 +17,7 @@ test.describe('Step 9 version / build metadata', () => {
       expect(body.commit.length).toBeGreaterThan(0)
     }
 
-    expect(body.migrationLatest).toBe(44)
+    expect(body.migrationLatest).toBe(45)
     expect(typeof body.buildTime).toBe('string')
     expect(body.buildTime).not.toBe('unknown')
     expect(Number.isNaN(Date.parse(body.buildTime))).toBeFalsy()

@@ -181,3 +181,30 @@ func (h *server) closeSupplierNCRRework(w http.ResponseWriter, r *http.Request) 
 	}
 	writeJSON(w, 200, row)
 }
+
+// POST /api/supplier-quality/ncrs/{id}/cancel  body: {"reason":"..."}
+func (h *server) cancelSupplierNCR(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUID(r, "id")
+	if err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	var body struct {
+		Reason string `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	actor, err := supplierQualityActorFromRequest(r)
+	if err != nil {
+		writeError(w, 401, err)
+		return
+	}
+	row, err := h.s.SupplierQuality.Cancel(r.Context(), id, body.Reason, actor)
+	if err != nil {
+		writeError(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, row)
+}

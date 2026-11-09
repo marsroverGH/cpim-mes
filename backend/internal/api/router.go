@@ -138,6 +138,7 @@ func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
 			secured.Get("/purchase-orders", srv.listPurchases)
 			secured.Get("/purchase-orders/{id}/receipts", srv.listPurchaseReceipts)
 			secured.With(requirePermission(PermPOPlan)).Post("/purchase-orders", srv.createPurchase)
+			secured.With(requirePermission(PermPOPlan)).Post("/purchase-orders/{id}/close", srv.closePurchase)
 			secured.Get("/purchase-orders/{id}/supplier-schedule", srv.listSupplierScheduleEvents)
 			secured.With(requirePermission(PermSupplierScheduleManage)).Post("/purchase-orders/{id}/supplier-schedule/events", srv.recordSupplierScheduleEvent)
 			secured.Get("/supplier-scheduling/reliability", srv.listSupplierReliability)
@@ -339,6 +340,7 @@ func NewRouter(s *service.Services, cfg RouterConfig) http.Handler {
 			secured.Get("/supplier-quality/ncrs/{id}/history", srv.supplierNCRHistory)
 			secured.With(requirePermission(PermNCRDisposition)).Post("/supplier-quality/ncrs/{id}/disposition", srv.dispositionSupplierNCR)
 			secured.With(requirePermission(PermNCRDisposition)).Post("/supplier-quality/ncrs/{id}/close-rework", srv.closeSupplierNCRRework)
+			secured.With(requirePermission(PermNCRDisposition)).Post("/supplier-quality/ncrs/{id}/cancel", srv.cancelSupplierNCR)
 
 			// MRP Action Messages
 			secured.Get("/mrp/action-messages", srv.listActionMessages)

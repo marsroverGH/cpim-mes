@@ -450,11 +450,17 @@ func (r *WorkOrderRepo) UpdateProgress(ctx context.Context, id uuid.UUID, report
 
 type PurchaseRepo struct{ db *sqlx.DB }
 
+// purchaseOrderColumns adds the closing details, which the planning view does
+// not carry, to the view's columns.
+const purchaseOrderColumns = `v.*, po.closed_at, po.closed_by_user_id, po.closed_by, po.close_reason`
+
 func (r *PurchaseRepo) List(ctx context.Context) ([]domain.PurchaseOrder, error) {
 	var rows []domain.PurchaseOrder
 	err := r.db.SelectContext(ctx, &rows, `
-		SELECT * FROM v_purchase_order_planning_schedule
-		 ORDER BY expected_delivery_date, po_no`)
+		SELECT `+purchaseOrderColumns+`
+		  FROM v_purchase_order_planning_schedule v
+		  JOIN purchase_orders po ON po.id=v.id
+		 ORDER BY v.expected_delivery_date, v.po_no`)
 	return rows, err
 }
 
@@ -478,7 +484,10 @@ func (r *PurchaseRepo) Create(ctx context.Context, p *domain.PurchaseOrder) erro
 func (r *PurchaseRepo) Get(ctx context.Context, id uuid.UUID) (*domain.PurchaseOrder, error) {
 	var p domain.PurchaseOrder
 	err := r.db.GetContext(ctx, &p, `
-		SELECT * FROM v_purchase_order_planning_schedule WHERE id=$1`, id)
+		SELECT `+purchaseOrderColumns+`
+		  FROM v_purchase_order_planning_schedule v
+		  JOIN purchase_orders po ON po.id=v.id
+		 WHERE v.id=$1`, id)
 	if err != nil {
 		return nil, err
 	}

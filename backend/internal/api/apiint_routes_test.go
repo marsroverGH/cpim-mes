@@ -97,8 +97,8 @@ func TestAPIIntRouteInventoryMatchesRouter(t *testing.T) {
 			unprotectedMutations = append(unprotectedMutations, r.String())
 		}
 	}
-	if protected != 120 {
-		t.Fatalf("permission-protected mutation routes = %d; want 120 (update docs/guards if intentional)", protected)
+	if protected != 122 {
+		t.Fatalf("permission-protected mutation routes = %d; want 122 (update docs/guards if intentional)", protected)
 	}
 	sort.Strings(unprotectedMutations)
 	want := []string{"POST /api/auth/change-password", "POST /api/auth/logout"}
@@ -147,7 +147,7 @@ func TestAPIIntRBACMatrix(t *testing.T) {
 	anon := env.anon()
 	id := uuid.NewString()
 
-	// Counted over mutation routes only (the "120 protected routes" figure);
+	// Counted over mutation routes only (the "122 protected routes" figure);
 	// GET /admin/users and GET /audit-log are permission-gated reads.
 	allowedCount := map[domain.Role]int{}
 	for _, r := range routes {
@@ -183,8 +183,8 @@ func TestAPIIntRBACMatrix(t *testing.T) {
 		}
 	}
 	// Sanity: the matrix exercised both sides for every non-admin role.
-	if allowedCount[domain.RoleAdmin] != 120 {
-		t.Errorf("admin passed RBAC on %d protected routes; want 120", allowedCount[domain.RoleAdmin])
+	if allowedCount[domain.RoleAdmin] != 122 {
+		t.Errorf("admin passed RBAC on %d protected routes; want 122", allowedCount[domain.RoleAdmin])
 	}
 	if allowedCount[domain.RoleViewer] != 1 { // only POST /agent/ask
 		t.Errorf("viewer passed RBAC on %d protected routes; want 1", allowedCount[domain.RoleViewer])

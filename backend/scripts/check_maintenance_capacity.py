@@ -95,8 +95,8 @@ checks={
  'E2E verifies CTP sees maintenance': allin(e2e,'promise/check','maintenance'),
  'E2E verifies Pegging maintenance root cause': allin(e2e,"nodeType === 'MAINTENANCE_EVENT'","BREAKDOWN_CAPACITY"),
  'migration manager fingerprints 0037': allin(manager,'{37,','maintenance_events','detailed_schedule_maintenance_snapshots'),
- 'migration manager includes 0037 under current migration set': allin(manager_test,'len(migs) != 44','expected 44 migrations'),
- 'migration guard advances beyond 0037 without losing it': allin(manager_guard,"'44 ordered SQL migrations exist'",'len(files) == 44'),
+ 'migration manager includes 0037 under current migration set': allin(manager_test,'len(migs) != 45','expected 45 migrations'),
+ 'migration guard advances beyond 0037 without losing it': allin(manager_guard,"'45 ordered SQL migrations exist'",'len(files) == 45'),
  'CI runs 0037 guard': 'check_maintenance_capacity.py' in ci,
 }
 failed=[]

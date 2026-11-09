@@ -577,6 +577,9 @@ export interface PurchaseOrder {
   supplierQualityStatus?: 'APPROVED' | 'CONDITIONAL' | 'BLOCKED'
   receivedLotId?: string
   receivedAt?: string
+  closedAt?: string
+  closedBy?: string
+  closeReason?: string
   scheduleStatus?: 'UNCONFIRMED' | 'CONFIRMED' | 'ASN'
   confirmationEventId?: string
   confirmedQuantity?: number
@@ -658,6 +661,7 @@ export interface PurchaseReceipt {
 export const PurchaseOrdersApi = {
   list: () => http.get<PurchaseOrder[]>('/purchase-orders').then(r => r.data),
   create: (p: PurchaseOrder) => http.post<PurchaseOrder>('/purchase-orders', p).then(r => r.data),
+  close: (id: string, reason: string) => http.post<PurchaseOrder>(`/purchase-orders/${id}/close`, { reason }).then(r => r.data),
   receipts: (id: string) => http.get<PurchaseReceipt[]>(`/purchase-orders/${id}/receipts`).then(r => r.data),
   supplierSchedule: (id: string) => http.get<SupplierScheduleEvent[]>(`/purchase-orders/${id}/supplier-schedule`).then(r => r.data),
   addSupplierScheduleEvent: (id: string, event: {
@@ -1785,6 +1789,7 @@ export interface SupplierNCR {
   poNo?: string
   disposition?: NCRDisposition
   dispositionQty?: number
+  cancelReason?: string
 }
 
 export interface SupplierNCRHistory {
@@ -1823,7 +1828,8 @@ export const SupplierQualityApi = {
   history: (id: string) => http.get<SupplierNCRHistory[]>(`/supplier-quality/ncrs/${id}/history`).then(r => r.data),
   disposition: (id: string, p: { disposition: NCRDisposition; quantity: number; notes: string }) =>
     http.post<SupplierNCRDispositionRecord>(`/supplier-quality/ncrs/${id}/disposition`, p).then(r => r.data),
-  closeRework: (id: string) => http.post<SupplierNCR>(`/supplier-quality/ncrs/${id}/close-rework`, {}).then(r => r.data)
+  closeRework: (id: string) => http.post<SupplierNCR>(`/supplier-quality/ncrs/${id}/close-rework`, {}).then(r => r.data),
+  cancel: (id: string, reason: string) => http.post<SupplierNCR>(`/supplier-quality/ncrs/${id}/cancel`, { reason }).then(r => r.data)
 }
 
 // ------- Real-Time Dispatch / Dynamic Rescheduling / Schedule Adherence -------

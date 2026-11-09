@@ -34,8 +34,8 @@ openapi=json.loads(read('backend/internal/api/openapi.json'))
 
 # Schema/migration preservation
 migs=sorted((ROOT/'backend/migrations').glob('*.sql'))
-check('migration count is 44', len(migs)==44)
-check('latest migration is 0044', migs[-1].name.startswith('0044_'))
+check('migration count is 45', len(migs)==45)
+check('latest migration is 0045', migs[-1].name.startswith('0045_'))
 check('migration 0042 exists', any(p.name.startswith('0042_') for p in migs))
 check('existing user schema remains password-hidden in JSON', 'PasswordHash string' in models and 'json:"-"' in models)
 
