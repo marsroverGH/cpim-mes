@@ -160,6 +160,8 @@ The drill never points the application at the temporary database and never mutat
 
 ## 7. What a logical restore does not restore
 
+Restores run with `--no-acl`, so the application role's privileges are not restored. After restoring and cutting over, run the `migrate` service (`docker compose ... up migrate`) with the restored database as its target; it re-creates the grants. See `docs/DB_ROLES.md`.
+
 The PostgreSQL logical archive does not contain deployment state outside PostgreSQL. Recover these independently:
 
 - `.env.production` or secret-manager values;

@@ -78,6 +78,8 @@ jobs:
         if: failure()
         env:
           POSTGRES_PASSWORD: diagnostic-placeholder
-          DATABASE_URL: postgres://cpim:diagnostic-placeholder@db:5432/cpim?sslmode=disable
+          DATABASE_URL: postgres://cpim_app:diagnostic-placeholder@db:5432/cpim?sslmode=disable
+          MIGRATION_DATABASE_URL: postgres://cpim:diagnostic-placeholder@db:5432/cpim?sslmode=disable
+          APP_DB_PASSWORD: diagnostic-placeholder
           JWT_SECRET: diagnostic-placeholder-not-used-for-startup
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --no-color || true

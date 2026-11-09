@@ -144,6 +144,43 @@ func (m *Manager) Migrate(ctx context.Context) (Result, error) {
 	return result, nil
 }
 
+// Verify checks, without changing anything, that the database is exactly at
+// this binary's schema. The HTTP server calls it instead of Migrate because its
+// role cannot run DDL.
+func (m *Manager) Verify(ctx context.Context) (Result, error) {
+	migrations, err := loadEmbeddedMigrations()
+	if err != nil {
+		return Result{}, err
+	}
+	if len(migrations) == 0 {
+		return Result{}, errors.New("no embedded SQL migrations found")
+	}
+	conn, err := m.db.Connx(ctx)
+	if err != nil {
+		return Result{}, fmt.Errorf("acquire connection: %w", err)
+	}
+	defer conn.Close()
+
+	var exists bool
+	if err := conn.GetContext(ctx, &exists, `SELECT to_regclass('public.schema_migrations') IS NOT NULL`); err != nil {
+		return Result{}, fmt.Errorf("inspect schema_migrations: %w", err)
+	}
+	if !exists {
+		return Result{}, errors.New("schema_migrations does not exist; run \"server migrate\" first")
+	}
+	applied, err := readApplied(ctx, conn)
+	if err != nil {
+		return Result{}, err
+	}
+	if err := validateHistory(migrations, applied); err != nil {
+		return Result{}, err
+	}
+	if err := verifyLatestState(ctx, conn, migrations); err != nil {
+		return Result{}, fmt.Errorf("%w; run \"server migrate\" first", err)
+	}
+	return Result{LatestVersion: migrations[len(migrations)-1].Version}, nil
+}
+
 func loadEmbeddedMigrations() ([]Migration, error) {
 	entries, err := fs.ReadDir(embedded.FS, ".")
 	if err != nil {

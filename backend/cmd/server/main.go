@@ -19,6 +19,11 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "migrate" {
+		runMigrate()
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("configuration validation failed; backend will not start: %v", err)
@@ -31,16 +36,24 @@ func main() {
 	}
 	defer db.Close()
 
-	// Schema migration is a startup gate: the API must never run against an
+	// Schema verification is a startup gate: the API must never run against an
 	// older, partially upgraded, checksum-mismatched, or newer-than-binary DB.
-	migrationCtx, migrationCancel := context.WithTimeout(context.Background(), cfg.MigrationTimeout)
-	result, err := migration.New(db, cfg.MigrationInstalledBy, log.Default()).Migrate(migrationCtx)
-	migrationCancel()
-	if err != nil {
-		log.Fatalf("database migration failed; backend will not start: %v", err)
+	// The separate "server migrate" step applies migrations.
+	verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	result, err := migration.New(db, cfg.MigrationInstalledBy, log.Default()).Verify(verifyCtx)
+	var privileged bool
+	if err == nil {
+		privileged, err = migration.ConnectionCanDisableTriggers(verifyCtx, db)
 	}
-	if len(result.Baselined) > 0 || len(result.AppliedNow) > 0 {
-		log.Printf("database migration complete: latest=%04d baselined=%v applied=%v", result.LatestVersion, result.Baselined, result.AppliedNow)
+	verifyCancel()
+	if err != nil {
+		log.Fatalf("database schema check failed; backend will not start: %v", err)
+	}
+	if privileged {
+		if cfg.IsProduction() {
+			log.Fatal("DATABASE_URL connects as a superuser or table owner; backend will not start in production. Use the application role")
+		}
+		log.Print("[warn] DATABASE_URL connects as a superuser or table owner; evidence triggers can be disabled")
 	}
 
 	timezoneCtx, timezoneCancel := context.WithTimeout(context.Background(), 15*time.Second)

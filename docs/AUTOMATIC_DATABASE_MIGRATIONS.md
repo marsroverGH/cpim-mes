@@ -4,6 +4,8 @@ The backend now owns database schema upgrades. PostgreSQL's
 `/docker-entrypoint-initdb.d` mechanism is no longer used for CPIM-MES schema
 migration because it only runs when the PostgreSQL data directory is empty.
 
+> Since the DB role separation, migrations run in the one-shot `migrate` service (`server migrate`), not in the HTTP server. The HTTP server only verifies the schema and refuses to start if it does not match. See `docs/DB_ROLES.md`.
+
 ## Startup gate
 
 Before repositories, seed users, HTTP routes, or the API listener are created,

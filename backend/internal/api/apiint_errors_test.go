@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cpim-mes/backend/internal/domain"
+	"github.com/cpim-mes/backend/internal/testdb"
 	"github.com/google/uuid"
 )
 
@@ -55,7 +56,7 @@ func TestAPIIntErrorMappingEndToEnd(t *testing.T) {
 	// we install a rule trigger in this test's private database (no migration
 	// is touched). The calendar handler passes 500 for service errors.
 	t.Run("PL/pgSQL RAISE is mapped by SQLSTATE and never leaks internals", func(t *testing.T) {
-		if _, err := env.DB.ExecContext(env.Ctx, `
+		if _, err := testdb.Admin(t, env.DB).ExecContext(env.Ctx, `
 			CREATE FUNCTION apiint_calendar_rule() RETURNS trigger LANGUAGE plpgsql AS $$
 			BEGIN
 			  CASE NEW.code

@@ -10,7 +10,9 @@ VCS_REF="${VCS_REF:-${GITHUB_SHA:-local}}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-rc-db-$(openssl rand -hex 16)}"
 JWT_SECRET="${JWT_SECRET:-rc-jwt-$(openssl rand -hex 32)}"
-DATABASE_URL="${DATABASE_URL:-postgres://cpim:${POSTGRES_PASSWORD}@db:5432/cpim?sslmode=disable}"
+APP_DB_PASSWORD="${APP_DB_PASSWORD:-rc-app-$(openssl rand -hex 16)}"
+DATABASE_URL="${DATABASE_URL:-postgres://cpim_app:${APP_DB_PASSWORD}@db:5432/cpim?sslmode=disable}"
+MIGRATION_DATABASE_URL="${MIGRATION_DATABASE_URL:-postgres://cpim:${POSTGRES_PASSWORD}@db:5432/cpim?sslmode=disable}"
 CPIM_HTTP_PORT="${CPIM_HTTP_PORT:-8080}"
 E2E_BASE_URL="${E2E_BASE_URL:-http://localhost:${CPIM_HTTP_PORT}}"
 EVIDENCE_DIR="${RC_EVIDENCE_DIR:-${RUNNER_TEMP:-/tmp}/cpim-mes-rc-evidence}"
@@ -22,7 +24,7 @@ RC_BUNDLE_DIR="${RC_BUNDLE_DIR:-$ROOT/release-candidate-bundle}"
 COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml)
 COMPOSE_BOOTSTRAP=(docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.bootstrap.yml)
 
-export RELEASE_VERSION RC_VERSION VCS_REF BUILD_TIME POSTGRES_PASSWORD JWT_SECRET DATABASE_URL CPIM_HTTP_PORT E2E_BASE_URL
+export RELEASE_VERSION RC_VERSION VCS_REF BUILD_TIME POSTGRES_PASSWORD JWT_SECRET DATABASE_URL MIGRATION_DATABASE_URL APP_DB_PASSWORD CPIM_HTTP_PORT E2E_BASE_URL
 export SECURITY_REPORT_DIR SECURITY_ARTIFACT_DIR SECURITY_TOOL_BIN_DIR
 
 fail() { echo "FINAL CLEAN-ROOM GATE: FAIL - $*" >&2; exit 1; }

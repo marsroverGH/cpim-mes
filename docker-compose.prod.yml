@@ -6,6 +6,19 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD for production}
       POSTGRES_DB: ${POSTGRES_DB:-cpim}
 
+  migrate:
+    build:
+      args:
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.44.0}
+        VCS_REF: ${VCS_REF:-unknown}
+        BUILD_TIME: ${BUILD_TIME:-unknown}
+    environment:
+      APP_ENV: production
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:?set MIGRATION_DATABASE_URL for production}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD for production}
+      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
+      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-production-migrate}
+
   backend:
     build:
       args:
@@ -28,8 +41,6 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-cpim-mes-backend}
       OTEL_EXPORT_TIMEOUT: ${OTEL_EXPORT_TIMEOUT:-5s}
       OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-256}
-      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
-      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-production-backend}
 
   frontend:
     build:

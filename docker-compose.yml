@@ -13,6 +13,24 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot step: applies migrations and sets up the application role. Only this
+  # service receives the privileged database URL.
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      MIGRATION_DATABASE_URL: ${MIGRATION_DATABASE_URL:-postgres://cpim:cpim@db:5432/cpim?sslmode=disable}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-cpim_app}
+      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
+      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-docker-compose-migrate}
+    depends_on:
+      db:
+        condition: service_healthy
+
   backend:
     build:
       context: ./backend
@@ -22,7 +40,7 @@ services:
       # by docker-compose.prod.yml; development host ports live in the dev override.
       # Setting APP_ENV=production on this base file alone is expected to fail closed.
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: ${DATABASE_URL:-postgres://cpim:cpim@db:5432/cpim?sslmode=disable}
+      DATABASE_URL: ${DATABASE_URL:-postgres://cpim_app:cpim_app@db:5432/cpim?sslmode=disable}
       HTTP_ADDR: ":8080"
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me-in-production}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
@@ -36,12 +54,12 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-cpim-mes-backend}
       OTEL_EXPORT_TIMEOUT: ${OTEL_EXPORT_TIMEOUT:-5s}
       OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-256}
-      MIGRATION_TIMEOUT: ${MIGRATION_TIMEOUT:-10m}
-      MIGRATION_INSTALLED_BY: ${MIGRATION_INSTALLED_BY:-docker-compose-backend}
       BUSINESS_TIMEZONE: ${BUSINESS_TIMEZONE:-Asia/Tokyo}
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8080/healthz"]
       interval: 10s
