@@ -5,7 +5,9 @@ cd "$(dirname "$0")/.."
 export COMPOSE_PROJECT_NAME=cpim-mes-measure
 export CPIM_HTTP_PORT=18080
 export POSTGRES_PASSWORD=ci-db-password
-export DATABASE_URL='postgres://cpim:ci-db-password@db:5432/cpim?sslmode=disable'
+export DATABASE_URL='postgres://cpim_app:ci-app-password@db:5432/cpim?sslmode=disable'
+export MIGRATION_DATABASE_URL='postgres://cpim:ci-db-password@db:5432/cpim?sslmode=disable'
+export APP_DB_PASSWORD=ci-app-password
 export JWT_SECRET=ci-only-secret-not-for-production
 export VCS_REF="$(git rev-parse HEAD)"
 export BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
@@ -38,7 +40,7 @@ for i in $(seq 1 90); do
 done
 echo "healthy=$ok"
 curl -sS $E2E_BASE_URL/version; echo
-docker compose $F logs --no-color backend > $LOG/backend_startup.log 2>&1
+docker compose $F logs --no-color migrate backend > $LOG/backend_startup.log 2>&1
 grep -iE "migrat" $LOG/backend_startup.log | tail -5
 
 if [ "$ok" = 1 ]; then

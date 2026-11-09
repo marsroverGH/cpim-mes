@@ -67,6 +67,7 @@ make ci-local
 - **業務日付**: 日付の比較・集計・「今日」は `service.BusinessDate` / `BusinessToday()` を使う（業務タイムゾーンの暦日を UTC 0 時で表す。DB の `eco_business_timezone()` と一致）。`TruncateDay(time.Now())` はサーバーの TZ に依存するので使わない。日付が絡むテストは `TZ=UTC` と `TZ=Asia/Tokyo` の両方で通すこと。`BUSINESS_TIMEZONE` と DB の `app.business_timezone` が違うと backend は起動しない（別名の `Japan` と `Asia/Tokyo` も不一致扱い）。
 - **シフト時間帯は UTC 基準**（2026-11 決定）: 詳細スケジューリング・有限 CRP では、作業区の `shiftStartMinute` を UTC 0 時からの分として扱う（480 = 8:00 UTC = 17:00 JST）。業務日付とは基準が違うので、業務タイムゾーンに寄せる変更はしない（`TestShiftWindowIsInterpretedInUTC` が落ちる）。
 - API の日付は RFC3339（`2026-11-11T00:00:00Z`）が基本。日時型の項目（作業指示・PO など）に `YYYY-MM-DD` を送ると 400 になる。ただし項目によっては `YYYY-MM-DD` のみ、または両方を受け付ける（受注の `requestedDate` など）ので、実装を確認すること。
+- **DB ロール**: backend は最小権限の `cpim_app` で接続し、マイグレーションは 1 回きりの `migrate` サービス（`server migrate`）が `cpim` で行う。新しいテーブルは `migrate` のたびに権限が付くので GRANT は書かない。DB テストも `cpim_app` で動く（DDL が要るテストの準備は `testdb.Admin`）。詳細は `docs/DB_ROLES.md`。
 - E2E で UI ログインした直後は `await expect(page).toHaveURL(/\/$/)` でリダイレクト完了を待ってから遷移する。
 
 ## 既知の課題（未対応）
@@ -74,5 +75,4 @@ make ci-local
 移行時の解析とテスト拡充で見つかった主な改善点（テストで見つかった不具合の一覧は `docs/TEST_FINDINGS.md`）。着手するときは個別に相談のうえ進める。
 
 - 数量計算が float（第 1〜3 段階は対応済み: v0.42.1 で保存前に小数 9 桁へ丸め、v0.43.0 で主要経路を decimal（`shopspring/decimal`）で計算し、0043 で主な数量列を `numeric(20,9)` に固定。残りは需要予測・統計・スケジューリングの float64 と、桁未固定の列。Go で数量を計算するときは `service/quantity.go` の `dq` / `fq` を使い、保存前に小数 9 桁へ丸める。経緯・範囲・既存データの確認は `docs/QUANTITY_PRECISION.md`）
-- DB ロールが分離されていない: アプリは superuser の `cpim` で接続するため、`audit_log` などの不変トリガは外せる（経緯は `docs/AUDIT_LOG.md`）
 - 在庫台帳が全履歴を再走査する（2026-11-07 計測: 取引 100 万件でも 0.15 秒以内で、今は不要。着手の目安と方向性は `docs/LEDGER_SCALING_MEASUREMENT.md`）

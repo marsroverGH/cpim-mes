@@ -187,7 +187,9 @@ passwordを環境変数へ直接渡す `BOOTSTRAP_ADMIN_PASSWORD` は禁止で�
 
 ```text
 APP_ENV=production
-DATABASE_URL=<production DSN>
+DATABASE_URL=<production DSN for the cpim_app role>
+MIGRATION_DATABASE_URL=<production DSN for the owner role, used only by the migrate service>
+APP_DB_PASSWORD=<password of cpim_app, same as in DATABASE_URL>
 JWT_SECRET=<high-entropy secret>
 ALLOWED_ORIGINS=
 COOKIE_SECURE=true

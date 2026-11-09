@@ -16,7 +16,7 @@ const (
 	EnvironmentTest        = "test"
 	EnvironmentProduction  = "production"
 
-	defaultDevDatabaseURL    = "postgres://cpim:cpim@localhost:5432/cpim?sslmode=disable"
+	defaultDevDatabaseURL    = "postgres://cpim_app:cpim_app@localhost:5432/cpim?sslmode=disable"
 	defaultDevJWTSecret      = "dev-secret-change-me-in-production"
 	defaultDevAllowedOrigins = "http://localhost:5173,http://127.0.0.1:5173"
 

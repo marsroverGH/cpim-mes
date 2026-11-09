@@ -44,7 +44,38 @@ var (
 	templateErr  error
 )
 
-// New returns a connection to a fresh, migrated database private to t.
+// appRole is the role test connections use, so that a query needing more than
+// the production application role fails in tests too.
+const (
+	appRole     = "cpim_app"
+	appPassword = "cpim-app-test-only"
+)
+
+func appURL(t testing.TB, dsn string) string {
+	t.Helper()
+	u, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u.User = url.UserPassword(appRole, appPassword)
+	return u.String()
+}
+
+// Admin returns a privileged connection to the same database as db, for test
+// setup that the application role must not be able to do.
+func Admin(t testing.TB, db *sqlx.DB) *sqlx.DB {
+	t.Helper()
+	var name string
+	if err := db.Get(&name, `SELECT current_database()`); err != nil {
+		t.Fatal(err)
+	}
+	admin := mustOpen(t, withDatabase(t, os.Getenv(EnvVar), name))
+	t.Cleanup(func() { _ = admin.Close() })
+	return admin
+}
+
+// New returns a connection, as the application role, to a fresh, migrated
+// database private to t.
 func New(t testing.TB) *sqlx.DB {
 	t.Helper()
 	adminURL := os.Getenv(EnvVar)
@@ -72,7 +103,7 @@ func New(t testing.TB) *sqlx.DB {
 		t.Fatalf("create test database: %v", err)
 	}
 
-	db := mustOpen(t, withDatabase(t, adminURL, name))
+	db := mustOpen(t, appURL(t, withDatabase(t, adminURL, name)))
 	t.Cleanup(func() {
 		_ = db.Close()
 		cleanup := mustOpen(t, adminURL)
@@ -89,7 +120,9 @@ func ensureTemplate(adminURL string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	name := "cpim_tmpl_" + sum[:16]
+	// The prefix changes when the template contents change for a reason other
+	// than the migrations (v2: includes the application role grants).
+	name := "cpim_tmpl2_" + sum[:16]
 
 	admin, err := sqlx.Open("pgx", adminURL)
 	if err != nil {
@@ -135,6 +168,9 @@ func ensureTemplate(adminURL string) (string, error) {
 	mctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 	_, migErr := migration.New(db, "testdb", log.New(io.Discard, "", 0)).Migrate(mctx)
+	if migErr == nil {
+		migErr = migration.EnsureAppRole(mctx, db, appRole, appPassword)
+	}
 	_ = db.Close()
 	if migErr != nil {
 		return "", fmt.Errorf("migrate template: %w", migErr)

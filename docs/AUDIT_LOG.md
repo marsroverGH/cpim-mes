@@ -6,8 +6,8 @@
 
 `audit_log` への UPDATE・DELETE・TRUNCATE は DB のトリガで拒否する。INSERT とバックアップからのリストアはこれまでどおり行える。
 
-トリガで防げるのは、誤操作とアプリ経由の SQL まで。アプリは superuser の `cpim` で接続しているので、DB の管理権限があればトリガを外せる。
-これを防ぐには、アプリ用の非 superuser ロールを分ける必要がある（未対応）。
+さらに、backend の接続ロール `cpim_app` には `audit_log` の SELECT と INSERT しか与えていない。所有者でもないのでトリガも外せない（`docs/DB_ROLES.md`）。
+DB の管理権限（`cpim`）があればトリガを外せるので、その資格情報は厳重に扱う。
 
 ## 記録の仕組みと限界
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cpim-mes/backend/internal/domain"
+	"github.com/cpim-mes/backend/internal/testdb"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
@@ -19,14 +20,24 @@ func TestAuditLogIsAppendOnly(t *testing.T) {
 	if err := env.Repos.Audit.Insert(env.Ctx, entry); err != nil {
 		t.Fatalf("insert must keep working: %v", err)
 	}
+	admin := testdb.Admin(t, env.DB)
 	for _, stmt := range []string{
 		`UPDATE audit_log SET username='changed'`,
 		`DELETE FROM audit_log`,
 		`TRUNCATE audit_log`,
 	} {
-		_, err := env.DB.ExecContext(env.Ctx, stmt)
-		if err == nil || !strings.Contains(err.Error(), "append-only") {
-			t.Fatalf("%s: err = %v, want append-only rejection", stmt, err)
+		// The application role has no privilege at all.
+		if _, err := env.DB.ExecContext(env.Ctx, stmt); err == nil || !strings.Contains(err.Error(), "permission denied") {
+			t.Fatalf("%s as application role: err = %v", stmt, err)
+		}
+		// Even the owner is stopped by the trigger.
+		if _, err := admin.ExecContext(env.Ctx, stmt); err == nil || !strings.Contains(err.Error(), "append-only") {
+			t.Fatalf("%s as owner: err = %v", stmt, err)
+		}
+	}
+	for _, stmt := range []string{`ALTER TABLE audit_log DISABLE TRIGGER ALL`, `DROP TABLE audit_log`} {
+		if _, err := env.DB.ExecContext(env.Ctx, stmt); err == nil || !strings.Contains(err.Error(), "must be owner") {
+			t.Fatalf("%s as application role: err = %v", stmt, err)
 		}
 	}
 	var n int
