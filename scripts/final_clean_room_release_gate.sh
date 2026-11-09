@@ -138,18 +138,18 @@ fi
 printf '%s\n' "==> Production topology host-port boundary"
 python3 scripts/validate_production_topology.py < <("${COMPOSE[@]}" config --format json)
 
-printf '%s\n' "==> Empty DB migration ledger 0001 -> 0045"
+printf '%s\n' "==> Empty DB migration ledger 0001 -> 0046"
 ledger="$("${COMPOSE[@]}" exec -T db psql -U cpim -d cpim -Atqc \
   "SELECT count(*)::text || ':' || min(version)::text || ':' || max(version)::text || ':' || string_agg(version::text, ',' ORDER BY version) FROM schema_migrations;")"
-expected_sequence="$(seq -s, 1 45)"
-[[ "$ledger" == "45:1:45:${expected_sequence}" ]] || fail "unexpected migration ledger: $ledger"
+expected_sequence="$(seq -s, 1 46)"
+[[ "$ledger" == "46:1:46:${expected_sequence}" ]] || fail "unexpected migration ledger: $ledger"
 
 printf '%s\n' "==> Running build identity"
 python3 scripts/verify_running_version.py \
   --url "$E2E_BASE_URL/version" \
   --version "$RELEASE_VERSION" \
   --commit "$VCS_REF" \
-  --migration-latest 45
+  --migration-latest 46
 
 printf '%s\n' "==> Private observability boundary"
 "${COMPOSE[@]}" exec -T backend wget -qO- http://127.0.0.1:8080/metrics > "$EVIDENCE_DIR/metrics.txt"
@@ -203,9 +203,9 @@ data = {
   "gitCommit": os.environ["VCS_REF"],
   "buildTime": os.environ["BUILD_TIME"],
   "status": "PASS",
-  "migrationCount": 45,
-  "migrationLatest": 45,
-  "migration0045Created": True,
+  "migrationCount": 46,
+  "migrationLatest": 46,
+  "migration0046Created": True,
   "playwrightTests": 26,
   "productionTopology": {
     "databaseHostPublished": False,
@@ -220,7 +220,7 @@ data = {
     "frontendTypecheckBuild": "PASS",
     "dependencySecurity": "PASS",
     "containerSecurityAndSBOM": "PASS",
-    "emptyDatabaseMigration0001Through0045": "PASS",
+    "emptyDatabaseMigration0001Through0046": "PASS",
     "versionBuildMetadata": "PASS",
     "observabilityBoundary": "PASS",
     "recoveryFailedRunPersistence": "PASS",
@@ -243,4 +243,4 @@ python3 scripts/build_release_candidate_bundle.py \
 python3 scripts/verify_release_candidate_bundle.py "$RC_BUNDLE_DIR"
 
 printf '%s\n' "FINAL CLEAN-ROOM GATE: PASS"
-printf '  candidate=%s target=%s commit=%s migrations=45/0045 e2e=26\n' "$RC_VERSION" "$RELEASE_VERSION" "$VCS_REF"
+printf '  candidate=%s target=%s commit=%s migrations=46/0046 e2e=26\n' "$RC_VERSION" "$RELEASE_VERSION" "$VCS_REF"

@@ -82,9 +82,9 @@ check('Step6 documentation exists', 'Login Rate Limit / Authentication Audit' in
 
 migs=sorted((ROOT/'backend/migrations').glob('*.sql'))
 vers=[int(m.name[:4]) for m in migs if re.match(r'^\d{4}_',m.name)]
-check('migration count is 45', len(vers)==45, f'count={len(vers)}')
-check('latest migration is 0045', bool(vers) and max(vers)==45, f'latest={max(vers) if vers else None}')
-check('migration 0045 present', any(v==45 for v in vers) and not any(v>45 for v in vers))
+check('migration count is 46', len(vers)==46, f'count={len(vers)}')
+check('latest migration is 0046', bool(vers) and max(vers)==46, f'latest={max(vers) if vers else None}')
+check('migration 0046 present', any(v==46 for v in vers) and not any(v>46 for v in vers))
 failed=[x for x in checks if not x[1]]
 for n,ok,d in checks:
     print(('PASS' if ok else 'FAIL')+': '+n+(f' ({d})' if d else ''))

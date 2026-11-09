@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 EXPECTED_TARGET = "v0.44.0"
-EXPECTED_MIGRATION = 45
+EXPECTED_MIGRATION = 46
 EXPECTED_E2E = 26
 
 
@@ -124,7 +124,7 @@ def main() -> int:
         fail("targetRelease mismatch")
     if metadata.get("migrationCount") != EXPECTED_MIGRATION or metadata.get("migrationLatest") != EXPECTED_MIGRATION:
         fail("migration metadata mismatch")
-    if metadata.get("migration0045Created") is not True or metadata.get("playwrightTests") != EXPECTED_E2E:
+    if metadata.get("migration0046Created") is not True or metadata.get("playwrightTests") != EXPECTED_E2E:
         fail("RC invariant mismatch")
 
     result = json.loads(result_path.read_text(encoding="utf-8"))
@@ -170,7 +170,7 @@ def main() -> int:
         # verifier is expected to run from the repository; fall back to this script's repository.
         verifier = Path(__file__).resolve().parent / "verify_release_bundle.py"
     verify_security_archive(security, verifier)
-    print(f"Release Candidate verification: PASS ({candidate}, migrations=45/0045, e2e=26)")
+    print(f"Release Candidate verification: PASS ({candidate}, migrations=46/0046, e2e=26)")
     return 0
 
 

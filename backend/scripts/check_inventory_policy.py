@@ -106,8 +106,8 @@ checks={
  'E2E verifies version supersession': allin(e2e,"status).toBe('ARCHIVED')","status).toBe('ACTIVE')"),
  'E2E verifies pegging safety-stock exception': allin(e2e,"nodeType === 'INVENTORY_POLICY'","exceptionType === 'SAFETY_STOCK_BREACH'"),
  'migration manager fingerprints 0036': allin(manager,'{36,','inventory_policy_versions','v_current_inventory_policy'),
- 'migration manager includes 0036 under current migration set': allin(manager,'{36,') and allin(manager_test,'len(migs) != 45','expected 45 migrations'),
- 'migration guard advances beyond 0036 without losing it': allin(manager_guard,"'45 ordered SQL migrations exist'",'len(files) == 45'),
+ 'migration manager includes 0036 under current migration set': allin(manager,'{36,') and allin(manager_test,'len(migs) != 46','expected 46 migrations'),
+ 'migration guard advances beyond 0036 without losing it': allin(manager_guard,"'46 ordered SQL migrations exist'",'len(files) == 46'),
  'CI runs 0036 guard': 'check_inventory_policy.py' in ci,
 }
 failed=[]

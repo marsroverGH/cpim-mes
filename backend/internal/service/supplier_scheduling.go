@@ -314,15 +314,30 @@ WITH completed_po AS (
      AND btrim(po.supplier)<>''
    GROUP BY po.id,po.supplier,po.item_id,po.order_date,po.due_date,po.quantity
   HAVING SUM(pr.quantity) + 0.000001 >= po.quantity
+), supplier_closed_po AS (
+  SELECT po.id,btrim(po.supplier) AS supplier_name,po.item_id,po.due_date,
+         COALESCE(MAX(pr.received_at)::date,po.closed_at::date) AS last_event_date
+    FROM purchase_orders po
+    LEFT JOIN purchase_receipts pr ON pr.purchase_order_id=po.id
+   WHERE po.status='CLOSED' AND po.close_cause='SUPPLIER'
+     AND po.closed_at::date BETWEEN $1 AND $2
+     AND btrim(po.supplier)<>''
+   GROUP BY po.id,po.supplier,po.item_id,po.due_date,po.closed_at
 ), samples AS (
   SELECT supplier_name,item_id,
          GREATEST(actual_delivery_date-order_date,0)::double precision AS lead_days,
          CASE WHEN actual_delivery_date<=due_date THEN 1.0 ELSE 0.0 END AS on_time,
          GREATEST(actual_delivery_date-due_date,0)::double precision AS lateness_days
     FROM completed_po
+  UNION ALL
+  -- Closed for the supplier's fault: never on time. There is no complete
+  -- delivery, so it says nothing about lead time (lead_days stays NULL).
+  SELECT supplier_name,item_id,NULL,0.0,
+         GREATEST(last_event_date-due_date,0)::double precision
+    FROM supplier_closed_po
 )
 SELECT supplier_name,item_id,
-       COUNT(*)::int AS sample_count,
+       COUNT(lead_days)::int AS sample_count,
        COALESCE(AVG(lead_days),0)::double precision AS average_lead_days,
        COALESCE(STDDEV_POP(lead_days),0)::double precision AS stddev_lead_days,
        COALESCE(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY lead_days),0)::double precision AS p50_lead_days,
@@ -331,6 +346,9 @@ SELECT supplier_name,item_id,
        COALESCE(AVG(lateness_days),0)::double precision AS average_lateness_days
   FROM samples
  GROUP BY GROUPING SETS ((supplier_name,item_id),(supplier_name))
+ -- An item row without lead-time samples would hide the supplier-level fallback
+ -- in v_purchase_order_planning_schedule.
+HAVING COUNT(lead_days) > 0 OR GROUPING(item_id) = 1
  ORDER BY supplier_name,item_id NULLS FIRST`, windowStart, today); err != nil {
 		return nil, err
 	}

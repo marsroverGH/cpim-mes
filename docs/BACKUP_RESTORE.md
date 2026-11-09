@@ -136,7 +136,7 @@ pg_restore --exit-on-error
   ↓
 Compare schema_migrations ledger
   ↓
-Require count=45 / latest=0045
+Require count=46 / latest=0046
   ↓
 Compare public DB object inventory
   ↓

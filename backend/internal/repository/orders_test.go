@@ -190,7 +190,7 @@ func TestPurchaseOrderStateInvariants(t *testing.T) {
 	wantErrContains(t, pos.UpdateStatus(f.ctx, po.ID, "RECEIVED"), "must be PARTIALLY_RECEIVED")
 	wantErrContains(t, pos.UpdateStatus(f.ctx, po.ID, "CLOSED"), "requires a reason")
 	closer := f.user(t, domain.RolePlanner)
-	if _, err := f.db.Exec(`UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason='short' WHERE id=$1`, po.ID, closer.ID); err != nil {
+	if _, err := f.db.Exec(`UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason='short', close_cause='INTERNAL' WHERE id=$1`, po.ID, closer.ID); err != nil {
 		t.Fatalf("close partial PO: %v", err)
 	}
 	if err := pos.SetReceivedLot(f.ctx, po.ID, lot); err != nil {

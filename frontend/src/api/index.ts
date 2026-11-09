@@ -580,6 +580,7 @@ export interface PurchaseOrder {
   closedAt?: string
   closedBy?: string
   closeReason?: string
+  closeCause?: 'SUPPLIER' | 'INTERNAL' | 'UNKNOWN'
   scheduleStatus?: 'UNCONFIRMED' | 'CONFIRMED' | 'ASN'
   confirmationEventId?: string
   confirmedQuantity?: number
@@ -661,7 +662,7 @@ export interface PurchaseReceipt {
 export const PurchaseOrdersApi = {
   list: () => http.get<PurchaseOrder[]>('/purchase-orders').then(r => r.data),
   create: (p: PurchaseOrder) => http.post<PurchaseOrder>('/purchase-orders', p).then(r => r.data),
-  close: (id: string, reason: string) => http.post<PurchaseOrder>(`/purchase-orders/${id}/close`, { reason }).then(r => r.data),
+  close: (id: string, cause: 'SUPPLIER' | 'INTERNAL', reason: string) => http.post<PurchaseOrder>(`/purchase-orders/${id}/close`, { cause, reason }).then(r => r.data),
   receipts: (id: string) => http.get<PurchaseReceipt[]>(`/purchase-orders/${id}/receipts`).then(r => r.data),
   supplierSchedule: (id: string) => http.get<SupplierScheduleEvent[]>(`/purchase-orders/${id}/supplier-schedule`).then(r => r.data),
   addSupplierScheduleEvent: (id: string, event: {

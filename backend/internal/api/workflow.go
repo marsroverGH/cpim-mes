@@ -120,7 +120,7 @@ func (h *server) receivePurchase(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, res)
 }
 
-// POST /api/purchase-orders/{id}/close  body: {"reason":"..."}
+// POST /api/purchase-orders/{id}/close  body: {"cause":"SUPPLIER|INTERNAL","reason":"..."}
 func (h *server) closePurchase(w http.ResponseWriter, r *http.Request) {
 	id, err := parseUUID(r, "id")
 	if err != nil {
@@ -128,6 +128,7 @@ func (h *server) closePurchase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
+		Cause  string `json:"cause"`
 		Reason string `json:"reason"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -139,7 +140,7 @@ func (h *server) closePurchase(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 401, err)
 		return
 	}
-	po, err := h.s.Purchases.Close(r.Context(), id, body.Reason, actor)
+	po, err := h.s.Purchases.Close(r.Context(), id, body.Cause, body.Reason, actor)
 	if err != nil {
 		writeError(w, 500, err)
 		return

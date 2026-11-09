@@ -301,9 +301,14 @@ func (s *PurchaseService) Create(ctx context.Context, p *domain.PurchaseOrder) e
 
 // Close ends a purchase order that will not be received in full. Its remaining
 // quantity stops counting as supply, and a closed order cannot be reopened.
-func (s *PurchaseService) Close(ctx context.Context, id uuid.UUID, reason string, actor PurchaseReceiptActor) (*domain.PurchaseOrder, error) {
+// cause is SUPPLIER (counts against the supplier's on-time rate) or INTERNAL.
+func (s *PurchaseService) Close(ctx context.Context, id uuid.UUID, cause, reason string, actor PurchaseReceiptActor) (*domain.PurchaseOrder, error) {
 	if err := actor.validate(); err != nil {
 		return nil, err
+	}
+	cause = strings.ToUpper(strings.TrimSpace(cause))
+	if cause != "SUPPLIER" && cause != "INTERNAL" {
+		return nil, domain.NewBadRequest("cause must be SUPPLIER or INTERNAL", nil)
 	}
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -327,8 +332,8 @@ func (s *PurchaseService) Close(ctx context.Context, id uuid.UUID, reason string
 		return nil, domain.NewConflict(fmt.Sprintf("PO cannot be closed in status %s", status))
 	}
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason=$3 WHERE id=$1`,
-		id, actor.UserID, reason); err != nil {
+		`UPDATE purchase_orders SET status='CLOSED', closed_by_user_id=$2, close_reason=$3, close_cause=$4 WHERE id=$1`,
+		id, actor.UserID, reason, cause); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {

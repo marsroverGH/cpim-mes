@@ -5,12 +5,13 @@ Candidate: v0.44.0-rc.1
 Target GA release: v0.44.0
 Baseline: v0.43.0 / 8e19d3dac2cdca82b80f71f16005e46cd09ef30c
 Scope: Migration 0044 Audit Log Append-only, Migration 0045 PO Close and NCR Cancel
-Migration range: 0001-0045
-Migration count: 45
+Migration range: 0001-0046
+Migration count: 46
 Migration 0042: Controlled Recovery Plan Execution
 Migration 0043: Quantity Column Scale
 Migration 0044: Audit Log Append-only
 Migration 0045: PO Close and NCR Cancel
+Migration 0046: PO Close Cause
 Playwright definitions: 26
 
 Candidate invariants:
