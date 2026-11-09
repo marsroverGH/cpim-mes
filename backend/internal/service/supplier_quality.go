@@ -346,3 +346,44 @@ func (s *SupplierQualityService) CloseRework(ctx context.Context, ncrID uuid.UUI
 	}
 	return &ncr, nil
 }
+
+// Cancel withdraws an OPEN or IN_REWORK NCR. The lot keeps its quality status:
+// releasing it here would bypass the admin-only USE_AS_IS disposition, so the
+// lot returns to OK through a PASS inspection.
+func (s *SupplierQualityService) Cancel(ctx context.Context, ncrID uuid.UUID, reason string, actor SupplierQualityActor) (*domain.SupplierNCR, error) {
+	if err := actor.validate(); err != nil {
+		return nil, err
+	}
+	if actor.Role != domain.RolePlanner && actor.Role != domain.RoleAdmin {
+		return nil, domain.NewForbidden("cancelling NCR requires planner/admin")
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		return nil, domain.NewBadRequest("reason is required", nil)
+	}
+	tx, err := s.db.BeginTxx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	var status string
+	if err := tx.GetContext(ctx, &status, `SELECT status FROM supplier_ncrs WHERE id=$1 FOR UPDATE`, ncrID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.NewNotFound("NCR")
+		}
+		return nil, err
+	}
+	if status != "OPEN" && status != "IN_REWORK" {
+		return nil, domain.NewConflict("NCR cannot be cancelled in status " + status)
+	}
+	var ncr domain.SupplierNCR
+	if err := tx.GetContext(ctx, &ncr, `
+		UPDATE supplier_ncrs SET status='CANCELLED',closed_by_user_id=$2,cancel_reason=$3 WHERE id=$1 RETURNING *
+	`, ncrID, actor.UserID, reason); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &ncr, nil
+}

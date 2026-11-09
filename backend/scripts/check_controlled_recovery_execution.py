@@ -12,7 +12,7 @@ def check(name,ok,detail=''): checks.append((name,bool(ok),detail))
 
 migs=sorted((root/'backend/migrations').glob('[0-9][0-9][0-9][0-9]_*.sql'))
 vers=[int(p.name[:4]) for p in migs]
-check('migration sequence is exactly 0001..0044', vers==list(range(1,45)), str(vers[-3:]))
+check('migration sequence is exactly 0001..0044', vers==list(range(1,46)), str(vers[-3:]))
 check('0042 migration exists', (root/'backend/migrations/0042_controlled_recovery_plan_execution.sql').exists())
 mig=read('backend/migrations/0042_controlled_recovery_plan_execution.sql')
 for token in [

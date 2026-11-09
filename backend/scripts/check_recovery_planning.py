@@ -111,8 +111,8 @@ for table in protected_tables:
         forbidden_mutation = True
 
 checks = {
-    "44 ordered SQL migrations exist":
-        len(migration_files) == 44,
+    "45 ordered SQL migrations exist":
+        len(migration_files) == 45,
 
     "0041 migration exists":
         "0041: Scenario-Based Recovery Planning" in migration

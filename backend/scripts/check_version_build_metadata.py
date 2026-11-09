@@ -52,7 +52,7 @@ check("version route is outside /api auth group", router.find('r.Get("/version",
 check("version response is no-store", 'Set("Cache-Control", "no-store")' in version_handler)
 check("version response uses structured build info", "s.buildInfo" in version_handler)
 check("version handler unit test exists", "TestVersionIsPublicAndNoStore" in version_test)
-check("version handler test checks migration 42", "MigrationLatest: 44" in version_test)
+check("version handler test checks migration 42", "MigrationLatest: 45" in version_test)
 
 for label, needle in [
     ("backend Docker release arg", "ARG RELEASE_VERSION=v0.43.0"),
@@ -100,14 +100,14 @@ check("CI wait gate checks /version", "curl -fsS http://localhost:8080/version" 
 check("CI passes expected version to Playwright", "E2E_EXPECTED_VERSION" in ci)
 check("CI passes expected commit to Playwright", "E2E_EXPECTED_COMMIT" in ci)
 check("E2E calls public /version", "request.get('/version')" in e2e)
-check("E2E checks migration latest 42", "body.migrationLatest).toBe(44)" in e2e)
+check("E2E checks migration latest 42", "body.migrationLatest).toBe(45)" in e2e)
 check("E2E rejects unknown build time", "body.buildTime).not.toBe('unknown')" in e2e)
 check("Makefile Step 9 guard target", "check-version-metadata" in make)
 check("Step 9 documentation exists", "GET /version" in doc and "migrationLatest" in doc)
 
 migrations = sorted((ROOT / "backend/migrations").glob("[0-9][0-9][0-9][0-9]_*.sql"))
-check("migration count is 44", len(migrations) == 44)
-check("latest migration is 0044", bool(migrations) and migrations[-1].name.startswith("0044_"))
+check("migration count is 45", len(migrations) == 45)
+check("latest migration is 0045", bool(migrations) and migrations[-1].name.startswith("0045_"))
 check("migration 0042 present", any(p.name.startswith("0042_") for p in migrations))
 
 failed = [name for name, ok in checks if not ok]

@@ -159,7 +159,7 @@ if "pull-requests: write" in workflow or "contents: write" in workflow:
 for needle in [
     '"releaseVersion": EXPECTED_RELEASE',
     '"migrationLatest": EXPECTED_MIGRATION_LATEST',
-    '"migration0044Created": True',
+    '"migration0045Created": True',
     '"RELEASE-BUNDLE-SHA256SUMS.txt"',
     '"RELEASE-BUNDLE-MANIFEST.json"',
 ]:
@@ -171,7 +171,7 @@ for needle in [
     "blocking vulnerability remains",
     "govulncheck reachable-finding gate exit code is not zero",
     "reachable symbol-level findings",
-    "migration0044Created",
+    "migration0045Created",
 ]:
     need("scripts/verify_release_bundle.py", needle)
 
@@ -188,7 +188,7 @@ need("scripts/check_ci_dependency_policy.py", ".github/workflows/security.yml")
 # No migration or runtime dependency addition is required by Step 12.
 checks += 1
 migrations = sorted((ROOT / "backend/migrations").glob("*.sql"))
-if len(migrations) != 44 or not migrations[-1].name.startswith("0044_"):
+if len(migrations) != 45 or not migrations[-1].name.startswith("0045_"):
     errors.append(f"migration invariant failed: count={len(migrations)} latest={migrations[-1].name if migrations else 'none'}")
 checks += 1
 if not any(p.name.startswith("0042_") for p in migrations):

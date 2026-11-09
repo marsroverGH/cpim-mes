@@ -15,7 +15,7 @@ The endpoint is unauthenticated and returns only non-secret build identity:
   "version": "v0.43.0",
   "commit": "0123456789abcdef0123456789abcdef01234567",
   "buildTime": "2026-11-05T12:34:56Z",
-  "migrationLatest": 44
+  "migrationLatest": 45
 }
 ```
 
@@ -82,9 +82,9 @@ The Playwright Step 9 test calls the production Nginx endpoint and verifies:
 - expected release version
 - exact GitHub commit
 - parseable non-`unknown` UTC build time
-- `migrationLatest = 44`
+- `migrationLatest = 45`
 
-For v0.43.0 the static version guard requires Migration latest 0044 while preserving the v0.41.1 build-metadata architecture.
+For v0.43.0 the static version guard requires Migration latest 0045 while preserving the v0.41.1 build-metadata architecture.
 
 ## Local development
 

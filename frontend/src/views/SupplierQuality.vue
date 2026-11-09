@@ -57,6 +57,7 @@
             <template #item.actions="{ item }">
               <v-btn v-if="canDisposition && item.status === 'OPEN'" size="x-small" variant="tonal" @click.stop="openDisposition(item)">Disposition</v-btn>
               <v-btn v-if="canDisposition && item.status === 'IN_REWORK'" size="x-small" variant="tonal" color="success" @click.stop="closeRework(item)">Rework完了</v-btn>
+              <v-btn v-if="canDisposition && (item.status === 'OPEN' || item.status === 'IN_REWORK')" size="x-small" variant="text" color="error" @click.stop="openCancel(item)">取消</v-btn>
             </template>
           </v-data-table>
         </v-card>
@@ -78,6 +79,18 @@
         </v-card>
       </v-window-item>
     </v-window>
+
+    <v-dialog v-model="cancelDialog" max-width="560">
+      <v-card :title="`NCR取消 - ${selectedNcr?.ncrNo || ''}`">
+        <v-card-text>
+          <v-alert type="warning" variant="tonal" density="compact" class="mb-3">
+            取り消すと元に戻せません。ロットの品質状態は変わりません。使用可能に戻すには、合格（PASS）の検査を記録してください。
+          </v-alert>
+          <v-textarea v-model="cancelReason" label="理由（必須）" rows="3" />
+        </v-card-text>
+        <v-card-actions><v-spacer /><v-btn @click="cancelDialog=false">キャンセル</v-btn><v-btn color="error" :disabled="!cancelReason.trim()" @click="applyCancel">取り消す</v-btn></v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <v-dialog v-model="ncrDialog" max-width="620">
       <v-card title="Supplier NCR 起票">
@@ -152,6 +165,8 @@ const history = ref<SupplierNCRHistory[]>([])
 const ncrStatusFilter = ref('')
 const selectedNcr = ref<SupplierNCR | null>(null)
 const ncrDialog = ref(false)
+const cancelDialog = ref(false)
+const cancelReason = ref('')
 const dispositionDialog = ref(false)
 const profileDialog = ref(false)
 const historyDialog = ref(false)
@@ -212,6 +227,12 @@ async function applyDisposition() {
 async function closeRework(n: SupplierNCR) {
   try { await SupplierQualityApi.closeRework(n.id); await loadAll(); notify('REWORK NCRを閉じました') }
   catch(e:any){ notify(e?.response?.data?.message || e.message || 'NCR Close失敗','error') }
+}
+function openCancel(n: SupplierNCR) { selectedNcr.value=n; cancelReason.value=''; cancelDialog.value=true }
+async function applyCancel() {
+  if (!selectedNcr.value || !cancelReason.value.trim()) return
+  try { await SupplierQualityApi.cancel(selectedNcr.value.id, cancelReason.value); cancelDialog.value=false; await loadAll(); notify('NCRを取り消しました') }
+  catch(e:any){ notify(e?.response?.data?.message || e.message || 'NCR取消失敗','error') }
 }
 function openNewProfile() {
   editingSupplier.value=''

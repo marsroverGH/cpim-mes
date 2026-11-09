@@ -126,6 +126,10 @@ type PurchaseOrder struct {
 	ExpectedDeliveryDate    *time.Time `db:"expected_delivery_date" json:"expectedDeliveryDate,omitempty"`
 	ScheduleSource          string     `db:"schedule_source"   json:"scheduleSource"`
 	ReliabilitySampleCount  int        `db:"reliability_sample_count" json:"reliabilitySampleCount"`
+	ClosedAt                *time.Time `db:"closed_at"         json:"closedAt,omitempty"`
+	ClosedByUserID          *uuid.UUID `db:"closed_by_user_id" json:"closedByUserId,omitempty"`
+	ClosedBy                string     `db:"closed_by"         json:"closedBy,omitempty"`
+	CloseReason             string     `db:"close_reason"      json:"closeReason,omitempty"`
 	ReliabilityOnTimeRate   float64    `db:"reliability_on_time_rate" json:"reliabilityOnTimeRate"`
 	ReliabilityP90Days      float64    `db:"reliability_p90_days" json:"reliabilityP90Days"`
 	RecommendedLeadTimeDays int        `db:"recommended_lead_time_days" json:"recommendedLeadTimeDays"`
@@ -1730,6 +1734,7 @@ type SupplierNCR struct {
 	ClosedByUserID    *uuid.UUID `db:"closed_by_user_id"   json:"closedByUserId,omitempty"`
 	ClosedBy          string     `db:"closed_by"           json:"closedBy"`
 	ClosedAt          *time.Time `db:"closed_at"           json:"closedAt,omitempty"`
+	CancelReason      string     `db:"cancel_reason"       json:"cancelReason,omitempty"`
 	ItemCode          string     `db:"item_code"           json:"itemCode,omitempty"`
 	ItemName          string     `db:"item_name"           json:"itemName,omitempty"`
 	LotNo             string     `db:"lot_no"              json:"lotNo,omitempty"`
