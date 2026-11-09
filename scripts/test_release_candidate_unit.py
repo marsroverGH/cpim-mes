@@ -71,8 +71,8 @@ def main() -> int:
         result = base / "FINAL-CLEAN-ROOM-RESULT.json"
         result.write_text(json.dumps({
             "schemaVersion": 1,
-            "candidateVersion": "v0.43.0-rc.9",
-            "targetRelease": "v0.43.0",
+            "candidateVersion": "v0.44.0-rc.9",
+            "targetRelease": "v0.44.0",
             "gitCommit": "a" * 40,
             "buildTime": "2026-11-06T00:00:00Z",
             "status": "PASS",
@@ -85,12 +85,12 @@ def main() -> int:
         }, indent=2) + "\n", encoding="utf-8")
 
         rc = base / "rc"
-        run("python3", "scripts/build_release_candidate_bundle.py", "--clean-room-result", str(result), "--security-bundle", str(sec), "--output", str(rc), "--commit", "a" * 40, "--build-time", "2026-11-06T00:00:00Z", "--candidate", "v0.43.0-rc.9")
+        run("python3", "scripts/build_release_candidate_bundle.py", "--clean-room-result", str(result), "--security-bundle", str(sec), "--output", str(rc), "--commit", "a" * 40, "--build-time", "2026-11-06T00:00:00Z", "--candidate", "v0.44.0-rc.9")
         run("python3", "scripts/verify_release_candidate_bundle.py", str(rc))
 
-        source = rc / "cpim-mes-v0.43.0-rc.9-source.tar.gz"
+        source = rc / "cpim-mes-v0.44.0-rc.9-source.tar.gz"
         with tarfile.open(source, "r:gz") as tf:
-            member = tf.getmember("cpim-mes-v0.43.0-rc.9/scripts/final_clean_room_release_gate.sh")
+            member = tf.getmember("cpim-mes-v0.44.0-rc.9/scripts/final_clean_room_release_gate.sh")
             if member.mode & 0o111 == 0:
                 raise AssertionError("source archive lost executable mode on final clean-room script")
 

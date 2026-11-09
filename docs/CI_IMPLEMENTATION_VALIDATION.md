@@ -1,6 +1,6 @@
 # Dependency Lock / CI / Release-Gate Validation
 
-This document reflects the **v0.43.0 Release Candidate** state. Earlier pre-lockfile bootstrap notes are obsolete.
+This document reflects the **v0.44.0 Release Candidate** state. Earlier pre-lockfile bootstrap notes are obsolete.
 
 ## Locked dependency state
 
@@ -42,7 +42,7 @@ npm      11.19.0
 8. forced 0041 FAILED-run persistence;
 9. live logical backup/restore drill.
 
-GitHub-maintained Actions in the v0.43.0 RC workflows are exact-release pinned rather than floating major aliases. Checkout credentials are not persisted where a workflow executes repository code.
+GitHub-maintained Actions in the v0.44.0 RC workflows are exact-release pinned rather than floating major aliases. Checkout credentials are not persisted where a workflow executes repository code.
 
 ## Security CI
 
@@ -58,7 +58,7 @@ A scanner/network/tool failure is a **failure**, not a skipped release condition
 
 ## Final clean-room Release Candidate gate
 
-`.github/workflows/release-candidate.yml` is the promotion gate for `v0.43.0-rc.N`. It intentionally performs the critical checks again in one clean-room run rather than inferring release readiness from separate earlier jobs.
+`.github/workflows/release-candidate.yml` is the promotion gate for `v0.44.0-rc.N`. It intentionally performs the critical checks again in one clean-room run rather than inferring release readiness from separate earlier jobs.
 
 The workflow runs `scripts/final_clean_room_release_gate.sh`, which requires:
 

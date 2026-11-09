@@ -16,7 +16,7 @@ env:
   GO_VERSION: '1.26.10'
   NODE_VERSION: '24.20.0'
   NPM_VERSION: '11.19.0'
-  RELEASE_VERSION: 'v0.43.0'
+  RELEASE_VERSION: 'v0.44.0'
 
 jobs:
   dependency-locks:

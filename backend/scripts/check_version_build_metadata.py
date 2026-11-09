@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static guard for v0.43.0 Step 9 — Version / Build Metadata."""
+"""Static guard for v0.44.0 Step 9 — Version / Build Metadata."""
 from __future__ import annotations
 
 import json
@@ -37,7 +37,7 @@ app = text("frontend/src/App.vue")
 doc = text("docs/VERSION_BUILD_METADATA.md")
 
 check("buildinfo package exists", "package buildinfo" in buildinfo)
-check("buildinfo release default is development-marked", 'Version   = "v0.43.0-dev"' in buildinfo)
+check("buildinfo release default is development-marked", 'Version   = "v0.44.0-dev"' in buildinfo)
 check("buildinfo commit default is unknown", 'Commit    = "unknown"' in buildinfo)
 check("buildinfo build time default is unknown", 'BuildTime = "unknown"' in buildinfo)
 check("buildinfo JSON version field", 'json:"version"' in buildinfo)
@@ -55,7 +55,7 @@ check("version handler unit test exists", "TestVersionIsPublicAndNoStore" in ver
 check("version handler test checks migration 42", "MigrationLatest: 45" in version_test)
 
 for label, needle in [
-    ("backend Docker release arg", "ARG RELEASE_VERSION=v0.43.0"),
+    ("backend Docker release arg", "ARG RELEASE_VERSION=v0.44.0"),
     ("backend Docker commit arg", "ARG VCS_REF=unknown"),
     ("backend Docker build time arg", "ARG BUILD_TIME=unknown"),
     ("backend ldflag version", "buildinfo.Version=${RELEASE_VERSION}"),
@@ -68,7 +68,7 @@ for label, needle in [
     check(label, needle in backend_docker)
 
 for label, needle in [
-    ("frontend Docker release arg", "ARG RELEASE_VERSION=v0.43.0"),
+    ("frontend Docker release arg", "ARG RELEASE_VERSION=v0.44.0"),
     ("frontend VITE version injection", "VITE_APP_VERSION=${RELEASE_VERSION}"),
     ("frontend VITE commit injection", "VITE_APP_COMMIT=${VCS_REF}"),
     ("frontend VITE build time injection", "VITE_APP_BUILD_TIME=${BUILD_TIME}"),
@@ -81,18 +81,18 @@ check("frontend build-info source exists", "frontendBuildInfo" in frontend_info)
 check("frontend shows release version", "frontendBuildInfo.version" in app)
 check("Nginx proxies root /version", "location = /version" in nginx and "proxy_pass http://backend:8080/version;" in nginx)
 
-check("production backend receives release build args", prod.count("RELEASE_VERSION: ${RELEASE_VERSION:-v0.43.0}") >= 2)
+check("production backend receives release build args", prod.count("RELEASE_VERSION: ${RELEASE_VERSION:-v0.44.0}") >= 2)
 check("production receives VCS ref build args", prod.count("VCS_REF: ${VCS_REF:-unknown}") >= 2)
 check("production receives build time args", prod.count("BUILD_TIME: ${BUILD_TIME:-unknown}") >= 2)
 
 for manifest in ["frontend/package.json", "e2e/package.json"]:
     data = json.loads(text(manifest))
-    check(f"{manifest} version 0.43.0", data.get("version") == "0.43.0")
+    check(f"{manifest} version 0.44.0", data.get("version") == "0.44.0")
 for lock in ["frontend/package-lock.json", "e2e/package-lock.json"]:
     data = json.loads(text(lock))
-    check(f"{lock} root version 0.43.0", data.get("version") == "0.43.0" and data.get("packages", {}).get("", {}).get("version") == "0.43.0")
+    check(f"{lock} root version 0.44.0", data.get("version") == "0.44.0" and data.get("packages", {}).get("", {}).get("version") == "0.44.0")
 
-check("CI declares release version", "RELEASE_VERSION: 'v0.43.0'" in ci)
+check("CI declares release version", "RELEASE_VERSION: 'v0.44.0'" in ci)
 check("CI injects Git SHA", 'echo "VCS_REF=${GITHUB_SHA}"' in ci)
 check("CI injects UTC build time", "date -u +'%Y-%m-%dT%H:%M:%SZ'" in ci)
 check("CI runs Step 9 static guard", "check_version_build_metadata.py" in ci)

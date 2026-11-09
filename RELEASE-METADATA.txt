@@ -1,11 +1,11 @@
-CPIM-MES v0.43.0 Quantity Precision
-===================================
+CPIM-MES v0.44.0 Order Closure and Audit Integrity
+==================================================
 
-Baseline release: v0.42.1
-Baseline GA commit: 7bd2d65c91e41e765ddb0ccbd41dafd5d246770d
-Target release: v0.43.0 Quantity Precision
-Release type: minor (Migration 0043)
-Implemented scope: Migration 0043 Quantity Column Scale
+Baseline release: v0.43.0
+Baseline GA commit: 8e19d3dac2cdca82b80f71f16005e46cd09ef30c
+Target release: v0.44.0 Order Closure and Audit Integrity
+Release type: minor (Migrations 0044-0045)
+Implemented scope: Migration 0044 Audit Log Append-only, Migration 0045 PO Close and NCR Cancel
 Migration range: 0001-0045
 Migration count: 45
 Migration latest: 0045
@@ -14,6 +14,16 @@ Migration 0043: Quantity Column Scale
 Migration 0044: Audit Log Append-only
 Migration 0045: PO Close and NCR Cancel
 Playwright definitions: 26
+
+0045 capabilities:
+- Planner/admin close OPEN or PARTIALLY_RECEIVED purchase orders with a required reason; closing is final
+- Remaining quantity of a closed order stops counting as MRP, ATP and pegging supply
+- Planner/admin cancel OPEN or IN_REWORK supplier NCRs with a required reason; cancelling is final
+- Cancelling an NCR leaves the lot quality status unchanged; a PASS inspection releases the lot
+- Cancelled NCRs no longer count on the supplier scorecard
+
+0044 capabilities:
+- audit_log rejects UPDATE, DELETE and TRUNCATE
 
 0043 capabilities:
 - Main quantity columns (inventory ledger, lots, BOM, item safety stock/lot size, MPS, work orders, PO, sales orders) fixed at numeric(20,9)
@@ -59,9 +69,17 @@ Critical invariant:
 
 Preserved hardening milestones:
 - Step 11 Backup / Restore / Disaster Recovery remains active with migrationLatest=45 restore verification.
-- Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.43.0.
+- Step 12 Security CI / Supply Chain remains a release-blocking gate for v0.44.0.
 
-Changes since v0.42.1:
+Changes since v0.43.0:
+- Migration 0044 makes audit_log append-only; audit write failures are logged and panicked requests are recorded
+- Migration 0045 adds closing purchase orders and cancelling supplier NCRs
+- Backend refuses to start when BUSINESS_TIMEZONE and the database app.business_timezone differ
+- docker-compose passes BUSINESS_TIMEZONE to the backend
+- Migration 0043 rehearsal script and runbook
+- OpenAPI lists every route; make ci-local runs all static guards
+
+v0.43.0 changes (since v0.42.1):
 - Migration 0043 fixes the main quantity columns at numeric(20,9)
 - Main quantity paths (MRP, inventory ledger/FIFO, work orders, PO receipts, sales orders) computed in decimal
 - Read-only SQL check for stored float artefacts
@@ -78,4 +96,4 @@ Post-import fixes already included in v0.42.0:
 - Recovery execution: preceding actions of the same execution no longer count as drift
 - Concurrency: Execute deadlock and supplier schedule retry exhaustion resolved
 - API: sanitized errors, 404 for unknown ids, 409 for key conflicts, server-generated X-Request-Id
-Release notes: docs/RELEASE_NOTES_v0.43.0.md (v0.42.1: docs/RELEASE_NOTES_v0.42.1.md, v0.42.0: docs/RELEASE_NOTES_v0.42.0.md)
+Release notes: docs/RELEASE_NOTES_v0.44.0.md (v0.43.0: docs/RELEASE_NOTES_v0.43.0.md, v0.42.1: docs/RELEASE_NOTES_v0.42.1.md, v0.42.0: docs/RELEASE_NOTES_v0.42.0.md)
