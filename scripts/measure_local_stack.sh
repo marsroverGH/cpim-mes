@@ -20,7 +20,7 @@ chmod 600 .secrets/bootstrap-admin-password
 export E2E_ADMIN_USERNAME="$BOOTSTRAP_ADMIN_USERNAME"
 export E2E_ADMIN_PASSWORD="$(cat .secrets/bootstrap-admin-password)"
 export E2E_BASE_URL="http://localhost:${CPIM_HTTP_PORT}"
-export E2E_EXPECTED_VERSION=v0.43.0
+export E2E_EXPECTED_VERSION=v0.44.0
 export E2E_EXPECTED_COMMIT="$VCS_REF"
 
 step() { echo; echo "===== $1 ($(date +%T))"; }

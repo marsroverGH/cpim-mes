@@ -10,7 +10,7 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-EXPECTED_TARGET = "v0.43.0"
+EXPECTED_TARGET = "v0.44.0"
 EXPECTED_MIGRATION = 45
 EXPECTED_E2E = 26
 

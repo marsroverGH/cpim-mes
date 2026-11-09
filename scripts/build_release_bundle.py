@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXPECTED_RELEASE = "v0.43.0"
+EXPECTED_RELEASE = "v0.44.0"
 EXPECTED_MIGRATION_LATEST = 45
 
 DEPENDENCY_FILES = [
@@ -68,7 +68,7 @@ def copy_required(src_dir: Path, dst: Path, names: list[str]) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build the CPIM-MES v0.43.0 security release bundle")
+    parser = argparse.ArgumentParser(description="Build the CPIM-MES v0.44.0 security release bundle")
     parser.add_argument("--dependency-reports", type=Path, required=True)
     parser.add_argument("--container-artifacts", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)

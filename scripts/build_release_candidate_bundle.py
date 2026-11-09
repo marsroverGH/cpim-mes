@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TARGET_RELEASE = "v0.43.0"
+TARGET_RELEASE = "v0.44.0"
 EXPECTED_MIGRATION = 45
 EXPECTED_E2E = 26
 
@@ -70,7 +70,7 @@ def deterministic_tar_gz(output: Path, entries: list[tuple[str, bytes, int]]) ->
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Build verified CPIM-MES v0.43.0 Release Candidate evidence bundle")
+    p = argparse.ArgumentParser(description="Build verified CPIM-MES v0.44.0 Release Candidate evidence bundle")
     p.add_argument("--clean-room-result", type=Path, required=True)
     p.add_argument("--security-bundle", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
@@ -80,7 +80,7 @@ def main() -> int:
     a = p.parse_args()
 
     if not re.fullmatch(r"v0\.43\.0-rc\.\d+", a.candidate):
-        raise SystemExit("ERROR: --candidate must match v0.43.0-rc.N")
+        raise SystemExit("ERROR: --candidate must match v0.44.0-rc.N")
     if a.commit != "local" and not re.fullmatch(r"[0-9a-fA-F]{40}", a.commit):
         raise SystemExit("ERROR: --commit must be 40-hex or local")
     try:
@@ -153,7 +153,7 @@ def main() -> int:
         "playwrightTests": EXPECTED_E2E,
         "sourceArchive": {"name": source_archive.name, "sha256": sha256(source_archive)},
         "securityEvidenceArchive": {"name": security_archive.name, "sha256": sha256(security_archive)},
-        "promotionRule": "Promote to v0.43.0 GA only after this Release Candidate bundle verifies successfully and no code/content changes are introduced.",
+        "promotionRule": "Promote to v0.44.0 GA only after this Release Candidate bundle verifies successfully and no code/content changes are introduced.",
     }
     (out / "RELEASE-CANDIDATE-METADATA.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
 

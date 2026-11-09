@@ -480,7 +480,7 @@ Release-blocking security gates run in `.github/workflows/security.yml`: reachab
 
 ## v0.41.1 Step 13 — Final Clean-room Release Candidate Gate
 
-The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0043` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **26 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.43.0-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
+The authoritative RC promotion workflow is `.github/workflows/release-candidate.yml`. A single ephemeral runner verifies source checksums, locked runtimes, Go race/vet/tests, all static guards, frontend production build, vulnerability/SBOM gates, an empty-volume `0001 -> 0043` migration, production network boundaries, `/version`, private observability, forced 0041 failure persistence, all **26 Playwright tests**, and the live backup/restore drill. It then builds and independently verifies a tamper-evident `v0.44.0-rc.N` bundle. See [`docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md`](./docs/FINAL_CLEAN_ROOM_RELEASE_GATE.md) and [`docs/RELEASE_CHECKLIST.md`](./docs/RELEASE_CHECKLIST.md).
 
 ## 0042 Controlled Recovery Plan Execution
 

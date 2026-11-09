@@ -7,7 +7,7 @@ import json
 import re
 from pathlib import Path
 
-EXPECTED_RELEASE = "v0.43.0"
+EXPECTED_RELEASE = "v0.44.0"
 EXPECTED_MIGRATION_LATEST = 45
 REQUIRED_SBOMS = {
     "SBOM.spdx.json",
@@ -126,7 +126,7 @@ def verify_security_metadata(root: Path) -> None:
 def verify_release_metadata(root: Path) -> None:
     text = (root / "RELEASE-METADATA.txt").read_text(encoding="utf-8")
     for needle in (
-        "Target release: v0.43.0 Quantity Precision",
+        "Target release: v0.44.0 Order Closure and Audit Integrity",
         "Migration count: 45",
         "Migration 0042: Controlled Recovery Plan Execution",
         "Migration 0043: Quantity Column Scale",

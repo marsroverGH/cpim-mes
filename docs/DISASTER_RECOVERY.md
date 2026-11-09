@@ -1,6 +1,6 @@
 # Disaster Recovery / PITR Runbook
 
-This runbook covers CPIM-MES v0.43.0 recovery planning. It complements `BACKUP_RESTORE.md`.
+This runbook covers CPIM-MES v0.44.0 recovery planning. It complements `BACKUP_RESTORE.md`.
 
 ## 1. Recovery objectives are business decisions
 
@@ -97,7 +97,7 @@ Use a **new PostgreSQL instance/data directory**. Never experiment on the only c
 16. Resume writes only after approval.
 ```
 
-For this release, a valid recovered CPIM-MES v0.43.0 database must have:
+For this release, a valid recovered CPIM-MES v0.44.0 database must have:
 
 ```text
 schema_migrations count = 45
