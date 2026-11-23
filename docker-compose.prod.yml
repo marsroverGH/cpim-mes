@@ -9,7 +9,7 @@ services:
   migrate:
     build:
       args:
-        RELEASE_VERSION: ${RELEASE_VERSION:-v0.44.0}
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.45.0}
         VCS_REF: ${VCS_REF:-unknown}
         BUILD_TIME: ${BUILD_TIME:-unknown}
     environment:
@@ -22,7 +22,7 @@ services:
   backend:
     build:
       args:
-        RELEASE_VERSION: ${RELEASE_VERSION:-v0.44.0}
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.45.0}
         VCS_REF: ${VCS_REF:-unknown}
         BUILD_TIME: ${BUILD_TIME:-unknown}
     restart: unless-stopped
@@ -47,7 +47,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        RELEASE_VERSION: ${RELEASE_VERSION:-v0.44.0}
+        RELEASE_VERSION: ${RELEASE_VERSION:-v0.45.0}
         VCS_REF: ${VCS_REF:-unknown}
         BUILD_TIME: ${BUILD_TIME:-unknown}
     ports:

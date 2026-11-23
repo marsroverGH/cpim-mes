@@ -1,10 +1,10 @@
-CPIM-MES v0.44.0 Release Candidate
+CPIM-MES v0.45.0 Release Candidate
 ==================================
 
-Candidate: v0.44.0-rc.1
-Target GA release: v0.44.0
-Baseline: v0.43.0 / 8e19d3dac2cdca82b80f71f16005e46cd09ef30c
-Scope: Migration 0044 Audit Log Append-only, Migration 0045 PO Close and NCR Cancel
+Candidate: v0.45.0-rc.1
+Target GA release: v0.45.0
+Baseline: v0.44.0 / d5f0d109e2e506d61c46305e108cb1500c3c61f7
+Scope: Least-privilege application database role, Migration 0046 PO Close Cause
 Migration range: 0001-0046
 Migration count: 46
 Migration 0042: Controlled Recovery Plan Execution
@@ -23,10 +23,11 @@ Candidate invariants:
 - Per-action operational mutation and execution evidence are transactionally coupled.
 - Main quantity columns are numeric(20,9); the ledger reconciles after the upgrade rounding.
 - audit_log is append-only; closed purchase orders and cancelled NCRs are final.
+- The backend connects as cpim_app, which cannot alter the schema, disable triggers or change audit_log rows.
 - Production security, observability, supply-chain and backup/restore gates remain mandatory.
 
 Authoritative promotion gate:
   .github/workflows/release-candidate.yml
   -> scripts/final_clean_room_release_gate.sh
 
-Release notes: docs/RELEASE_NOTES_v0.44.0.md
+Release notes: docs/RELEASE_NOTES_v0.45.0.md
