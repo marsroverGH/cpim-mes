@@ -43,7 +43,7 @@ func TestTracerExportsOTLPHTTPJSON(t *testing.T) {
 		ServiceName: "cpim-mes-backend",
 		Environment: "test",
 		BuildInfo: buildinfo.Info{
-			Version: "v0.44.0",
+			Version: "v0.45.0",
 			Commit:  "abc123",
 		},
 	}, reg)
